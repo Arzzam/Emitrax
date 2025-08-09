@@ -1,64 +1,64 @@
 name: 🚀 Build and Deploy React App to Hostinger via FTP
 
 on:
-  push:
-    branches: ['*']  
-  pull_request:
-    branches: ['*']  
-  workflow_dispatch:  
+    push:
+        branches: ['*']
+    pull_request:
+        branches: ['*']
+    workflow_dispatch:
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: ⬇️ Checkout repository
-        uses: actions/checkout@v4
+    build:
+        runs-on: ubuntu-latest
 
-      - name: 🛠 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'yarn'
+        steps:
+            - name: ⬇️ Checkout repository
+              uses: actions/checkout@v4
 
-      - name: 📦 Install dependencies
-        run: yarn install --frozen-lockfile
+            - name: 🛠 Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'yarn'
 
-      - name: 🏗 Build project
-        run: yarn build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
-          VITE_OAUTH_REDIRECT_URL: ${{ secrets.VITE_OAUTH_REDIRECT_URL }}
+            - name: 📦 Install dependencies
+              run: yarn install --frozen-lockfile
 
-      - name: 📁 Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-files
-          path: dist/
-          retention-days: 1
+            - name: 🏗 Build project
+              run: yarn build
+              env:
+                  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+                  VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+                  VITE_OAUTH_REDIRECT_URL: ${{ secrets.VITE_OAUTH_REDIRECT_URL }}
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    
-    steps:
-      - name: 📁 Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-files
-          path: dist/
+            - name: 📁 Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: dist-files
+                  path: dist/
+                  retention-days: 1
 
-      - name: 🚀 Deploy to Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: dist/
-          server-dir: ${{ secrets.FTP_TARGET_DIR }}/
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+
+        steps:
+            - name: 📁 Download build artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  name: dist-files
+                  path: dist/
+
+            - name: 🚀 Deploy to Hostinger via FTP
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+              with:
+                  server: ${{ secrets.FTP_HOST }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  local-dir: dist/
+                  server-dir: ${{ secrets.FTP_TARGET_DIR }}/

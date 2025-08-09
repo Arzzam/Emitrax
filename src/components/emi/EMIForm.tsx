@@ -16,6 +16,8 @@ import { Button } from '../ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import CustomCalendar from '../calender/CustomCalender';
 import ToolTipWrapper from '../common/TooltipWrapper';
+import { Combobox } from '../ui/combobox';
+import { useUniqueTagsOptions } from '@/hooks/useStats';
 
 const formSchema = z
     .object({
@@ -65,6 +67,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
     const { mutate: updateEmi } = useUpdateEmi();
     const { mutate: addEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
+    const uniqueTags = useUniqueTagsOptions();
 
     const isEdit = !!data;
 
@@ -79,11 +82,16 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             interestDiscount: data?.interestDiscount || undefined,
             interestDiscountType: data?.interestDiscountType || 'percent',
             gst: data?.gst || undefined,
-            tag: data?.tag || 'Personal',
+            tag: data?.tag || '',
         },
     });
 
     function onSubmit(values: TFormValues) {
+        // Default empty tag to Personal
+        if (!values.tag) {
+            values.tag = 'Personal';
+        }
+
         console.log(values);
         const calculatedValues = calculateEMI(values, data?.id);
 
@@ -134,13 +142,19 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         <FormItem>
                             <div className="flex flex-row gap-2">
                                 <FormLabel>Category Tag</FormLabel>
-                                <ToolTipWrapper content="Use tags to categorize EMIs (e.g., Personal, Friend: John, etc.)">
+                                <ToolTipWrapper content="Select from existing categories or type to create a new one">
                                     <Tag className="w-4 h-4" />
                                 </ToolTipWrapper>
                             </div>
-                            <FormControl>
-                                <Input placeholder="e.g., Personal, Friend: John" {...field} />
-                            </FormControl>
+                            <Combobox
+                                options={uniqueTags}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Select a category"
+                                emptyMessage="No categories found."
+                                isForm={true}
+                                allowCreate={true}
+                            />
                             <FormMessage />
                         </FormItem>
                     )}
