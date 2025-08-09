@@ -1,0 +1,22 @@
+{
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true
+    },
+    "deno.enablePaths": ["supabase/functions"],
+    "deno.lint": true,
+    "deno.enable": true,
+    "deno.unstable": ["Deno", "Deno.env", "Deno.cwd", "Deno.run"]
+}

@@ -93,7 +93,7 @@ export const useAutoRecalculateEmis = () => {
         if (!isEqual(emiData.map(stripComparisonFields), recalculatedEmis.map(stripComparisonFields))) {
             mutate(recalculatedEmis);
         }
-    }, [emiData]);
+    }, [emiData, isLoading, lastCheckDate, mutate, setLastUpdateAt]);
 
     const recalculateNow = () => {
         if (!emiData || !emiData.length) return;

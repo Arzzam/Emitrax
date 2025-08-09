@@ -11,7 +11,8 @@ import { Card, CardContent, CardTitle } from '../ui/card';
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();
 
-    const { id, itemName, billDate, endDate, emi, isCompleted, tag } = props;
+    const { id, itemName, billDate, endDate, emi, isCompleted, tag, amortizationSchedules, tenure, remainingTenure } =
+        props;
     const isPersonal = !tag || tag === 'Personal';
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
@@ -29,6 +30,8 @@ const EMICard = (props: IEmi) => {
     const handleClick = () => {
         navigate(`/emi/${id}`);
     };
+
+    const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
 
     return (
         <Card
@@ -60,7 +63,7 @@ const EMICard = (props: IEmi) => {
                         </div>
                         <span className="flex items-center text-base text-end">
                             {`\u20B9`}
-                            {formatAmount(emi)}
+                            {formatAmount(emiWithGST)}
                         </span>
                     </div>
                     <div className="flex flex-row justify-between text-muted-foreground tracking-wide">

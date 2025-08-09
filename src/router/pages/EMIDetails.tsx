@@ -74,6 +74,7 @@ const EMIDetails = () => {
         interestDiscount,
         interestDiscountType,
         tag,
+        amortizationSchedules,
     } = currentData;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
@@ -92,6 +93,8 @@ const EMIDetails = () => {
         mutate(currentData.id);
         navigate('/');
     };
+
+    const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
 
     return (
         <>
@@ -144,7 +147,7 @@ const EMIDetails = () => {
                                 <IndianRupee className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">₹{formatAmount(emi)}</div>
+                                <div className="text-2xl font-bold">₹{formatAmount(emiWithGST)}</div>
                                 <p className="text-xs text-muted-foreground">Next due on {formattedBillDate}</p>
                             </CardContent>
                         </Card>

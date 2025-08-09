@@ -2,6 +2,19 @@ import { useMemo } from 'react';
 
 import { IEmi } from '@/types/emi.types';
 import { TFilterOptions } from '@/components/filter/FilterOptions';
+import { useEmis } from './useEmi';
+import { TComboboxOption } from '@/components/ui/combobox';
+
+export const useUniqueTagsOptions = (): TComboboxOption[] => {
+    const { data: emiData } = useEmis();
+    const tagOptions = useMemo(() => {
+        const defaultTags = ['Personal'];
+        const uniqueTags = [...new Set([...defaultTags, ...(emiData?.map((emi) => emi.tag || 'Personal') || [])])];
+        return uniqueTags.map((tag) => ({ value: tag, label: tag }));
+    }, [emiData]);
+
+    return tagOptions;
+};
 
 const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string) => {
     // Calculate statistics

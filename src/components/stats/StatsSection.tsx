@@ -101,9 +101,10 @@ const StatsSection = ({
                                     <div className="flex flex-col">
                                         <span className="font-medium">{filters.tag}</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {filteredStatistics.activeEMIs} active EMIs, ₹
-                                            {formatAmount(filteredStatistics.totalMonthlyPayment)}
-                                            /month
+                                            {filteredStatistics.activeEMIs} active EMIs,{' '}
+                                            {filteredStatistics.activeEMIs > 0
+                                                ? `₹${formatAmount(filteredStatistics.totalMonthlyPayment)} /month`
+                                                : 'N/A'}
                                         </span>
                                     </div>
                                     <Button
@@ -144,13 +145,17 @@ const StatsSection = ({
                                                 <div>
                                                     <p className="text-muted-foreground">Monthly</p>
                                                     <p className="font-medium">
-                                                        ₹{formatAmount(tagStats.totalMonthlyPayment)}
+                                                        {tagStats.activeEMIs > 0
+                                                            ? `₹${formatAmount(tagStats.totalMonthlyPayment)} /month`
+                                                            : 'N/A'}
                                                     </p>
                                                 </div>
                                                 <div className="col-span-2">
                                                     <p className="text-muted-foreground">Outstanding</p>
                                                     <p className="font-medium">
-                                                        ₹{formatAmount(tagStats.totalRemainingBalance)}
+                                                        {tagStats.activeEMIs > 0
+                                                            ? `₹${formatAmount(tagStats.totalRemainingBalance)}`
+                                                            : 'N/A'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -203,10 +208,14 @@ const StatsSection = ({
                                                 <td className="text-center py-2">{tagStats.totalEMIs}</td>
                                                 <td className="text-center py-2">{tagStats.activeEMIs}</td>
                                                 <td className="text-right py-2">
-                                                    ₹{formatAmount(tagStats.totalMonthlyPayment)}
+                                                    {tagStats.activeEMIs > 0
+                                                        ? `₹${formatAmount(tagStats.totalMonthlyPayment)}`
+                                                        : 'N/A'}
                                                 </td>
                                                 <td className="text-right py-2">
-                                                    ₹{formatAmount(tagStats.totalRemainingBalance)}
+                                                    {tagStats.activeEMIs > 0
+                                                        ? `₹${formatAmount(tagStats.totalRemainingBalance)}`
+                                                        : 'N/A'}
                                                 </td>
                                             </tr>
                                         );
