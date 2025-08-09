@@ -1,10 +1,21 @@
-import { TFormValues } from '@/components/emi/EMIForm';
-import { IEmi, ScheduleData } from '@/types/emi.types';
-import { addMonths, format, isBefore } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { addMonths, format, isBefore } from 'date-fns';
+
+import { IEmi, ScheduleData } from '@/types/emi.types';
+import { TFormValues } from '@/components/emi/EMIForm';
 
 export const calculateEMI = (
-    { principal, interestRate, tenure, billDate, itemName, interestDiscount, interestDiscountType, gst }: TFormValues,
+    {
+        principal,
+        interestRate,
+        tenure,
+        billDate,
+        itemName,
+        interestDiscount,
+        interestDiscountType,
+        gst,
+        tag,
+    }: TFormValues,
     id?: string
 ): IEmi => {
     const P = principal;
@@ -19,7 +30,7 @@ export const calculateEMI = (
         emiValue = Number(emiValue.toFixed(2));
     }
 
-    const { scheduleData, totalInterest } = calculateAmortizationSchedule({
+    const { scheduleData, totalInterest, totalGST } = calculateAmortizationSchedule({
         principal: P,
         n,
         r,
@@ -38,8 +49,6 @@ export const calculateEMI = (
         }
         return acc;
     }, 0);
-
-    const totalGST = Number(((totalInterest * (gst || 0)) / 100).toFixed(2));
 
     const payload: IEmi = {
         id: id ? id : uuidv4(),
@@ -60,7 +69,8 @@ export const calculateEMI = (
         amortizationSchedules: scheduleData,
         isCompleted: remainingMonths === 0,
         gst: gst || 0,
-        totalGST: totalGST,
+        totalGST: Number(totalGST.toFixed(2)),
+        tag: tag || 'Personal',
     };
 
     return payload;
@@ -89,12 +99,15 @@ export const calculateAmortizationSchedule = ({
     const scheduleData: ScheduleData[] = [];
     let totalInterest = 0;
     let lastPaymentDate = billDate;
+    let totalGST = 0;
 
     for (let i = 1; i <= n; i++) {
         const interest = remaining * r;
         const principalPaid = emiValue - interest;
         remaining -= principalPaid;
         totalInterest += interest;
+        const gstAmount = Number(((interest * gst) / 100).toFixed(2));
+        totalGST += gstAmount;
 
         scheduleData.push({
             month: i,
@@ -103,7 +116,7 @@ export const calculateAmortizationSchedule = ({
             interest: interest.toFixed(2),
             principalPaid: principalPaid.toFixed(2),
             balance: remaining.toFixed(2),
-            gst: Number(((interest * gst) / 100).toFixed(2)),
+            gst: gstAmount,
         });
 
         lastPaymentDate = addMonths(lastPaymentDate, 1);
@@ -114,6 +127,7 @@ export const calculateAmortizationSchedule = ({
     return {
         scheduleData,
         totalInterest: totalInterestWithDiscount,
+        totalGST,
     };
 };
 

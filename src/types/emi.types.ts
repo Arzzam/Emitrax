@@ -18,6 +18,7 @@ export interface IEmi {
     endDate: Date;
     isCompleted: boolean;
     amortizationSchedules: ScheduleData[];
+    tag?: string;
 }
 
 export interface ScheduleData {

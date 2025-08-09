@@ -1,50 +1,63 @@
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { format } from 'date-fns';
+import { CalendarIcon, IndianRupee, Info, PercentIcon, Tag } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { calculateEMI } from '@/utils/calculation';
+import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
+import { IEmi } from '@/types/emi.types';
+
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { CalendarIcon, IndianRupee, Info, PercentIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import CustomCalendar from '../calender/CustomCalender';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useForm } from 'react-hook-form';
-import { cn } from '@/lib/utils';
-import { calculateEMI } from '@/utils/calculation';
-import { useEffect, useState } from 'react';
 import ToolTipWrapper from '../common/TooltipWrapper';
-import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
-import { IEmi } from '@/types/emi.types';
 
-const formSchema = z.object({
-    itemName: z.string().min(2, {
-        message: 'Item name must be at least 2 characters.',
-    }),
-    principal: z.number().min(1000, {
-        message: 'Principal amount must be at least ₹1,000.',
-    }),
-    interestRate: z.number().min(0).max(100, {
-        message: 'Interest rate must be between 1 and 100.',
-    }),
-    billDate: z.date({ message: 'Please select a bill date.' }),
-    tenure: z.number().min(1).max(360, {
-        message: 'Tenure must be between 1 and 360 months.',
-    }),
-    interestDiscount: z
-        .number()
-        .min(0)
-        .max(100, {
-            message: 'Interest discount must be between 0 and 100.',
-        })
-        .optional(),
-    interestDiscountType: z.enum(['percent', 'amount']).optional(),
-    gst: z
-        .number()
-        .min(0)
-        .max(100, {
-            message: 'GST must be between 0 and 100.',
-        })
-        .optional(),
-});
+const formSchema = z
+    .object({
+        itemName: z.string().min(2, {
+            message: 'Item name must be at least 2 characters.',
+        }),
+        principal: z.number().min(100, {
+            message: 'Principal amount must be at least ₹100.',
+        }),
+        interestRate: z.number().min(0).max(100, {
+            message: 'Interest rate must be between 1 and 100.',
+        }),
+        billDate: z.date({ message: 'Please select a bill date.' }),
+        tenure: z.number().min(1).max(360, {
+            message: 'Tenure must be between 1 and 360 months.',
+        }),
+        interestDiscountType: z.enum(['percent', 'amount']).optional(),
+        interestDiscount: z.number().optional(),
+        gst: z
+            .number()
+            .min(0)
+            .max(100, {
+                message: 'GST must be between 0 and 100.',
+            })
+            .optional(),
+        tag: z.string().optional(),
+    })
+    .refine(
+        (data) => {
+            if (data.interestDiscount === undefined) return true;
+
+            if (data.interestDiscountType === 'percent') {
+                return data.interestDiscount >= 0 && data.interestDiscount <= 100;
+            }
+
+            return data.interestDiscount >= 0;
+        },
+        {
+            message: 'Interest discount must be between 0-100% for percent type or a positive value for amount type',
+            path: ['interestDiscount'],
+        }
+    );
 
 export type TFormValues = z.infer<typeof formSchema>;
 
@@ -66,6 +79,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             interestDiscount: data?.interestDiscount || undefined,
             interestDiscountType: data?.interestDiscountType || 'percent',
             gst: data?.gst || undefined,
+            tag: data?.tag || 'Personal',
         },
     });
 
@@ -108,6 +122,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             <FormLabel>Item Name</FormLabel>
                             <FormControl>
                                 <Input placeholder="e.g., Laptop" {...field} min={0} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="tag"
+                    render={({ field }) => (
+                        <FormItem>
+                            <div className="flex flex-row gap-2">
+                                <FormLabel>Category Tag</FormLabel>
+                                <ToolTipWrapper content="Use tags to categorize EMIs (e.g., Personal, Friend: John, etc.)">
+                                    <Tag className="w-4 h-4" />
+                                </ToolTipWrapper>
+                            </div>
+                            <FormControl>
+                                <Input placeholder="e.g., Personal, Friend: John" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

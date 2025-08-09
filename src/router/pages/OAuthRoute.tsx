@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
 import { errorToast, successToast } from '@/utils/toast.utils';
 import { exchange } from '@/utils/utils';
+
+import LoadingDetails from '@/components/common/LoadingDetails';
 
 export const OAuth = () => {
     const location = useLocation();
@@ -48,11 +51,15 @@ export const OAuth = () => {
         };
 
         exchangeTokenForUser();
-    }, []);
+    }, [location.hash, navigate]);
 
     return (
-        <h2>
-            <p>Please wait, while we take you to your dashboard...</p>
-        </h2>
+        <>
+            <LoadingDetails
+                title="Authenticating..."
+                description="Please wait while we authenticate your account."
+                description2="Please wait, while we take you to your dashboard..."
+            />
+        </>
     );
 };

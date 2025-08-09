@@ -1,7 +1,7 @@
 import { RematchDispatch, RematchRootState } from '@rematch/core';
 import store from '../../store/store';
-import { IRootModel } from '../../store/IModels';
+import { RootModel } from '@/store/IModels';
 
 export type IStore = typeof store;
-export type IDispatch = RematchDispatch<IRootModel>;
-export type IRootState = RematchRootState<IRootModel>;
+export type IDispatch = RematchDispatch<RootModel>;
+export type IRootState = RematchRootState<RootModel>;

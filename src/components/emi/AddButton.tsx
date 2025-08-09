@@ -1,4 +1,7 @@
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+
+import { IEmi } from '@/types/emi.types';
+
 import {
     Dialog,
     DialogContent,
@@ -7,9 +10,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { useState } from 'react';
 import EMIForm from './EMIForm';
-import { IEmi } from '@/types/emi.types';
+import { Button } from '@/components/ui/button';
 
 const FormModal = ({ data }: { data?: IEmi }) => {
     const [isOpen, setIsOpen] = useState(false);
