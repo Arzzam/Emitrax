@@ -1,6 +1,0 @@
-template_configs:
-    - template_name: default.md
-      default: true
-    - template_name: main.md
-      branches:
-          - nafil-dev
