@@ -19,8 +19,8 @@ export interface IEmi {
     isCompleted: boolean;
     amortizationSchedules: ScheduleData[];
     tag?: string;
-    createdAt: string;
-    updatedAt: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface ScheduleData {
