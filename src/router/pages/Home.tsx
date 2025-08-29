@@ -29,8 +29,9 @@ const Home = () => {
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false);
     const [filters, setFilters] = useState<TFilterOptions>({
         status: 'all',
-        sortBy: 'updated',
+        sortBy: 'dateAdded',
         tag: 'All',
+        sortOrder: 'desc',
     });
 
     useEffect(() => {

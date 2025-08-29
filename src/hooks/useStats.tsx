@@ -116,13 +116,32 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
                 return matchesSearch && matchesStatus && matchesTag;
             })
             .sort((a, b) => {
-                switch (filters.sortBy) {
-                    case 'name':
-                        return a.itemName.localeCompare(b.itemName);
-                    case 'balance':
-                        return b.remainingBalance - a.remainingBalance;
-                    default:
-                        return 0;
+                if (filters.sortOrder === 'asc') {
+                    switch (filters.sortBy) {
+                        case 'dateAdded':
+                            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                        case 'name':
+                            return a.itemName.localeCompare(b.itemName);
+                        case 'balance':
+                            return b.remainingBalance - a.remainingBalance;
+                        case 'updated':
+                            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                        default:
+                            return 0;
+                    }
+                } else {
+                    switch (filters.sortBy) {
+                        case 'dateAdded':
+                            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                        case 'name':
+                            return b.itemName.localeCompare(a.itemName);
+                        case 'balance':
+                            return b.remainingBalance - a.remainingBalance;
+                        case 'updated':
+                            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                        default:
+                            return 0;
+                    }
                 }
             });
     }, [emiData, filters, searchQuery]);
