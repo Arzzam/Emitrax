@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { CalendarIcon, CreditCard, IndianRupee, Percent, Clock, Calculator, Receipt, Tag, Wallet } from 'lucide-react';
 
@@ -22,7 +22,7 @@ const EMIDetails = () => {
     const navigate = useNavigate();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
-    const currentData = data?.find((emi) => emi.id === id) || null;
+    const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
 
