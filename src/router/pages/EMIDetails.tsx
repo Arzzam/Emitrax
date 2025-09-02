@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { CalendarIcon, CreditCard, IndianRupee, Percent, Clock, Calculator, Receipt, Tag, Wallet } from 'lucide-react';
 
 import { formatAmount } from '@/utils/utils';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
+import { errorToast, successToast } from '@/utils/toast.utils';
 
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
@@ -21,7 +22,7 @@ const EMIDetails = () => {
     const navigate = useNavigate();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
-    const currentData = data?.find((emi) => emi.id === id) || null;
+    const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
 
@@ -90,8 +91,15 @@ const EMIDetails = () => {
     });
 
     const handleConfirmDelete = () => {
-        mutate(currentData.id);
-        navigate('/');
+        mutate(currentData.id, {
+            onSuccess: () => {
+                successToast('EMI deleted successfully');
+                navigate('/');
+            },
+            onError: () => {
+                errorToast('Failed to delete EMI');
+            },
+        });
     };
 
     const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
@@ -122,7 +130,7 @@ const EMIDetails = () => {
                                 )}
                             </div>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                <Button variant="outline" className="flex-1 sm:flex-none">
+                                <Button variant="outline" className="flex-1 sm:flex-none" asChild>
                                     <Link to={`/emi/${id}/amortization`} className="flex items-center gap-2">
                                         <Calculator className="h-4 w-4" />
                                         View Amortization

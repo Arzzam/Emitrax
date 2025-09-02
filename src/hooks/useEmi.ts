@@ -21,7 +21,7 @@ export const useEmis = (): UseQueryResult<IEmi[], Error> => {
         queryKey: ['emis'],
         enabled: !!id,
         queryFn: () => EmiService.getEmis(),
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 };
 
