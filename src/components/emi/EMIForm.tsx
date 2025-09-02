@@ -1,19 +1,23 @@
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { format } from 'date-fns';
+import { CalendarIcon, IndianRupee, Info, PercentIcon, Tag } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { calculateEMI } from '@/utils/calculation';
+import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
+import { IEmi } from '@/types/emi.types';
+
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { CalendarIcon, IndianRupee, Info, PercentIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import CustomCalendar from '../calender/CustomCalender';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useForm } from 'react-hook-form';
-import { cn } from '@/lib/utils';
-import { calculateEMI } from '@/utils/calculation';
-import { useEffect, useState } from 'react';
 import ToolTipWrapper from '../common/TooltipWrapper';
-import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
-import { IEmi } from '@/types/emi.types';
+import { Combobox } from '../ui/combobox';
+import { useUniqueTagsOptions } from '@/hooks/useStats';
 
 const formSchema = z
     .object({
@@ -39,6 +43,7 @@ const formSchema = z
                 message: 'GST must be between 0 and 100.',
             })
             .optional(),
+        tag: z.string().optional(),
     })
     .refine(
         (data) => {
@@ -62,6 +67,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
     const { mutate: updateEmi } = useUpdateEmi();
     const { mutate: addEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
+    const uniqueTags = useUniqueTagsOptions();
 
     const isEdit = !!data;
 
@@ -76,10 +82,16 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             interestDiscount: data?.interestDiscount || undefined,
             interestDiscountType: data?.interestDiscountType || 'percent',
             gst: data?.gst || undefined,
+            tag: data?.tag || '',
         },
     });
 
     function onSubmit(values: TFormValues) {
+        // Default empty tag to Personal
+        if (!values.tag) {
+            values.tag = 'Personal';
+        }
+
         console.log(values);
         const calculatedValues = calculateEMI(values, data?.id);
 
@@ -119,6 +131,30 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             <FormControl>
                                 <Input placeholder="e.g., Laptop" {...field} min={0} />
                             </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="tag"
+                    render={({ field }) => (
+                        <FormItem>
+                            <div className="flex flex-row gap-2">
+                                <FormLabel>Category Tag</FormLabel>
+                                <ToolTipWrapper content="Select from existing categories or type to create a new one">
+                                    <Tag className="w-4 h-4" />
+                                </ToolTipWrapper>
+                            </div>
+                            <Combobox
+                                options={uniqueTags}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Select a category"
+                                emptyMessage="No categories found."
+                                isForm={true}
+                                allowCreate={true}
+                            />
                             <FormMessage />
                         </FormItem>
                     )}

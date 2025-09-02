@@ -1,10 +1,11 @@
-import Layout from '@/layout/Layout';
 import { BrowserRouter, Route, Routes } from 'react-router';
-import Home from './pages/Home';
-import EMIDetails from './pages/EMIDetails';
-import { OAuth } from './pages/OAuthRoute';
-import AmortizationSchedule from './pages/AmortizationSchedule';
-import NotFoundPage from './pages/NotFoundPage';
+
+import Layout from '@/layout/Layout';
+import Home from '@/router/pages/Home';
+import EMIDetails from '@/router/pages/EMIDetails';
+import AmortizationSchedule from '@/router/pages/AmortizationSchedule';
+import NotFoundPage from '@/router/pages/NotFoundPage';
+import { OAuth } from '@/router/pages/OAuthRoute';
 
 const HomeRouter = () => {
     return (

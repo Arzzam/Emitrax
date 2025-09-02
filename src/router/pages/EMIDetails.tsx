@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
-import { Button } from '@/components/ui/button';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
-import FormModal from '@/components/emi/AddButton';
-import ConfirmationModal from '@/components/common/ConfirmationModal';
+import { CalendarIcon, CreditCard, IndianRupee, Percent, Clock, Calculator, Receipt, Tag, Wallet } from 'lucide-react';
+
 import { formatAmount } from '@/utils/utils';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { errorToast, successToast } from '@/utils/toast.utils';
+
+import MainContainer from '@/components/common/Container';
+import Header from '@/components/common/Header';
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
+import FormModal from '@/components/emi/AddButton';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, CreditCard, IndianRupee, Percent, Clock, Calculator, Receipt, Tag, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 import NotFound from '@/components/common/NotFound';
 import LoadingDetails from '@/components/common/LoadingDetails';
 
@@ -19,7 +22,7 @@ const EMIDetails = () => {
     const navigate = useNavigate();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
-    const currentData = data?.find((emi) => emi.id === id) || null;
+    const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
 
@@ -71,6 +74,8 @@ const EMIDetails = () => {
         gst,
         interestDiscount,
         interestDiscountType,
+        tag,
+        amortizationSchedules,
     } = currentData;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
@@ -86,9 +91,18 @@ const EMIDetails = () => {
     });
 
     const handleConfirmDelete = () => {
-        mutate(currentData.id);
-        navigate('/');
+        mutate(currentData.id, {
+            onSuccess: () => {
+                successToast('EMI deleted successfully');
+                navigate('/');
+            },
+            onError: () => {
+                errorToast('Failed to delete EMI');
+            },
+        });
     };
+
+    const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
 
     return (
         <>
@@ -101,14 +115,22 @@ const EMIDetails = () => {
                 <div className="flex flex-col space-y-6">
                     <Card>
                         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <h1 className="text-3xl font-bold">{itemName}</h1>
-                                <Badge variant={isCompleted ? 'success' : 'info'}>
-                                    {isCompleted ? 'Completed' : 'Active'}
-                                </Badge>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-4">
+                                    <h1 className="text-3xl font-bold">{itemName}</h1>
+                                    <Badge variant={isCompleted ? 'success' : 'info'}>
+                                        {isCompleted ? 'Completed' : 'Active'}
+                                    </Badge>
+                                </div>
+                                {tag && (
+                                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                                        <Tag className="h-3 w-3" />
+                                        <span>{tag}</span>
+                                    </Badge>
+                                )}
                             </div>
                             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                <Button variant="outline" className="flex-1 sm:flex-none">
+                                <Button variant="outline" className="flex-1 sm:flex-none" asChild>
                                     <Link to={`/emi/${id}/amortization`} className="flex items-center gap-2">
                                         <Calculator className="h-4 w-4" />
                                         View Amortization
@@ -133,7 +155,7 @@ const EMIDetails = () => {
                                 <IndianRupee className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">₹{formatAmount(emi)}</div>
+                                <div className="text-2xl font-bold">₹{formatAmount(emiWithGST)}</div>
                                 <p className="text-xs text-muted-foreground">Next due on {formattedBillDate}</p>
                             </CardContent>
                         </Card>
@@ -241,6 +263,10 @@ const EMIDetails = () => {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Category</span>
+                                    <span className="font-medium">{tag || 'Personal'}</span>
+                                </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">GST Rate</span>
                                     <span className="font-medium">{gst}%</span>

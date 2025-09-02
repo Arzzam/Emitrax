@@ -1,6 +1,7 @@
-import { IEmi } from '@/types/emi.types';
-import { supabase } from '../supabase/supabase';
 import store from '@/store/store';
+import { IEmi } from '@/types/emi.types';
+import { supabase } from '@/supabase/supabase';
+import { format } from 'date-fns';
 
 export class EmiService {
     static async createEmi(emi: Omit<IEmi, 'id'>) {
@@ -18,7 +19,7 @@ export class EmiService {
                 itemName: emi.itemName,
                 principal: emi.principal,
                 interestRate: emi.interestRate,
-                billDate: emi.billDate,
+                billDate: format(emi.billDate, 'yyyy-MM-dd'),
                 tenure: emi.tenure,
                 interestDiscount: emi.interestDiscount,
                 interestDiscountType: emi.interestDiscountType,
@@ -30,9 +31,10 @@ export class EmiService {
                 totalGST: emi.totalGST,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
-                endDate: emi.endDate,
+                endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
                 userId: userId,
+                tag: emi.tag,
             })
             .select();
 
@@ -105,7 +107,7 @@ export class EmiService {
                 itemName: emi.itemName,
                 principal: emi.principal,
                 interestRate: emi.interestRate,
-                billDate: emi.billDate,
+                billDate: format(emi.billDate, 'yyyy-MM-dd'),
                 tenure: emi.tenure,
                 interestDiscount: emi.interestDiscount,
                 interestDiscountType: emi.interestDiscountType,
@@ -117,8 +119,9 @@ export class EmiService {
                 totalGST: emi.totalGST,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
-                endDate: emi.endDate,
+                endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
+                tag: emi.tag,
                 updatedAt: new Date().toISOString(), // <-- important
             })
             .eq('id', emi.id)
@@ -156,7 +159,7 @@ export class EmiService {
                 itemName: emi.itemName,
                 principal: emi.principal,
                 interestRate: emi.interestRate,
-                billDate: emi.billDate,
+                billDate: format(emi.billDate, 'yyyy-MM-dd'),
                 tenure: emi.tenure,
                 interestDiscount: emi.interestDiscount,
                 interestDiscountType: emi.interestDiscountType,
@@ -168,8 +171,9 @@ export class EmiService {
                 totalGST: emi.totalGST,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
-                endDate: emi.endDate,
+                endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
+                tag: emi.tag,
                 updatedAt: new Date().toISOString(),
             }))
         );

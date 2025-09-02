@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
 import { errorToast, successToast } from '@/utils/toast.utils';
 import { exchange } from '@/utils/utils';
+
 import LoadingDetails from '@/components/common/LoadingDetails';
 
 export const OAuth = () => {
@@ -49,7 +51,7 @@ export const OAuth = () => {
         };
 
         exchangeTokenForUser();
-    }, []);
+    }, [location.hash, navigate]);
 
     return (
         <>
