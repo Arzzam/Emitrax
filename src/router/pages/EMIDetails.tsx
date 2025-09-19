@@ -84,6 +84,33 @@ const EMIDetails = () => {
         year: 'numeric',
     });
 
+    const calculateNextBillDate = (billDate: Date | string) => {
+        const currentDate = new Date();
+        const billDateObj = new Date(billDate);
+        const billDay = billDateObj.getDate();
+
+        // Create a date for this month with the bill day
+        const thisMonthBillDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), billDay);
+
+        // If current date is before this month's bill date, next bill is this month
+        if (currentDate.getDate() < billDay) {
+            return thisMonthBillDate;
+        } else {
+            // If current date is on or after this month's bill date, next bill is next month
+            const nextMonthBillDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, billDay);
+            return nextMonthBillDate;
+        }
+    };
+
+    const nextBillDate = calculateNextBillDate(billDate);
+    const formattedNextBillDate = nextBillDate.toLocaleDateString('en-US', {
+        month: 'long',
+        day: '2-digit',
+        year: 'numeric',
+    });
+
+    console.log(nextBillDate);
+
     const formattedEndDate = new Date(endDate).toLocaleDateString('en-US', {
         month: 'long',
         day: '2-digit',
@@ -156,7 +183,9 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">₹{formatAmount(emiWithGST)}</div>
-                                <p className="text-xs text-muted-foreground">Next due on {formattedBillDate}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Next bill date on {formattedNextBillDate}
+                                </p>
                             </CardContent>
                         </Card>
                         <Card>
