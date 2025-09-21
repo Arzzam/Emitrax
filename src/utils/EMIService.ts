@@ -33,6 +33,7 @@ export class EmiService {
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
+                isArchived: emi.isArchived,
                 userId: userId,
                 tag: emi.tag,
             })
@@ -121,6 +122,7 @@ export class EmiService {
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
+                isArchived: emi.isArchived,
                 tag: emi.tag,
                 updatedAt: new Date().toISOString(), // <-- important
             })
@@ -173,6 +175,7 @@ export class EmiService {
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),
                 isCompleted: emi.isCompleted,
+                isArchived: emi.isArchived,
                 tag: emi.tag,
                 updatedAt: new Date().toISOString(),
             }))
@@ -212,5 +215,47 @@ export class EmiService {
         const { error } = await supabase.from('emis').delete().eq('id', id);
 
         if (error) throw error;
+    }
+
+    static async archiveEmi(id: string) {
+        const { data, error } = await supabase
+            .from('emis')
+            .update({
+                isArchived: true,
+                updatedAt: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        return data;
+    }
+
+    static async unarchiveEmi(id: string) {
+        const { data, error } = await supabase
+            .from('emis')
+            .update({
+                isArchived: false,
+                updatedAt: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        return data;
+    }
+
+    static async bulkArchiveEmis(ids: string[]) {
+        const { data, error } = await supabase
+            .from('emis')
+            .update({
+                isArchived: true,
+                updatedAt: new Date().toISOString(),
+            })
+            .in('id', ids)
+            .select();
+
+        if (error) throw error;
+        return data;
     }
 }

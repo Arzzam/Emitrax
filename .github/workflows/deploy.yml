@@ -2,7 +2,7 @@ name: 🚀 Build and Deploy React App to Hostinger via FTP
 
 on:
     push:
-        branches: ['*']
+        branches: ['main']
     pull_request:
         branches: ['*']
     workflow_dispatch:

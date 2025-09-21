@@ -1,10 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { CalendarIcon, CreditCard, IndianRupee, Percent, Clock, Calculator, Receipt, Tag, Wallet } from 'lucide-react';
+import {
+    CalendarIcon,
+    CreditCard,
+    IndianRupee,
+    Percent,
+    Clock,
+    Calculator,
+    Receipt,
+    Tag,
+    Wallet,
+    ArchiveIcon,
+    ArchiveRestoreIcon,
+    Trash2,
+} from 'lucide-react';
 
 import { formatAmount } from '@/utils/utils';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
 import { errorToast, successToast } from '@/utils/toast.utils';
+import { EmiService } from '@/utils/EMIService';
+import { useQueryClient } from '@tanstack/react-query';
 
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
@@ -20,11 +35,13 @@ import LoadingDetails from '@/components/common/LoadingDetails';
 const EMIDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
 
     useEffect(() => {
         if (!isFetching && data && !currentData) {
@@ -36,6 +53,28 @@ const EMIDetails = () => {
             return () => clearTimeout(redirectTimer);
         }
     }, [isFetching, data, currentData, navigate]);
+
+    const handleArchiveToggle = async () => {
+        if (!currentData || !id) return;
+
+        setIsArchiving(true);
+        try {
+            if (currentData.isArchived) {
+                await EmiService.unarchiveEmi(id);
+                successToast('EMI unarchived successfully');
+            } else {
+                await EmiService.archiveEmi(id);
+                successToast('EMI archived successfully');
+            }
+            // Invalidate queries to refresh the data
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+        } catch (error) {
+            console.error('Failed to toggle archive status:', error);
+            errorToast('Failed to update archive status');
+        } finally {
+            setIsArchiving(false);
+        }
+    };
 
     if (isFetching) {
         return (
@@ -164,11 +203,33 @@ const EMIDetails = () => {
                                     </Link>
                                 </Button>
                                 <FormModal data={currentData} />
+                                {/* Show archive button for completed EMIs or if already archived */}
+                                {(currentData.isCompleted || currentData.isArchived) && (
+                                    <Button
+                                        variant={currentData.isArchived ? 'default' : 'outline'}
+                                        className="flex-1 sm:flex-none"
+                                        onClick={handleArchiveToggle}
+                                        disabled={isArchiving}
+                                    >
+                                        {currentData.isArchived ? (
+                                            <>
+                                                <ArchiveRestoreIcon className="h-4 w-4" />
+                                                Unarchive EMI
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ArchiveIcon className="h-4 w-4" />
+                                                Archive EMI
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
                                 <Button
                                     variant="destructive"
                                     className="flex-1 sm:flex-none"
                                     onClick={() => setOpen(true)}
                                 >
+                                    <Trash2 className="h-4 w-4" />
                                     Delete EMI
                                 </Button>
                             </div>

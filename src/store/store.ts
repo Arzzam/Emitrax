@@ -11,7 +11,7 @@ import { IDispatch } from './types/store.types';
 const persistConfig = {
     key: 'root',
     storage,
-    whitelist: ['userModel', 'lastUpdateAt'],
+    whitelist: ['userModel', 'lastUpdateAt', 'filterModel'],
 };
 
 // const persistedConfig: Plugin<IRootModel, Models<IRootModel>, Partial<Models<IRootModel>>> = persistPlugin(persistConfig);

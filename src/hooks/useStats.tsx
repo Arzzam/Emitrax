@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 
 import { IEmi } from '@/types/emi.types';
-import { TFilterOptions } from '@/components/filter/FilterOptions';
+import { IRootState } from '@/store/types/store.types';
+
 import { useEmis } from './useEmi';
 import { TComboboxOption } from '@/components/ui/combobox';
 
@@ -16,36 +18,59 @@ export const useUniqueTagsOptions = (): TComboboxOption[] => {
     return tagOptions;
 };
 
-const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string) => {
-    // Calculate statistics
+const useStats = (emiData: IEmi[]) => {
+    const { searchQuery, status, tag, sortOrder, sortBy } = useSelector((state: IRootState) => state.filterModel);
+
+    const filteredEmis = useMemo(() => {
+        return status === 'active'
+            ? emiData.filter((emi) => !emi.isArchived)
+            : status === 'archived'
+              ? emiData.filter((emi) => emi.isArchived)
+              : emiData;
+    }, [emiData, status]);
+
+    // Calculate statistics (excluding archived EMIs by default)
     const statistics = useMemo(() => {
         const stats = {
-            totalEMIs: emiData.length,
-            activeEMIs: emiData.filter((emi) => !emi.isCompleted).length,
-            completedEMIs: emiData.filter((emi) => emi.isCompleted).length,
-            totalMonthlyPayment: emiData.reduce((sum, emi) => sum + (emi.isCompleted ? 0 : emi.emi), 0),
-            totalRemainingBalance: emiData.reduce((sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance), 0),
+            totalEMIs: filteredEmis.length,
+            activeEMIs: filteredEmis.filter((emi) => !emi.isCompleted).length,
+            completedEMIs: filteredEmis.filter((emi) => emi.isCompleted).length,
+            totalMonthlyPayment: filteredEmis.reduce((sum, emi) => sum + (emi.isCompleted ? 0 : emi.emi), 0),
+            totalRemainingBalance: filteredEmis.reduce(
+                (sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance),
+                0
+            ),
             tagCounts: {} as Record<string, number>,
         };
 
-        // Count EMIs by tag
-        emiData.forEach((emi) => {
+        // Count EMIs by tag (excluding archived)
+        filteredEmis.forEach((emi) => {
             const tag = emi.tag || 'Personal';
             stats.tagCounts[tag] = (stats.tagCounts[tag] || 0) + 1;
         });
 
         return stats;
-    }, [emiData]);
+    }, [filteredEmis]);
 
-    // Calculate filtered statistics based on selected tag
+    // Calculate filtered statistics based on selected tag and archive status
     const filteredStatistics = useMemo(() => {
-        // If no tag filter or "All" is selected, return the overall statistics
-        if (!filters.tag || filters.tag === 'All') {
-            return statistics;
+        // If no tag filter or "All" is selected, calculate stats from base EMIs
+        if (!tag || tag === 'All') {
+            return {
+                totalEMIs: filteredEmis.length,
+                activeEMIs: filteredEmis.filter((emi) => !emi.isCompleted).length,
+                completedEMIs: filteredEmis.filter((emi) => emi.isCompleted).length,
+                totalMonthlyPayment: filteredEmis.reduce((sum, emi) => sum + (emi.isCompleted ? 0 : emi.emi), 0),
+                totalRemainingBalance: filteredEmis.reduce(
+                    (sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance),
+                    0
+                ),
+                tagCounts: statistics.tagCounts, // Keep the overall tag counts
+            };
         }
 
-        // Filter EMIs by the selected tag
-        const tagFilteredEmis = emiData.filter((emi) => (emi.tag || 'Personal') === filters.tag);
+        // Filter EMIs by the selected tag from base EMIs
+        const tagFilteredEmis = filteredEmis.filter((emi) => (emi.tag || 'Personal') === tag);
 
         return {
             totalEMIs: tagFilteredEmis.length,
@@ -58,9 +83,9 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
             ),
             tagCounts: statistics.tagCounts, // Keep the overall tag counts
         };
-    }, [emiData, filters.tag, statistics]);
+    }, [filteredEmis, tag, statistics.tagCounts]);
 
-    // Calculate statistics by tag
+    // Calculate statistics by tag (excluding archived EMIs by default)
     const tagStatistics = useMemo(() => {
         const stats: Record<
             string,
@@ -72,8 +97,7 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
             }
         > = {};
 
-        // Group EMIs by tag and calculate stats
-        emiData.forEach((emi) => {
+        filteredEmis.forEach((emi) => {
             const tag = emi.tag || 'Personal';
 
             if (!stats[tag]) {
@@ -95,7 +119,7 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
         });
 
         return stats;
-    }, [emiData]);
+    }, [filteredEmis]);
 
     // Get unique tags for display in statistics
     const uniqueTags = useMemo(() => {
@@ -106,18 +130,19 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
         return emiData
             .filter((emi) => {
                 const matchesSearch = emi.itemName.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchesStatus =
-                    filters.status === 'all'
-                        ? true
-                        : filters.status === 'completed'
-                          ? emi.isCompleted
-                          : !emi.isCompleted;
-                const matchesTag = filters.tag === 'All' ? true : (emi.tag || 'Personal') === filters.tag;
+                let matchesStatus;
+                if (status === 'archived') {
+                    matchesStatus = emi.isArchived;
+                } else {
+                    matchesStatus =
+                        status === 'all' ? true : status === 'completed' ? emi.isCompleted : !emi.isCompleted;
+                }
+                const matchesTag = tag === 'All' ? true : (emi.tag || 'Personal') === tag;
                 return matchesSearch && matchesStatus && matchesTag;
             })
             .sort((a, b) => {
-                if (filters.sortOrder === 'asc') {
-                    switch (filters.sortBy) {
+                if (sortOrder === 'asc') {
+                    switch (sortBy) {
                         case 'dateAdded':
                             return new Date(a?.createdAt || '').getTime() - new Date(b?.createdAt || '').getTime();
                         case 'name':
@@ -130,7 +155,7 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
                             return 0;
                     }
                 } else {
-                    switch (filters.sortBy) {
+                    switch (sortBy) {
                         case 'dateAdded':
                             return new Date(b?.createdAt || '').getTime() - new Date(a?.createdAt || '').getTime();
                         case 'name':
@@ -144,7 +169,7 @@ const useStats = (emiData: IEmi[], filters: TFilterOptions, searchQuery: string)
                     }
                 }
             });
-    }, [emiData, filters, searchQuery]);
+    }, [emiData, searchQuery, status, tag, sortOrder, sortBy]);
 
     return {
         statistics,

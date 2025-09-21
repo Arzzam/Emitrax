@@ -17,6 +17,7 @@ export interface IEmi {
     remainingTenure: number;
     endDate: Date;
     isCompleted: boolean;
+    isArchived?: boolean;
     amortizationSchedules: ScheduleData[];
     tag?: string;
     createdAt?: string;
