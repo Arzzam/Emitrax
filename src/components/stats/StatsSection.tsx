@@ -1,26 +1,21 @@
 import { AlertCircle, ArrowUpDown, Clock, IndianRupee, Tag, User } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 import { formatAmount } from '@/utils/utils';
 import useStats from '@/hooks/useStats';
 import { IEmi } from '@/types/emi.types';
-import { TFilterOptions } from '../filter/FilterOptions';
+import { useRematchDispatch } from '@/store/store';
+import { IDispatch, IRootState } from '@/store/types/store.types';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 
-const StatsSection = ({
-    emiData,
-    filters,
-    searchQuery,
-    setFilters,
-}: {
-    emiData: IEmi[];
-    filters: TFilterOptions;
-    searchQuery: string;
-    setFilters: (filters: TFilterOptions) => void;
-}) => {
-    const { statistics, filteredStatistics, uniqueTags, tagStatistics } = useStats(emiData, filters, searchQuery);
+const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
+    const { tag } = useSelector((state: IRootState) => state.filterModel);
+    const { statistics, filteredStatistics, uniqueTags, tagStatistics } = useStats(emiData);
+    const dispatch = useRematchDispatch((state: IDispatch) => state.filterModel);
+
     return (
         <>
             {/* Statistics Cards - Now using filteredStatistics */}
@@ -28,7 +23,7 @@ const StatsSection = ({
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            {filters.tag && filters.tag !== 'All' ? `${filters.tag} EMIs` : 'Total EMIs'}
+                            {tag && tag !== 'All' ? `${tag} EMIs` : 'Total EMIs'}
                         </CardTitle>
                         <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -90,16 +85,16 @@ const StatsSection = ({
                 <Card className="mb-6">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            {filters.tag && filters.tag !== 'All' ? `${filters.tag} Statistics` : 'EMIs by Category'}
+                            {tag && tag !== 'All' ? `${tag} Statistics` : 'EMIs by Category'}
                         </CardTitle>
                         <Tag className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        {filters.tag && filters.tag !== 'All' ? (
+                        {tag && tag !== 'All' ? (
                             <div className="flex flex-col gap-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-md bg-primary/10 border border-primary/20 gap-3">
                                     <div className="flex flex-col">
-                                        <span className="font-medium">{filters.tag}</span>
+                                        <span className="font-medium">{tag}</span>
                                         <span className="text-xs text-muted-foreground">
                                             {filteredStatistics.activeEMIs} active EMIs,{' '}
                                             {filteredStatistics.activeEMIs > 0
@@ -110,7 +105,7 @@ const StatsSection = ({
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => setFilters({ ...filters, tag: 'All' })}
+                                        onClick={() => dispatch.setTag('All')}
                                         className="w-full sm:w-auto"
                                     >
                                         View All Categories
@@ -119,20 +114,18 @@ const StatsSection = ({
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {uniqueTags.map((tag) => {
-                                    const tagStats = tagStatistics[tag];
+                                {uniqueTags.map((uTag) => {
+                                    const tagStats = tagStatistics[uTag];
                                     return (
                                         <div
-                                            key={tag}
+                                            key={uTag}
                                             className={`flex flex-col p-3 rounded-md cursor-pointer hover:bg-muted ${
-                                                filters.tag === tag
-                                                    ? 'bg-primary/10 border border-primary/20'
-                                                    : 'bg-muted/50'
+                                                tag === uTag ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'
                                             }`}
-                                            onClick={() => setFilters({ ...filters, tag })}
+                                            onClick={() => dispatch.setTag(uTag)}
                                         >
                                             <div className="flex justify-between items-center mb-2">
-                                                <span className="font-medium">{tag}</span>
+                                                <span className="font-medium">{uTag}</span>
                                                 <Badge variant="outline" className="text-xs">
                                                     {tagStats.totalEMIs} EMIs
                                                 </Badge>
@@ -169,7 +162,7 @@ const StatsSection = ({
             )}
 
             {/* Summary section - Only show when viewing all EMIs */}
-            {(!filters.tag || filters.tag === 'All') && uniqueTags.length > 0 && (
+            {(!tag || tag === 'All') && uniqueTags.length > 0 && (
                 <Card className="mb-6">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Summary by Category</CardTitle>
@@ -188,14 +181,14 @@ const StatsSection = ({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {uniqueTags.map((tag) => {
-                                        const tagStats = tagStatistics[tag];
-                                        const isPersonal = tag === 'Personal';
+                                    {uniqueTags.map((ut) => {
+                                        const tagStats = tagStatistics[ut];
+                                        const isPersonal = ut === 'Personal';
                                         return (
                                             <tr
-                                                key={tag}
+                                                key={ut}
                                                 className="border-b hover:bg-muted/50 cursor-pointer"
-                                                onClick={() => setFilters({ ...filters, tag })}
+                                                onClick={() => dispatch.setTag(ut)}
                                             >
                                                 <td className="py-2 flex items-center gap-2">
                                                     {isPersonal ? (
@@ -203,7 +196,7 @@ const StatsSection = ({
                                                     ) : (
                                                         <User className="h-3 w-3 text-primary" />
                                                     )}
-                                                    {tag}
+                                                    {ut}
                                                 </td>
                                                 <td className="text-center py-2">{tagStats.totalEMIs}</td>
                                                 <td className="text-center py-2">{tagStats.activeEMIs}</td>

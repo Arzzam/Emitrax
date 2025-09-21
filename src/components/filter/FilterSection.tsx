@@ -1,30 +1,25 @@
 import { ArrowUpDown, Search } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 import { IEmi } from '@/types/emi.types';
+import { useRematchDispatch } from '@/store/store';
+import { IDispatch, IRootState } from '@/store/types/store.types';
 
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import FormModal from '../emi/AddButton';
 import { Input } from '../ui/input';
-import FilterOptions, { TFilterOptions } from './FilterOptions';
+import FilterOptions from './FilterOptions';
 
 interface EMIFilterOptionsProps {
-    searchQuery: string;
-    setSearchQuery: (value: string) => void;
-    filters: TFilterOptions;
-    setFilters: (value: TFilterOptions) => void;
     emiData: IEmi[];
     setOpenConfirmationModal: (value: boolean) => void;
 }
 
-const FilterSection = ({
-    searchQuery,
-    setSearchQuery,
-    filters,
-    setFilters,
-    emiData,
-    setOpenConfirmationModal,
-}: EMIFilterOptionsProps) => {
+const FilterSection = ({ emiData, setOpenConfirmationModal }: EMIFilterOptionsProps) => {
+    const { searchQuery } = useSelector((state: IRootState) => state.filterModel);
+    const filterDispatch = useRematchDispatch((state: IDispatch) => state.filterModel);
+
     return (
         <Card className="mb-6">
             <CardContent className="p-4">
@@ -36,11 +31,11 @@ const FilterSection = ({
                             <Input
                                 placeholder="Search EMIs..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => filterDispatch.setSearchQuery(e.target.value)}
                                 className="pl-8 w-full"
                             />
                         </div>
-                        <FilterOptions filters={filters} onFilterChange={setFilters} emis={emiData} />
+                        <FilterOptions emis={emiData} />
                     </div>
 
                     {/* Action Buttons */}

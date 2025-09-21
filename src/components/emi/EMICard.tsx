@@ -1,18 +1,33 @@
 import { useNavigate } from 'react-router';
-import { CircleCheckBigIcon, Tag, User } from 'lucide-react';
+import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { formatAmount } from '@/utils/utils';
 import { IEmi } from '@/types/emi.types';
 import { cn } from '@/lib/utils';
+import { EmiService } from '@/utils/EMIService';
 
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
 
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-    const { id, itemName, billDate, endDate, emi, isCompleted, tag, amortizationSchedules, tenure, remainingTenure } =
-        props;
+    const {
+        id,
+        itemName,
+        billDate,
+        endDate,
+        emi,
+        isCompleted,
+        isArchived,
+        tag,
+        amortizationSchedules,
+        tenure,
+        remainingTenure,
+    } = props;
     const isPersonal = !tag || tag === 'Personal';
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
@@ -31,19 +46,53 @@ const EMICard = (props: IEmi) => {
         navigate(`/emi/${id}`);
     };
 
+    const handleArchiveToggle = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent card click navigation
+        try {
+            if (isArchived) {
+                await EmiService.unarchiveEmi(id);
+            } else {
+                await EmiService.archiveEmi(id);
+            }
+            // Invalidate queries to refresh the data
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+        } catch (error) {
+            console.error('Failed to toggle archive status:', error);
+        }
+    };
+
     const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
 
     return (
         <Card
             className={cn(
-                'cursor-pointer hover:bg-accent/50 transition-colors relative',
+                'hover:bg-accent/50 transition-colors relative',
                 !isPersonal && 'border-primary/30 bg-primary/5'
             )}
-            onClick={handleClick}
         >
-            {isCompleted && <CircleCheckBigIcon className="w-4 h-4 absolute top-2 right-2 text-green-500" />}
-            <CardContent className="pt-6">
-                <div className="flex flex-col gap-2">
+            <div className="absolute top-2 left-2">
+                {isCompleted && <CircleCheckBigIcon className="w-4 h-4 text-green-500" />}
+            </div>
+            <div className="absolute top-2 right-2">
+                {/* Show archive button for completed EMIs or if already archived */}
+                {(isCompleted || isArchived) && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-accent cursor-pointer"
+                        onClick={handleArchiveToggle}
+                        title={isArchived ? 'Unarchive EMI' : 'Archive EMI'}
+                    >
+                        {isArchived ? (
+                            <ArchiveRestoreIcon className="w-3 h-3 text-blue-500" />
+                        ) : (
+                            <ArchiveIcon className="w-3 h-3 text-muted-foreground hover:text-orange-500" />
+                        )}
+                    </Button>
+                )}
+            </div>
+            <CardContent className="pt-6 cursor-pointer" onClick={handleClick}>
+                <div className="flex flex-col gap-2 px-2">
                     <div className="flex flex-row justify-between text-muted-foreground tracking-wide">
                         <CardTitle className="font-semibold text-xs">Bill Date</CardTitle>
                         <span className="text-xs">{formattedBillDate}</span>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PencilIcon, PlusIcon } from 'lucide-react';
 
 import { IEmi } from '@/types/emi.types';
 
@@ -19,11 +20,23 @@ const FormModal = ({ data }: { data?: IEmi }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button>{isEdit ? 'Edit EMI' : 'Add EMI'}</Button>
+                <Button>
+                    {isEdit ? (
+                        <>
+                            <PencilIcon className="h-4 w-4" />
+                            <span>Edit EMI</span>
+                        </>
+                    ) : (
+                        <>
+                            <PlusIcon className="h-4 w-4" />
+                            <span>Add EMI</span>
+                        </>
+                    )}
+                </Button>
             </DialogTrigger>
             <DialogContent onInteractOutside={(ev) => ev.preventDefault()}>
                 <DialogHeader>
-                    <DialogTitle>Add New EMI</DialogTitle>
+                    <DialogTitle>{isEdit ? 'Edit EMI' : 'Add EMI'}</DialogTitle>
                     <DialogDescription>Enter the details of your new EMI here.</DialogDescription>
                 </DialogHeader>
                 <EMIForm setIsOpen={setIsOpen} data={data} />

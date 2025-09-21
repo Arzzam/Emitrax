@@ -1,17 +1,17 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 import { useUser } from '@/hooks/useUser';
 import useStats from '@/hooks/useStats';
 import { useEmis, useAutoRecalculateEmis, useUpdateEmiList } from '@/hooks/useEmi';
 import { useRematchDispatch } from '@/store/store';
 import { IEmi } from '@/types/emi.types';
-import { IDispatch } from '@/store/types/store.types';
+import { IDispatch, IRootState } from '@/store/types/store.types';
 
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
 import EMICard from '@/components/emi/EMICard';
-import { TFilterOptions } from '@/components/filter/FilterOptions';
 import { Card } from '@/components/ui/card';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import FilterSection from '@/components/filter/FilterSection';
@@ -22,17 +22,11 @@ import StatsSection from '@/components/stats/StatsSection';
 const Home = () => {
     const { data: user, isError: userError } = useUser();
     const { data, isLoading: isEMILoading, isError: isEmisError } = useEmis();
+    const { searchQuery } = useSelector((state: IRootState) => state.filterModel);
     const { setUser } = useRematchDispatch((state: IDispatch) => state.userModel);
     const { recalculateNow } = useAutoRecalculateEmis();
     const { isPending: isUpdatingEmis } = useUpdateEmiList();
-    const [searchQuery, setSearchQuery] = useState('');
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false);
-    const [filters, setFilters] = useState<TFilterOptions>({
-        status: 'all',
-        sortBy: 'dateAdded',
-        tag: 'All',
-        sortOrder: 'desc',
-    });
 
     useEffect(() => {
         if (user) {
@@ -47,7 +41,7 @@ const Home = () => {
 
     const emiData = useMemo(() => (data || []) as IEmi[], [data]);
 
-    const { filteredEmiData } = useStats(emiData, filters, searchQuery);
+    const { filteredEmiData } = useStats(emiData);
     const hasUser = user && !userError;
 
     return (
@@ -63,21 +57,9 @@ const Home = () => {
                         ) : (
                             <>
                                 {/* Stats Section */}
-                                <StatsSection
-                                    emiData={emiData}
-                                    filters={filters}
-                                    searchQuery={searchQuery}
-                                    setFilters={setFilters}
-                                />
+                                <StatsSection emiData={emiData} />
                                 {/* Filter Section */}
-                                <FilterSection
-                                    searchQuery={searchQuery}
-                                    setSearchQuery={setSearchQuery}
-                                    filters={filters}
-                                    setFilters={setFilters}
-                                    emiData={emiData}
-                                    setOpenConfirmationModal={setOpenConfirmationModal}
-                                />
+                                <FilterSection emiData={emiData} setOpenConfirmationModal={setOpenConfirmationModal} />
 
                                 {/* EMI Cards Grid */}
                                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
