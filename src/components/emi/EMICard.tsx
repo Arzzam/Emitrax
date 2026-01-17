@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon } from 'lucide-react';
+import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon, Users } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { formatAmount } from '@/utils/utils';
@@ -27,8 +27,12 @@ const EMICard = (props: IEmi) => {
         amortizationSchedules,
         tenure,
         remainingTenure,
+        isOwner,
+        sharedWith,
     } = props;
     const isPersonal = !tag || tag === 'Personal';
+    const isShared = sharedWith && sharedWith.length > 0;
+    const isSharedWithMe = !isOwner;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
         month: 'short',
@@ -67,11 +71,23 @@ const EMICard = (props: IEmi) => {
         <Card
             className={cn(
                 'hover:bg-accent/50 transition-colors relative',
-                !isPersonal && 'border-primary/30 bg-primary/5'
+                !isPersonal && 'border-primary/30 bg-primary/5',
+                isSharedWithMe && 'border-blue-300/50 bg-blue-50/30 dark:bg-blue-950/20'
             )}
         >
-            <div className="absolute top-2 left-2">
+            <div className="absolute top-2 left-2 flex items-center gap-1">
                 {isCompleted && <CircleCheckBigIcon className="w-4 h-4 text-green-500" />}
+                {isShared && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                        <Users className="w-3 h-3 mr-1" />
+                        {sharedWith.length}
+                    </Badge>
+                )}
+                {isSharedWithMe && (
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                        Shared
+                    </Badge>
+                )}
             </div>
             <div className="absolute top-2 right-2">
                 {/* Show archive button for completed EMIs or if already archived */}

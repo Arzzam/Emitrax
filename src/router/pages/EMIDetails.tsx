@@ -13,6 +13,8 @@ import {
     ArchiveIcon,
     ArchiveRestoreIcon,
     Trash2,
+    Share2,
+    Users,
 } from 'lucide-react';
 
 import { formatAmount } from '@/utils/utils';
@@ -25,6 +27,7 @@ import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import FormModal from '@/components/emi/AddButton';
+import ShareEMIModal from '@/components/emi/ShareEMIModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +43,7 @@ const EMIDetails = () => {
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
 
@@ -115,7 +119,13 @@ const EMIDetails = () => {
         interestDiscountType,
         tag,
         amortizationSchedules,
+        isOwner,
+        permission,
+        sharedWith,
     } = currentData;
+
+    const canEdit = isOwner || permission === 'write';
+    const isShared = sharedWith && sharedWith.length > 0;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
         month: 'long',
@@ -202,9 +212,26 @@ const EMIDetails = () => {
                                         View Amortization
                                     </Link>
                                 </Button>
-                                <FormModal data={currentData} />
-                                {/* Show archive button for completed EMIs or if already archived */}
-                                {(currentData.isCompleted || currentData.isArchived) && (
+                                {canEdit && <FormModal data={currentData} />}
+                                {isOwner && (
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 sm:flex-none"
+                                        onClick={() => setShareModalOpen(true)}
+                                    >
+                                        <Share2 className="h-4 w-4 mr-2" />
+                                        {isShared ? (
+                                            <>
+                                                <Users className="h-4 w-4 mr-1" />
+                                                {sharedWith.length}
+                                            </>
+                                        ) : (
+                                            'Share'
+                                        )}
+                                    </Button>
+                                )}
+                                {/* Show archive button for completed EMIs or if already archived - only for owner */}
+                                {isOwner && (currentData.isCompleted || currentData.isArchived) && (
                                     <Button
                                         variant={currentData.isArchived ? 'default' : 'outline'}
                                         className="flex-1 sm:flex-none"
@@ -224,14 +251,22 @@ const EMIDetails = () => {
                                         )}
                                     </Button>
                                 )}
-                                <Button
-                                    variant="destructive"
-                                    className="flex-1 sm:flex-none"
-                                    onClick={() => setOpen(true)}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete EMI
-                                </Button>
+                                {isOwner && (
+                                    <Button
+                                        variant="destructive"
+                                        className="flex-1 sm:flex-none"
+                                        onClick={() => setOpen(true)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete EMI
+                                    </Button>
+                                )}
+                                {!isOwner && (
+                                    <Badge variant="secondary" className="flex items-center gap-1">
+                                        <Users className="h-3 w-3" />
+                                        Shared with you ({permission === 'write' ? 'Can edit' : 'View only'})
+                                    </Badge>
+                                )}
                             </div>
                         </CardHeader>
                     </Card>
@@ -421,6 +456,8 @@ const EMIDetails = () => {
                     onCancel={() => setOpen(false)}
                     onConfirm={handleConfirmDelete}
                 />
+
+                {id && <ShareEMIModal emiId={id} open={shareModalOpen} onOpenChange={setShareModalOpen} />}
             </MainContainer>
         </>
     );

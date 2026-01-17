@@ -5,6 +5,7 @@ import { isEqual, omit } from 'lodash';
 
 import { IEmi } from '@/types/emi.types';
 import { EmiService } from '@/utils/EMIService';
+import { EmiShareService } from '@/utils/EmiShareService';
 import { calculateEMI } from '@/utils/calculation';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { useRematchDispatch } from '@/store/store';
@@ -106,4 +107,72 @@ export const useAutoRecalculateEmis = () => {
     };
 
     return { recalculateNow };
+};
+
+export const useShareEmi = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ emiId, email, permission }: { emiId: string; email: string; permission: 'read' | 'write' }) =>
+            EmiShareService.shareEmi(emiId, email, permission),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+        },
+    });
+};
+
+export const useShareEmiByUserId = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ emiId, userId, permission }: { emiId: string; userId: string; permission: 'read' | 'write' }) =>
+            EmiShareService.shareEmiByUserId(emiId, userId, permission),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+        },
+    });
+};
+
+export const useUnshareEmi = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ emiId, sharedWithUserId }: { emiId: string; sharedWithUserId: string }) =>
+            EmiShareService.unshareEmi(emiId, sharedWithUserId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+        },
+    });
+};
+
+export const useUpdateSharePermission = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            emiId,
+            sharedWithUserId,
+            permission,
+        }: {
+            emiId: string;
+            sharedWithUserId: string;
+            permission: 'read' | 'write';
+        }) => EmiShareService.updateSharePermission(emiId, sharedWithUserId, permission),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+        },
+    });
+};
+
+export const useEmiShares = (emiId: string) => {
+    return useQuery({
+        queryKey: ['emiShares', emiId],
+        queryFn: () => EmiShareService.getEmiShares(emiId),
+        enabled: !!emiId,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 };

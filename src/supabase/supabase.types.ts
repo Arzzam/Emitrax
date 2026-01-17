@@ -42,6 +42,18 @@ export type Tables = {
         Insert: Omit<Tables['amortizationSchedules']['Row'], 'id' | 'createdAt'>;
         Update: Partial<Omit<Tables['amortizationSchedules']['Row'], 'id' | 'createdAt'>>;
     };
+    emiShares: {
+        Row: {
+            id: string;
+            emiId: string;
+            sharedWithUserId: string;
+            permission: 'read' | 'write';
+            createdBy: string;
+            createdAt: string;
+        };
+        Insert: Omit<Tables['emiShares']['Row'], 'id' | 'createdAt'>;
+        Update: Partial<Omit<Tables['emiShares']['Row'], 'id' | 'createdAt'>>;
+    };
 };
 
 export type DbResult<T> = T extends PromiseLike<infer U> ? U : never;
