@@ -4,8 +4,15 @@ import { Icons } from '@/assets/icons';
 import { useLogin, useLogout, useUser } from '@/hooks/useUser';
 
 import { Button } from '../ui/button';
-import ConfirmationModal from '../common/ConfirmationModal';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '../ui/dialog';
 
 const LoginModal = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -19,11 +26,12 @@ const LoginModal = () => {
         loginMutation.mutate();
     };
 
-    const handleLogout = (setOpen: (open: boolean) => void) => {
-        logoutMutation.mutate();
-        if (logoutMutation.isSuccess) {
-            setOpen(false);
-        }
+    const handleLogout = () => {
+        logoutMutation.mutate(undefined, {
+            onSuccess: () => {
+                setIsOpen(false);
+            },
+        });
     };
 
     const isLoggingOut = logoutMutation.isPending;
@@ -53,15 +61,26 @@ const LoginModal = () => {
                         </Button>
                     </>
                 ) : (
-                    <ConfirmationModal
-                        title="Logout"
-                        description="Are you sure you want to logout?"
-                        onConfirm={handleLogout}
-                        onCancel={() => setIsOpen(false)}
-                        open={isOpen}
-                        setOpen={setIsOpen}
-                        isLoading={isLoggingOut}
-                    />
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Logout</DialogTitle>
+                            <DialogDescription>Are you sure you want to logout?</DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoggingOut}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" onClick={handleLogout} disabled={isLoggingOut}>
+                                {isLoggingOut ? (
+                                    <>
+                                        <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> Logging out...
+                                    </>
+                                ) : (
+                                    'Logout'
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </>
                 )}
             </DialogContent>
         </Dialog>

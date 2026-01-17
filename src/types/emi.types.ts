@@ -1,3 +1,16 @@
+export interface IEmiShare {
+    id: string;
+    emiId: string;
+    sharedWithUserId: string;
+    sharedWithUserEmail?: string;
+    permission: 'read' | 'write';
+    createdBy: string;
+    createdAt: string;
+    user_profiles?: {
+        email: string;
+    };
+}
+
 export interface IEmi {
     id: string;
     itemName: string;
@@ -22,6 +35,11 @@ export interface IEmi {
     tag?: string;
     createdAt?: string;
     updatedAt?: string;
+    userId?: string;
+    // Shared EMI fields
+    isOwner?: boolean;
+    permission?: 'read' | 'write';
+    sharedWith?: IEmiShare[];
 }
 
 export interface ScheduleData {
