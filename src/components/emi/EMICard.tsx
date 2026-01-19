@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon, Users } from 'lucide-react';
+import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon, Users, Split } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { formatAmount } from '@/utils/utils';
@@ -29,10 +29,15 @@ const EMICard = (props: IEmi) => {
         remainingTenure,
         isOwner,
         sharedWith,
+        isSplit,
+        splits,
+        mySplit,
+        mySplitAmount,
     } = props;
     const isPersonal = !tag || tag === 'Personal';
     const isShared = sharedWith && sharedWith.length > 0;
     const isSharedWithMe = !isOwner;
+    const splitCount = splits?.length || 0;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
         month: 'short',
@@ -75,12 +80,18 @@ const EMICard = (props: IEmi) => {
                 isSharedWithMe && 'border-blue-300/50 bg-blue-50/30 dark:bg-blue-950/20'
             )}
         >
-            <div className="absolute top-2 left-2 flex items-center gap-1">
+            <div className="absolute top-2 left-2 flex items-center gap-1 flex-wrap">
                 {isCompleted && <CircleCheckBigIcon className="w-4 h-4 text-green-500" />}
                 {isShared && (
                     <Badge variant="outline" className="h-5 px-1.5 text-xs">
                         <Users className="w-3 h-3 mr-1" />
                         {sharedWith.length}
+                    </Badge>
+                )}
+                {isSplit && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                        <Split className="w-3 h-3 mr-1" />
+                        {splitCount} {splitCount === 1 ? 'split' : 'splits'}
                     </Badge>
                 )}
                 {isSharedWithMe && (
@@ -126,10 +137,18 @@ const EMICard = (props: IEmi) => {
                                 </Badge>
                             )}
                         </div>
-                        <span className="flex items-center text-base text-end">
-                            {`\u20B9`}
-                            {formatAmount(emiWithGST)}
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                            <span className="flex items-center text-base">
+                                {`\u20B9`}
+                                {formatAmount(emiWithGST)}
+                            </span>
+                            {mySplit && mySplitAmount && (
+                                <span className="text-xs text-muted-foreground">
+                                    Your share: {`\u20B9`}
+                                    {formatAmount(mySplitAmount)} ({mySplit.splitPercentage.toFixed(1)}%)
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex flex-row justify-between text-muted-foreground tracking-wide">
                         <CardTitle className="font-semibold text-xs">End Date</CardTitle>

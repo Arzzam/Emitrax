@@ -5,7 +5,7 @@ const Layout = () => {
     // const navigation = useNavigation();
     // const isNavigating = Boolean(navigation.location);
     return (
-        <div className="min-w-screen min-h-screen">
+        <div className="min-w-screen min-h-screen overflow-hidden">
             <Outlet />
         </div>
     );
