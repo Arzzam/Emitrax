@@ -1,5 +1,5 @@
 import store from '@/store/store';
-import { IEmi, IEmiShare, ScheduleData } from '@/types/emi.types';
+import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
 import { supabase } from '@/supabase/supabase';
 import { format } from 'date-fns';
 
@@ -122,6 +122,32 @@ export class EmiService {
             sharedEmisData = sharedEmis || [];
         }
 
+        // Get split EMIs (where user is a registered participant in a split)
+        const { data: splitShares, error: splitError } = await supabase
+            .from('emiSplits')
+            .select('emiId')
+            .eq('userId', userId)
+            .eq('isExternal', false);
+
+        if (splitError) throw splitError;
+
+        // Fetch the actual EMI data for split EMIs
+        const splitEmiIds: string[] = (splitShares || []).map((share) => share.emiId);
+        let splitEmisData: IEmi[] = [];
+        if (splitEmiIds.length > 0) {
+            const { data: splitEmis } = await supabase
+                .from('emis')
+                .select(
+                    `
+          *,
+          amortizationSchedules (*)
+        `
+                )
+                .in('id', splitEmiIds);
+
+            splitEmisData = splitEmis || [];
+        }
+
         // Create a map of emiId -> shares for owned EMIs
         const sharesByEmiId = ownedEmiShares.reduce((acc: Record<string, IEmiShare[]>, share: IEmiShare) => {
             if (!acc[share.emiId]) {
@@ -189,11 +215,102 @@ export class EmiService {
             return acc;
         }, [] as IEmi[]);
 
-        // Combine and deduplicate (in case user owns and is shared with same EMI - shouldn't happen but safety)
-        const allEmis = [...ownedEmisProcessed, ...sharedEmisProcessed];
+        // Process split EMIs (where user is a participant but not owner)
+        const splitEmisProcessed = splitEmisData.reduce((acc: IEmi[], emi: IEmi): IEmi[] => {
+            // Skip if already in owned or shared (avoid duplicates)
+            if (emi.userId === userId) return acc; // Already in owned
+            if (sharedEmiIds.includes(emi.id)) return acc; // Already in shared
+
+            acc.push({
+                ...emi,
+                userId: emi.userId,
+                billDate: new Date(emi.billDate),
+                endDate: new Date(emi.endDate),
+                isOwner: false,
+                permission: undefined, // Split participants don't have share permissions
+                sharedWith: [],
+                amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
+                    month: schedule.month,
+                    billDate: schedule.billDate,
+                    emi: schedule.emi,
+                    interest: schedule.interest,
+                    principalPaid: schedule.principalPaid,
+                    balance: schedule.balance,
+                    gst: schedule.gst,
+                })),
+            });
+            return acc;
+        }, [] as IEmi[]);
+
+        // Combine and deduplicate (in case user owns, is shared with, or is split participant in same EMI)
+        const allEmis = [...ownedEmisProcessed, ...sharedEmisProcessed, ...splitEmisProcessed];
         const uniqueEmis = Array.from(new Map(allEmis.map((emi: IEmi) => [emi.id, emi])).values()) as IEmi[];
 
-        return uniqueEmis;
+        // Fetch splits for all EMIs
+        const allEmiIds = uniqueEmis.map((emi) => emi.id);
+        let splitsByEmiId: Record<string, IEmiSplit[]> = {};
+        if (allEmiIds.length > 0) {
+            const { data: allSplits } = await supabase
+                .from('emiSplits')
+                .select(
+                    `
+          *,
+          user_profiles:userId (
+            email
+          )
+        `
+                )
+                .in('emiId', allEmiIds);
+
+            // Group splits by emiId
+            splitsByEmiId = (allSplits || []).reduce((acc: Record<string, IEmiSplit[]>, split: IEmiSplit) => {
+                if (!acc[split.emiId]) {
+                    acc[split.emiId] = [];
+                }
+                const isExternal = split.isExternal;
+                const userProfile = split.user_profiles;
+                acc[split.emiId].push({
+                    ...split,
+                    displayName: isExternal
+                        ? split.participantName || split.participantEmail
+                        : userProfile?.email || split.participantEmail,
+                    displayEmail: isExternal ? split.participantEmail : userProfile?.email || split.participantEmail,
+                } as IEmiSplit);
+                return acc;
+            }, {});
+        }
+
+        // Attach splits to each EMI and calculate user's portion
+        const emisWithSplits = uniqueEmis.map((emi) => {
+            const splits = splitsByEmiId[emi.id] || [];
+            const totalSplitPercentage = splits.reduce((sum, split) => sum + split.splitPercentage, 0);
+            const isSplit = splits.length > 0;
+
+            // Find current user's split
+            const mySplit = splits.find((split) => {
+                if (split.isExternal) {
+                    return false; // External participants don't have userId
+                }
+                return split.userId === userId;
+            });
+
+            // Calculate user's portion
+            let mySplitAmount: number | undefined;
+            if (mySplit) {
+                mySplitAmount = mySplit.splitAmount || (emi.emi * mySplit.splitPercentage) / 100;
+            }
+
+            return {
+                ...emi,
+                splits,
+                mySplit,
+                mySplitAmount,
+                totalSplitPercentage,
+                isSplit,
+            };
+        });
+
+        return emisWithSplits;
     }
 
     static async updateEmi(emi: IEmi) {

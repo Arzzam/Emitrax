@@ -4,6 +4,7 @@ import Layout from '@/layout/Layout';
 import Home from '@/router/pages/Home';
 import EMIDetails from '@/router/pages/EMIDetails';
 import AmortizationSchedule from '@/router/pages/AmortizationSchedule';
+import SplitEMI from '@/router/pages/SplitEMI';
 import NotFoundPage from '@/router/pages/NotFoundPage';
 import { OAuth } from '@/router/pages/OAuthRoute';
 
@@ -16,6 +17,7 @@ const HomeRouter = () => {
                     <Route index element={<Home />} />
                     <Route path="/emi/:id" element={<EMIDetails />} />
                     <Route path="/emi/:id/amortization" element={<AmortizationSchedule />} />
+                    <Route path="/emi/:id/split" element={<SplitEMI />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

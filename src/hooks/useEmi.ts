@@ -3,9 +3,10 @@ import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack
 import { useSelector } from 'react-redux';
 import { isEqual, omit } from 'lodash';
 
-import { IEmi } from '@/types/emi.types';
+import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
 import { EmiService } from '@/utils/EMIService';
 import { EmiShareService } from '@/utils/EmiShareService';
+import { EmiSplitService } from '@/utils/EmiSplitService';
 import { calculateEMI } from '@/utils/calculation';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { useRematchDispatch } from '@/store/store';
@@ -174,5 +175,56 @@ export const useEmiShares = (emiId: string) => {
         queryFn: () => EmiShareService.getEmiShares(emiId),
         enabled: !!emiId,
         staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+};
+
+// ============================================================================
+// EMI Split Hooks
+// ============================================================================
+
+export const useEmiSplits = (emiId: string) => {
+    return useQuery<IEmiSplit[], Error>({
+        queryKey: ['emiSplits', emiId],
+        queryFn: () => EmiSplitService.getEmiSplits(emiId),
+        enabled: !!emiId,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+};
+
+export const useSetEmiSplits = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ emiId, splits }: { emiId: string; splits: IEmiSplitInput[] }) =>
+            EmiSplitService.setEmiSplits(emiId, splits),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiSplits', variables.emiId] });
+        },
+    });
+};
+
+export const useRemoveSplit = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ emiId, userId, email }: { emiId: string; userId?: string; email?: string }) =>
+            EmiSplitService.removeSplit(emiId, userId, email),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiSplits', variables.emiId] });
+        },
+    });
+};
+
+export const useRemoveAllSplits = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (emiId: string) => EmiSplitService.removeAllSplits(emiId),
+        onSuccess: (_, emiId) => {
+            queryClient.invalidateQueries({ queryKey: ['emis'] });
+            queryClient.invalidateQueries({ queryKey: ['emiSplits', emiId] });
+        },
     });
 };

@@ -11,6 +11,35 @@ export interface IEmiShare {
     };
 }
 
+export interface IEmiSplit {
+    id: string;
+    emiId: string;
+    userId?: string; // Nullable for external participants
+    participantName?: string; // For external participants
+    participantEmail?: string; // For external participants
+    splitPercentage: number; // 0-100
+    splitAmount: number; // Calculated: EMI * splitPercentage / 100
+    isExternal: boolean; // True if not a registered user
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+    // For registered users
+    user_profiles?: {
+        email: string;
+    };
+    // Computed fields (set by service layer)
+    displayName?: string; // Name to show in UI
+    displayEmail?: string; // Email to show in UI
+}
+
+// Input type for creating splits
+export interface IEmiSplitInput {
+    userId?: string; // For registered users
+    participantName?: string; // For external participants
+    participantEmail?: string; // For external participants
+    splitPercentage: number;
+}
+
 export interface IEmi {
     id: string;
     itemName: string;
@@ -40,6 +69,12 @@ export interface IEmi {
     isOwner?: boolean;
     permission?: 'read' | 'write';
     sharedWith?: IEmiShare[];
+    // Split EMI fields
+    splits?: IEmiSplit[]; // Array of splits for this EMI
+    mySplit?: IEmiSplit; // Current user's split (if any)
+    mySplitAmount?: number; // Current user's portion of EMI
+    totalSplitPercentage?: number; // Sum of all splits (should be 100)
+    isSplit?: boolean; // Whether this EMI is split
 }
 
 export interface ScheduleData {

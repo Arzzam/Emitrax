@@ -69,14 +69,14 @@ const AmortizationSchedule = () => {
         <>
             <Header title="Amortization Schedule" />
             <BreadcrumbContainer
-                className="pt-4 pb-0 px-8"
+                className="py-4 px-8"
                 items={[
                     { label: 'Dashboard', link: '/' },
                     { label: `EMI Details (${currentData?.itemName})`, link: `/emi/${id}` },
                     { label: 'Amortization Schedule' },
                 ]}
             />
-            <MainContainer>
+            <MainContainer className="h-[calc(100vh-100px)]">
                 <h3 className="text-lg font-bold pl-2">Amortization Schedule</h3>
                 <div className="p-4">
                     <Table>

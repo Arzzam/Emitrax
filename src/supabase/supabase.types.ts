@@ -54,6 +54,23 @@ export type Tables = {
         Insert: Omit<Tables['emiShares']['Row'], 'id' | 'createdAt'>;
         Update: Partial<Omit<Tables['emiShares']['Row'], 'id' | 'createdAt'>>;
     };
+    emiSplits: {
+        Row: {
+            id: string;
+            emiId: string;
+            userId: string | null;
+            participantName: string | null;
+            participantEmail: string | null;
+            splitPercentage: number;
+            splitAmount: number | null;
+            isExternal: boolean;
+            createdBy: string;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['emiSplits']['Row'], 'id' | 'createdAt' | 'updatedAt' | 'splitAmount'>;
+        Update: Partial<Omit<Tables['emiSplits']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
 };
 
 export type DbResult<T> = T extends PromiseLike<infer U> ? U : never;
