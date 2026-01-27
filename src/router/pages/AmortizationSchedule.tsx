@@ -89,6 +89,7 @@ const AmortizationSchedule = () => {
                                 <TableHead>Principal Paid</TableHead>
                                 <TableHead>Balance</TableHead>
                                 <TableHead>GST</TableHead>
+                                <TableHead>Total with GST</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -115,6 +116,7 @@ const AmortizationSchedule = () => {
                                         <TableCell>₹{formatAmount(Number(item.principalPaid))}</TableCell>
                                         <TableCell>₹{formatAmount(Number(item.balance))}</TableCell>
                                         <TableCell>₹{formatAmount(item.gst)}</TableCell>
+                                        <TableCell>₹{formatAmount(Number(item.emi) + Number(item.gst))}</TableCell>
                                     </TableRow>
                                 );
                             })}
@@ -127,6 +129,7 @@ const AmortizationSchedule = () => {
                                 <TableCell>₹{formatAmount(totals.principal)}</TableCell>
                                 <TableCell>—</TableCell>
                                 <TableCell>₹{formatAmount(totals.gst)}</TableCell>
+                                <TableCell>₹{formatAmount(totals.emi + totals.gst)}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
