@@ -208,8 +208,17 @@ export const useRemoveSplit = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ emiId, userId, email }: { emiId: string; userId?: string; email?: string }) =>
-            EmiSplitService.removeSplit(emiId, userId, email),
+        mutationFn: ({
+            emiId,
+            splitId,
+            userId,
+            email,
+        }: {
+            emiId: string;
+            splitId?: string;
+            userId?: string;
+            email?: string;
+        }) => EmiSplitService.removeSplit(emiId, splitId, userId, email),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiSplits', variables.emiId] });

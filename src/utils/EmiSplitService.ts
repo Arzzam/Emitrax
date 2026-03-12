@@ -30,18 +30,20 @@ export class EmiSplitService {
                 };
             }
 
-            // For external participants, email is required
+            // For external participants, at least one identity field is required
             if (!split.userId) {
-                if (!split.participantEmail || !split.participantEmail.trim()) {
+                const hasName = !!split.participantName?.trim();
+                const hasEmail = !!split.participantEmail?.trim();
+
+                if (!hasName && !hasEmail) {
                     return {
                         valid: false,
-                        error: 'External participants must have an email address',
+                        error: 'External participants must have a name or email',
                     };
                 }
 
-                // Validate email format
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(split.participantEmail.trim())) {
+                if (hasEmail && !emailRegex.test(split.participantEmail!.trim())) {
                     return {
                         valid: false,
                         error: 'Invalid email format for external participant',
@@ -141,7 +143,7 @@ export class EmiSplitService {
     /**
      * Remove a split (by userId or email)
      */
-    static async removeSplit(emiId: string, userId?: string, email?: string): Promise<void> {
+    static async removeSplit(emiId: string, splitId?: string, userId?: string, email?: string): Promise<void> {
         const { id: currentUserId } = store.getState().userModel;
         let currentUser = currentUserId;
 
@@ -163,12 +165,14 @@ export class EmiSplitService {
 
         let query = supabase.from('emiSplits').delete().eq('emiId', emiId);
 
-        if (userId) {
+        if (splitId) {
+            query = query.eq('id', splitId);
+        } else if (userId) {
             query = query.eq('userId', userId);
         } else if (email) {
             query = query.eq('participantEmail', email.toLowerCase().trim()).eq('isExternal', true);
         } else {
-            throw new Error('Either userId or email must be provided');
+            throw new Error('splitId, userId, or email must be provided');
         }
 
         const { error } = await query;
