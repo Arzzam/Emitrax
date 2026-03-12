@@ -1,14 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Trash2, AlertCircle, CheckCircle2, Users, Edit2, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
 import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
 import { useEmis, useSetEmiSplits, useEmiSplits, useRemoveSplit } from '@/hooks/useEmi';
+import {
+    EditableSplit,
+    PERCENTAGE_TOLERANCE,
+    createEditableSplit,
+    mapExistingToEditableSplits,
+    normalizeEmail,
+    useRegisteredUserLookup,
+    useRegisteredUsers,
+} from '@/hooks/useSplitEmi';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import { IRootState } from '@/store/types/store.types';
 import { formatAmount } from '@/utils/utils';
-import { supabase } from '@/supabase/supabase';
 
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
@@ -16,10 +24,10 @@ import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import NotFound from '@/components/common/NotFound';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import SplitEmiEditRow from '@/components/emi/SplitEmiEditRow';
 
 const SplitEMI = () => {
     const { id } = useParams();
@@ -29,22 +37,20 @@ const SplitEMI = () => {
     const [notFound, setNotFound] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [editedSplits, setEditedSplits] = useState<
-        Array<{
-            id?: string;
-            tempId?: string;
-            name: string;
-            email: string;
-            percentage: number;
-            userId?: string;
-            isExternal?: boolean;
-        }>
-    >([]);
-    const [allRegisteredUsers, setAllRegisteredUsers] = useState<Array<{ id: string; email: string }>>([]);
-    const { id: currentUserId } = useSelector((state: IRootState) => state.userModel);
+    const [editedSplits, setEditedSplits] = useState<EditableSplit[]>([]);
+    const allRegisteredUsers = useRegisteredUsers();
+    const { id: currentUserId, email: currentUserEmail } = useSelector((state: IRootState) => state.userModel);
     const { data: existingSplits } = useEmiSplits(id || '');
     const { mutate: setSplits } = useSetEmiSplits();
     const { mutate: removeSplit } = useRemoveSplit();
+    const breadcrumbItems = useMemo(
+        () => [
+            { label: 'Dashboard', link: '/' },
+            { label: `EMI Details (${currentData?.itemName})`, link: `/emi/${id}` },
+            { label: 'Split EMI' },
+        ],
+        [currentData?.itemName, id]
+    );
 
     useEffect(() => {
         if (!isFetching && data && !currentData) {
@@ -64,93 +70,118 @@ const SplitEMI = () => {
           (currentData.amortizationSchedules[currentData.tenure - currentData.remainingTenure]?.gst || 0)
         : 0;
 
-    // Fetch all registered users for email matching
-    useEffect(() => {
-        const fetchRegisteredUsers = async () => {
-            try {
-                const { data, error } = await supabase.from('user_profiles').select('id, email').limit(1000);
-                if (error) throw error;
-                setAllRegisteredUsers(data || []);
-            } catch (error) {
-                console.error('Error fetching registered users:', error);
-            }
-        };
-        fetchRegisteredUsers();
-    }, []);
-
-    // Initialize edited splits when entering edit mode
     useEffect(() => {
         if (isEditMode && existingSplits) {
-            const initialSplits = existingSplits.map((split) => ({
-                id: split.id,
-                name: split.participantName || split.displayName || split.displayEmail || '',
-                email: split.displayEmail || split.participantEmail || '',
-                percentage: split.splitPercentage,
-                userId: split.userId,
-                isExternal: split.isExternal,
-            }));
-            setEditedSplits(initialSplits);
+            setEditedSplits(mapExistingToEditableSplits(existingSplits));
         } else if (!isEditMode) {
             setEditedSplits([]);
         }
     }, [isEditMode, existingSplits]);
 
-    // Calculate total percentage
-    const totalPercentage = useMemo(() => {
-        return editedSplits.reduce((sum, split) => sum + split.percentage, 0);
-    }, [editedSplits]);
+    const totalPercentage = useMemo(
+        () => editedSplits.reduce((sum, split) => sum + split.percentage, 0),
+        [editedSplits]
+    );
 
-    const isTotalValid = totalPercentage >= 99.99 && totalPercentage <= 100.01;
+    const isTotalValid = Math.abs(totalPercentage - 100) <= PERCENTAGE_TOLERANCE;
     const splitCount = existingSplits?.length || 0;
+    const { findUserByEmail } = useRegisteredUserLookup(allRegisteredUsers);
+    const currentUserSplitIndex = useMemo(
+        () => editedSplits.findIndex((split) => split.userId === currentUserId),
+        [editedSplits, currentUserId]
+    );
+    const hasCurrentUserSplit = currentUserSplitIndex >= 0;
+    const remainingForCurrentUser = useMemo(() => {
+        const totalWithoutCurrentUser = editedSplits.reduce((sum, split, index) => {
+            if (index === currentUserSplitIndex) return sum;
+            return sum + split.percentage;
+        }, 0);
 
-    // Check if email belongs to registered user
-    const findUserByEmail = (email: string) => {
-        const normalizedEmail = email.trim().toLowerCase();
-        return allRegisteredUsers.find((user) => user.email.toLowerCase() === normalizedEmail);
-    };
+        const remaining = 100 - totalWithoutCurrentUser;
+        return Number(Math.max(0, remaining).toFixed(2));
+    }, [currentUserSplitIndex, editedSplits]);
 
-    // Update edited split
-    const handleUpdateSplit = (index: number, field: 'name' | 'email' | 'percentage', value: string | number) => {
-        const updated = [...editedSplits];
-        updated[index] = { ...updated[index], [field]: value };
+    const handleUpdateSplit = useCallback(
+        (index: number, field: 'name' | 'email' | 'percentage', value: string | number) => {
+            setEditedSplits((previousSplits) => {
+                const nextSplits = [...previousSplits];
+                const currentSplit = nextSplits[index];
+                if (!currentSplit) return previousSplits;
 
-        // Auto-detect if user is registered based on email
-        if (field === 'email') {
-            const user = findUserByEmail(value as string);
-            if (user) {
-                updated[index].userId = user.id;
-                updated[index].isExternal = false;
-                updated[index].name = user.email; // Use email as name for registered users
-            } else {
-                updated[index].userId = undefined;
-                updated[index].isExternal = true;
-            }
+                const updatedSplit: EditableSplit = { ...currentSplit, [field]: value };
+
+                if (field === 'email') {
+                    const user = findUserByEmail(String(value));
+                    if (user) {
+                        updatedSplit.userId = user.id;
+                        updatedSplit.isExternal = false;
+                        updatedSplit.name = user.email;
+                    } else {
+                        updatedSplit.userId = undefined;
+                        updatedSplit.isExternal = true;
+                    }
+                }
+
+                nextSplits[index] = updatedSplit;
+                return nextSplits;
+            });
+        },
+        [findUserByEmail]
+    );
+
+    const handleAddSplit = useCallback(() => {
+        setEditedSplits((previousSplits) => [...previousSplits, createEditableSplit()]);
+    }, []);
+
+    const handleAddCurrentUserWithRemaining = useCallback(() => {
+        if (!currentUserId) {
+            errorToast('Unable to identify current user');
+            return;
         }
 
-        setEditedSplits(updated);
-    };
+        if (remainingForCurrentUser <= 0) {
+            errorToast('No remaining percentage available');
+            return;
+        }
 
-    // Add new split row
-    const handleAddSplit = () => {
-        setEditedSplits([
-            ...editedSplits,
-            {
-                tempId: `temp-${Date.now()}-${Math.random()}`,
-                name: '',
-                email: '',
-                percentage: 0,
-                isExternal: true,
-            },
-        ]);
-    };
+        const normalizedCurrentEmail = normalizeEmail(currentUserEmail || '');
+        const currentUserDisplay = currentUserEmail || 'You';
 
-    // Remove split row
-    const handleRemoveSplitRow = (index: number) => {
-        setEditedSplits(editedSplits.filter((_, i) => i !== index));
-    };
+        setEditedSplits((previousSplits) => {
+            const currentIndex = previousSplits.findIndex((split) => split.userId === currentUserId);
 
-    // Save all edited splits
-    const handleSaveSplits = async () => {
+            if (currentIndex >= 0) {
+                const updated = [...previousSplits];
+                updated[currentIndex] = {
+                    ...updated[currentIndex],
+                    userId: currentUserId,
+                    isExternal: false,
+                    name: currentUserDisplay,
+                    email: normalizedCurrentEmail,
+                    percentage: remainingForCurrentUser,
+                };
+                return updated;
+            }
+
+            return [
+                ...previousSplits,
+                {
+                    tempId: `temp-self-${Date.now()}-${Math.random()}`,
+                    userId: currentUserId,
+                    isExternal: false,
+                    name: currentUserDisplay,
+                    email: normalizedCurrentEmail,
+                    percentage: remainingForCurrentUser,
+                },
+            ];
+        });
+    }, [currentUserEmail, currentUserId, remainingForCurrentUser]);
+
+    const handleRemoveSplitRow = useCallback((index: number) => {
+        setEditedSplits((previousSplits) => previousSplits.filter((_, currentIndex) => currentIndex !== index));
+    }, []);
+
+    const handleSaveSplits = useCallback(() => {
         if (!id || !ownerId) {
             errorToast('Unable to determine EMI owner');
             return;
@@ -161,10 +192,11 @@ const SplitEMI = () => {
             return;
         }
 
-        // Validate all splits have required fields
         for (const split of editedSplits) {
-            if (!split.email || !split.email.trim()) {
-                errorToast('All splits must have an email address');
+            const hasName = !!split.name.trim();
+            const hasEmail = !!split.email.trim();
+            if (!split.userId && !hasName && !hasEmail) {
+                errorToast('Each external split needs at least a name or an email');
                 return;
             }
             if (split.percentage <= 0 || split.percentage > 100) {
@@ -177,21 +209,22 @@ const SplitEMI = () => {
 
         try {
             const splitInputs: IEmiSplitInput[] = editedSplits.map((split) => {
+                const participantName = split.name.trim() || undefined;
+                const participantEmail = split.email.trim() ? normalizeEmail(split.email) : undefined;
+
                 if (split.userId) {
-                    // Registered user
                     return {
                         userId: split.userId,
                         splitPercentage: split.percentage,
-                        participantName: split.name.trim() || undefined,
-                    };
-                } else {
-                    // External user
-                    return {
-                        participantEmail: split.email.trim().toLowerCase(),
-                        participantName: split.name.trim() || undefined,
-                        splitPercentage: split.percentage,
+                        participantName,
                     };
                 }
+
+                return {
+                    participantEmail,
+                    participantName,
+                    splitPercentage: split.percentage,
+                };
             });
 
             setSplits(
@@ -212,31 +245,33 @@ const SplitEMI = () => {
             errorToast((error as Error).message || 'Failed to save splits');
             setIsSubmitting(false);
         }
-    };
+    }, [editedSplits, id, isTotalValid, ownerId, setSplits, totalPercentage]);
 
-    const handleRemoveSplit = (split: IEmiSplit) => {
-        if (!id) return;
+    const handleRemoveSplit = useCallback(
+        (split: IEmiSplit) => {
+            if (!id) return;
 
-        removeSplit(
-            {
-                emiId: id,
-                userId: split.userId,
-                email: split.participantEmail,
-            },
-            {
-                onSuccess: () => {
-                    successToast('Split removed successfully');
+            removeSplit(
+                {
+                    emiId: id,
+                    splitId: split.id,
+                    userId: split.userId,
+                    email: split.participantEmail,
                 },
-                onError: (error: Error) => {
-                    errorToast(error.message || 'Failed to remove split');
-                },
-            }
-        );
-    };
+                {
+                    onSuccess: () => {
+                        successToast('Split removed successfully');
+                    },
+                    onError: (error: Error) => {
+                        errorToast(error.message || 'Failed to remove split');
+                    },
+                }
+            );
+        },
+        [id, removeSplit]
+    );
 
-    const getSplitAmount = (percentage: number) => {
-        return (emiAmount * percentage) / 100;
-    };
+    const getSplitAmount = useCallback((percentage: number) => (emiAmount * percentage) / 100, [emiAmount]);
 
     if (isFetching) {
         return (
@@ -262,14 +297,7 @@ const SplitEMI = () => {
         return (
             <>
                 <Header title="Split EMI" />
-                <BreadcrumbContainer
-                    className="py-4 px-8"
-                    items={[
-                        { label: 'Dashboard', link: '/' },
-                        { label: `EMI Details (${currentData?.itemName})`, link: `/emi/${id}` },
-                        { label: 'Split EMI' },
-                    ]}
-                />
+                <BreadcrumbContainer className="py-4 px-8" items={breadcrumbItems} />
                 <MainContainer>
                     <Alert>
                         <AlertCircle className="h-4 w-4" />
@@ -286,17 +314,9 @@ const SplitEMI = () => {
     return (
         <>
             <Header title="Split EMI" />
-            <BreadcrumbContainer
-                className="pt-4 pb-0 px-8"
-                items={[
-                    { label: 'Dashboard', link: '/' },
-                    { label: `EMI Details (${currentData?.itemName})`, link: `/emi/${id}` },
-                    { label: 'Split EMI' },
-                ]}
-            />
+            <BreadcrumbContainer className="pt-4 pb-0 px-8" items={breadcrumbItems} />
             <MainContainer>
                 <div className="space-y-6">
-                    {/* Header Section */}
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-2xl font-bold">Split EMI</h2>
@@ -305,15 +325,8 @@ const SplitEMI = () => {
                                 100%.
                             </p>
                         </div>
-                        {/* <Button variant="outline" asChild>
-                            <Link to={`/emi/${id}`}>
-                                <Users className="h-4 w-4 mr-2" />
-                                Back to EMI Details
-                            </Link>
-                        </Button> */}
                     </div>
 
-                    {/* EMI Summary */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Summary</CardTitle>
@@ -338,7 +351,6 @@ const SplitEMI = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Current Splits */}
                     <Card>
                         <CardHeader>
                             <div className="flex items-center justify-between">
@@ -356,7 +368,6 @@ const SplitEMI = () => {
                         </CardHeader>
                         <CardContent>
                             {!isEditMode ? (
-                                // View Mode
                                 <div className="space-y-3">
                                     {existingSplits && existingSplits.length > 0 ? (
                                         existingSplits.map((split) => (
@@ -400,7 +411,6 @@ const SplitEMI = () => {
                                     )}
                                 </div>
                             ) : (
-                                // Edit Mode
                                 <div className="space-y-4">
                                     <div className="space-y-3">
                                         {editedSplits.map((split, index) => {
@@ -408,81 +418,19 @@ const SplitEMI = () => {
                                             const isRegistered = !!user;
 
                                             return (
-                                                <div
+                                                <SplitEmiEditRow
                                                     key={split.id || split.tempId}
-                                                    className="grid grid-cols-12 gap-3 p-4 rounded-lg border bg-card items-center"
-                                                >
-                                                    <div className="col-span-12 md:col-span-3 flex flex-col gap-2">
-                                                        <Input
-                                                            placeholder="Name"
-                                                            value={split.name}
-                                                            onChange={(e) =>
-                                                                handleUpdateSplit(index, 'name', e.target.value)
-                                                            }
-                                                        />
-                                                        <div className="h-6"></div>
-                                                    </div>
-                                                    <div className="col-span-12 md:col-span-4 flex flex-col gap-2">
-                                                        <Input
-                                                            type="email"
-                                                            placeholder="Email"
-                                                            value={split.email}
-                                                            onChange={(e) =>
-                                                                handleUpdateSplit(index, 'email', e.target.value)
-                                                            }
-                                                        />
-                                                        {isRegistered && (
-                                                            <Badge variant="default" className="text-xs h-6">
-                                                                App User
-                                                            </Badge>
-                                                        )}
-                                                        {!isRegistered && split.email && (
-                                                            <Badge variant="outline" className="text-xs h-6">
-                                                                External
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    <div className="col-span-12 md:col-span-3 flex flex-col gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                min="0.01"
-                                                                max="100"
-                                                                placeholder="Percentage"
-                                                                value={split.percentage || ''}
-                                                                onChange={(e) =>
-                                                                    handleUpdateSplit(
-                                                                        index,
-                                                                        'percentage',
-                                                                        parseFloat(e.target.value) || 0
-                                                                    )
-                                                                }
-                                                            />
-                                                            <span className="text-sm text-muted-foreground">%</span>
-                                                        </div>
-                                                        {split.percentage > 0 && (
-                                                            <div className="text-xs text-muted-foreground h-6 flex items-center">
-                                                                ₹{formatAmount(getSplitAmount(split.percentage))}/month
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="col-span-12 md:col-span-2 flex justify-end">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleRemoveSplitRow(index)}
-                                                            className="text-destructive hover:text-destructive"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
+                                                    split={split}
+                                                    index={index}
+                                                    isRegistered={isRegistered}
+                                                    onUpdateSplit={handleUpdateSplit}
+                                                    onRemoveSplitRow={handleRemoveSplitRow}
+                                                    getSplitAmount={getSplitAmount}
+                                                />
                                             );
                                         })}
                                     </div>
 
-                                    {/* Total and Validation */}
                                     <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
                                         <div className="flex items-center gap-2">
                                             <span className="font-medium">Total:</span>
@@ -494,7 +442,7 @@ const SplitEMI = () => {
                                             <Alert className="flex-1 max-w-md">
                                                 <AlertCircle className="h-4 w-4" />
                                                 <AlertDescription className="text-xs">
-                                                    {totalPercentage < 99.99
+                                                    {totalPercentage < 100 - PERCENTAGE_TOLERANCE
                                                         ? `${(100 - totalPercentage).toFixed(2)}% remaining`
                                                         : `${(totalPercentage - 100).toFixed(2)}% over-allocated`}
                                                 </AlertDescription>
@@ -510,7 +458,6 @@ const SplitEMI = () => {
                                         )}
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div className="flex gap-2">
                                         <Button
                                             variant="outline"
@@ -527,6 +474,15 @@ const SplitEMI = () => {
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
                                             Add Split
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleAddCurrentUserWithRemaining}
+                                            disabled={isSubmitting || !currentUserId || remainingForCurrentUser <= 0}
+                                            className="flex-1"
+                                        >
+                                            {hasCurrentUserSplit ? 'Set My Share' : 'Add Me'} (
+                                            {remainingForCurrentUser.toFixed(2)}%)
                                         </Button>
                                         <Button
                                             onClick={handleSaveSplits}
