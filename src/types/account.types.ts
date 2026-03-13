@@ -1,8 +1,11 @@
+export type NumberFormatMode = 'exact' | 'compact_short' | 'compact_long';
+
 export type AccountPreferences = {
     phone: string | null;
     avatarUrl: string | null;
     locale: string;
     currency: string;
+    numberFormat: NumberFormatMode;
 };
 
 export type AccountProfile = {
@@ -21,6 +24,7 @@ export type AccountUpdatePayload = {
     avatarUrl: string;
     locale: string;
     currency: string;
+    numberFormat: NumberFormatMode;
 };
 
 export const DEFAULT_ACCOUNT_PREFERENCES: AccountPreferences = {
@@ -28,4 +32,5 @@ export const DEFAULT_ACCOUNT_PREFERENCES: AccountPreferences = {
     avatarUrl: null,
     locale: 'en-IN',
     currency: 'INR',
+    numberFormat: 'exact',
 };

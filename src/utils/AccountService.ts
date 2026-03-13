@@ -1,10 +1,16 @@
 import { supabase } from '@/supabase/supabase';
-import { AccountDetails, AccountUpdatePayload, DEFAULT_ACCOUNT_PREFERENCES } from '@/types/account.types';
+import {
+    AccountDetails,
+    AccountUpdatePayload,
+    DEFAULT_ACCOUNT_PREFERENCES,
+    NumberFormatMode,
+} from '@/types/account.types';
 
 type UserProfileRow = {
     id: string;
     email: string | null;
     display_name: string | null;
+    number_format: NumberFormatMode;
 };
 
 type UserAccountPreferenceRow = {
@@ -13,6 +19,7 @@ type UserAccountPreferenceRow = {
     avatar_url: string | null;
     locale: string;
     currency: string;
+    number_format: NumberFormatMode;
 };
 
 const trimToNull = (value: string): string | null => {
@@ -50,7 +57,7 @@ export class AccountService {
 
         const { data: preferences, error: preferencesError } = await supabase
             .from('user_account_preferences')
-            .select('user_id, phone, avatar_url, locale, currency')
+            .select('user_id, phone, avatar_url, locale, currency, number_format')
             .eq('user_id', userId)
             .maybeSingle<UserAccountPreferenceRow>();
 
@@ -67,6 +74,7 @@ export class AccountService {
                 avatarUrl: preferences?.avatar_url ?? DEFAULT_ACCOUNT_PREFERENCES.avatarUrl,
                 locale: preferences?.locale ?? DEFAULT_ACCOUNT_PREFERENCES.locale,
                 currency: preferences?.currency ?? DEFAULT_ACCOUNT_PREFERENCES.currency,
+                numberFormat: preferences?.number_format ?? DEFAULT_ACCOUNT_PREFERENCES.numberFormat,
             },
         };
     }
@@ -93,6 +101,7 @@ export class AccountService {
             avatar_url: trimToNull(payload.avatarUrl),
             locale: payload.locale.trim() || DEFAULT_ACCOUNT_PREFERENCES.locale,
             currency: payload.currency.trim().toUpperCase() || DEFAULT_ACCOUNT_PREFERENCES.currency,
+            number_format: payload.numberFormat,
         };
 
         const { error: preferencesError } = await supabase

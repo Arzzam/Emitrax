@@ -89,6 +89,7 @@ export type Tables = {
             avatar_url: string | null;
             locale: string;
             currency: string;
+            number_format: string;
             created_at: string;
             updated_at: string;
         };

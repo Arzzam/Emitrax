@@ -5,9 +5,9 @@ import { IEmi } from '@/types/emi.types';
 import { IRootState } from '@/store/types/store.types';
 
 import { useEmis } from './useEmi';
-import { TComboboxOption } from '@/components/ui/combobox';
+import { IComboboxOption } from '@/types/common.types';
 
-export const useUniqueTagsOptions = (): TComboboxOption[] => {
+export const useUniqueTagsOptions = (): IComboboxOption[] => {
     const { data: emiData } = useEmis();
     const tagOptions = useMemo(() => {
         const defaultTags = ['Personal'];

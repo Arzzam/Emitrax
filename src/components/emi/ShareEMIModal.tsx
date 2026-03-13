@@ -1,17 +1,14 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm } from '@tanstack/react-form';
 import * as z from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Share2, UserPlus, Eye, Edit, Trash2 } from 'lucide-react';
 
 import { useShareEmi, useUnshareEmi, useUpdateSharePermission, useEmiShares } from '@/hooks/useEmi';
 import { IEmiShare } from '@/types/emi.types';
-import { errorToast, successToast } from '@/utils/toast.utils';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '../ui/form';
+import { Field, FieldError, FieldLabel } from '../ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
@@ -23,8 +20,6 @@ const shareFormSchema = z.object({
     }),
 });
 
-type ShareFormValues = z.infer<typeof shareFormSchema>;
-
 interface ShareEMIModalProps {
     emiId: string;
     open: boolean;
@@ -32,74 +27,43 @@ interface ShareEMIModalProps {
 }
 
 const ShareEMIModal = ({ emiId, open, onOpenChange }: ShareEMIModalProps) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const { data: shares, isLoading: sharesLoading } = useEmiShares(emiId);
     const { mutate: shareEmi } = useShareEmi();
     const { mutate: unshareEmi } = useUnshareEmi();
     const { mutate: updatePermission } = useUpdateSharePermission();
 
-    const form = useForm<ShareFormValues>({
-        resolver: zodResolver(shareFormSchema),
+    const form = useForm({
         defaultValues: {
             email: '',
-            permission: 'read',
+            permission: 'read' as 'read' | 'write',
+        },
+        validators: {
+            onSubmit: shareFormSchema as never,
+        },
+        onSubmit: async ({ value }) => {
+            shareEmi(
+                {
+                    emiId,
+                    email: value.email,
+                    permission: value.permission,
+                },
+                {
+                    onSuccess: () => {
+                        form.reset();
+                    },
+                }
+            );
         },
     });
 
-    const onSubmit = (values: ShareFormValues) => {
-        setIsSubmitting(true);
-        shareEmi(
-            {
-                emiId,
-                email: values.email,
-                permission: values.permission,
-            },
-            {
-                onSuccess: () => {
-                    successToast('EMI shared successfully');
-                    form.reset();
-                    setIsSubmitting(false);
-                },
-                onError: (error: Error) => {
-                    errorToast(error.message || 'Failed to share EMI');
-                    setIsSubmitting(false);
-                },
-            }
-        );
-    };
-
     const handleUnshare = (sharedWithUserId: string) => {
-        unshareEmi(
-            { emiId, sharedWithUserId },
-            {
-                onSuccess: () => {
-                    successToast('Share removed successfully');
-                },
-                onError: (error: Error) => {
-                    errorToast(error.message || 'Failed to remove share');
-                },
-            }
-        );
+        unshareEmi({ emiId, sharedWithUserId });
     };
 
     const handlePermissionChange = (share: IEmiShare, newPermission: 'read' | 'write') => {
         if (share.permission === newPermission) return;
 
-        updatePermission(
-            {
-                emiId,
-                sharedWithUserId: share.sharedWithUserId,
-                permission: newPermission,
-            },
-            {
-                onSuccess: () => {
-                    successToast('Permission updated successfully');
-                },
-                onError: (error: Error) => {
-                    errorToast(error.message || 'Failed to update permission');
-                },
-            }
-        );
+        updatePermission({ emiId, sharedWithUserId: share.sharedWithUserId, permission: newPermission });
     };
 
     return (
@@ -116,43 +80,52 @@ const ShareEMIModal = ({ emiId, open, onOpenChange }: ShareEMIModalProps) => {
                 </DialogHeader>
 
                 <div className="space-y-6">
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="email"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Email Address</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                placeholder="user@example.com"
-                                                type="email"
-                                                {...field}
-                                                disabled={isSubmitting}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                    <form
+                        className="space-y-4"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            void form.handleSubmit();
+                        }}
+                    >
+                        <form.Field
+                            name="email"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <FieldLabel htmlFor={field.name}>Email Address</FieldLabel>
+                                        <Input
+                                            id={field.name}
+                                            name={field.name}
+                                            type="email"
+                                            value={field.state.value}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) => field.handleChange(e.target.value)}
+                                            aria-invalid={isInvalid}
+                                            placeholder="user@example.com"
+                                            disabled={form.state.isSubmitting}
+                                        />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
 
-                            <FormField
-                                control={form.control}
-                                name="permission"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Permission Level</FormLabel>
+                        <form.Field
+                            name="permission"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <FieldLabel htmlFor={`${field.name}-trigger`}>Permission Level</FieldLabel>
                                         <Select
-                                            onValueChange={(value: 'read' | 'write') => field.onChange(value)}
-                                            defaultValue={field.value}
-                                            disabled={isSubmitting}
+                                            value={field.state.value}
+                                            onValueChange={(value: 'read' | 'write') => field.handleChange(value)}
+                                            disabled={form.state.isSubmitting}
                                         >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select permission" />
-                                                </SelectTrigger>
-                                            </FormControl>
+                                            <SelectTrigger id={`${field.name}-trigger`} aria-invalid={isInvalid}>
+                                                <SelectValue placeholder="Select permission" />
+                                            </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="read">
                                                     <div className="flex items-center gap-2">
@@ -168,17 +141,17 @@ const ShareEMIModal = ({ emiId, open, onOpenChange }: ShareEMIModalProps) => {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                {isSubmitting ? 'Sharing...' : 'Share EMI'}
-                            </Button>
-                        </form>
-                    </Form>
+                        <Button type="submit" className="w-full" disabled={form.state.isSubmitting}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            {form.state.isSubmitting ? 'Sharing...' : 'Share EMI'}
+                        </Button>
+                    </form>
 
                     {shares && shares.length > 0 && (
                         <>

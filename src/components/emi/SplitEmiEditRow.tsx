@@ -3,8 +3,8 @@ import { Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { EditableSplit } from '@/hooks/useSplitEmi';
-import { formatAmount } from '@/utils/utils';
 
 type SplitEmiEditRowProps = {
     split: EditableSplit;
@@ -23,6 +23,8 @@ const SplitEmiEditRow = ({
     onRemoveSplitRow,
     getSplitAmount,
 }: SplitEmiEditRowProps) => {
+    const { formatCurrencyAmount } = useCurrencyPreferences();
+
     return (
         <div className="grid grid-cols-1 gap-4 rounded-lg border bg-card p-4 md:grid-cols-12 md:items-end">
             <div className="md:col-span-3">
@@ -33,7 +35,7 @@ const SplitEmiEditRow = ({
                     onChange={(e) => onUpdateSplit(index, 'name', e.target.value)}
                 />
                 <div className="mt-2 min-h-5 text-xs text-muted-foreground">
-                    {split.userId ? 'Synced from app user' : 'Optional'}
+                    {split.userId ? 'Synced from app user' : 'Required'}
                 </div>
             </div>
 
@@ -72,7 +74,7 @@ const SplitEmiEditRow = ({
                 </div>
                 <div className="mt-2 min-h-5 text-xs text-muted-foreground">
                     {split.percentage > 0
-                        ? `₹${formatAmount(getSplitAmount(split.percentage))}/month`
+                        ? `${formatCurrencyAmount(getSplitAmount(split.percentage))}/month`
                         : 'Enter a value > 0'}
                 </div>
             </div>
