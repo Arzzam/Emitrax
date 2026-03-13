@@ -175,8 +175,6 @@ const EMIDetails = () => {
         year: 'numeric',
     });
 
-    console.log(nextBillDate);
-
     const formattedEndDate = new Date(endDate).toLocaleDateString('en-US', {
         month: 'long',
         day: '2-digit',

@@ -27,7 +27,6 @@ function validateField<T>(schema: z.ZodType<T>, value: T): string | undefined {
 
 export const AccountForm = ({ account }: { account: AccountDetails }) => {
     const defaultValues = getAccountFormDefaults(account);
-    console.log(`defaultValues: ${JSON.stringify(defaultValues)}`);
     const { setPreferences } = useRematchDispatch((d: IDispatch) => d.currencyPreferencesModel);
     const { mutateAsync: upsertAccount, isPending: isSaving } = useUpsertAccountDetails();
 
@@ -60,7 +59,6 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
         },
     });
 
-    console.log(`form.state: ${JSON.stringify(form.state.values)}`);
     const nameField = useStore(form.store, (state) => state.values.displayName);
 
     const isNameDirty = useStore(form.store, (state) => state.values.displayName !== defaultValues.displayName);
@@ -93,7 +91,6 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                 currency: values.currency,
                 numberFormat: values.numberFormat as NumberFormatMode,
             });
-            // formApi?.reset(values);
             successToast('Account details updated successfully.');
         } catch {
             errorToast('Could not save account details. Please try again.');
