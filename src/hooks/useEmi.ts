@@ -10,6 +10,7 @@ import { EmiSplitService } from '@/utils/EmiSplitService';
 import { calculateEMI } from '@/utils/calculation';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { useRematchDispatch } from '@/store/store';
+import { errorToast, successToast } from '@/utils/toast.utils';
 
 // Helper function to strip comparison fields for EMI comparison
 const stripComparisonFields = (emi: IEmi) => {
@@ -34,6 +35,10 @@ export const useCreateEmi = () => {
         mutationFn: (emi: Omit<IEmi, 'id'>) => EmiService.createEmi(emi),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
+            successToast('EMI added successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to add EMI');
         },
     });
 };
@@ -45,6 +50,10 @@ export const useUpdateEmi = () => {
         mutationFn: (emi: IEmi) => EmiService.updateEmi(emi),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
+            successToast('EMI updated successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to update EMI');
         },
     });
 };
@@ -56,6 +65,10 @@ export const useDeleteEmi = () => {
         mutationFn: (id: string) => EmiService.deleteEmi(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
+            successToast('EMI deleted successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to delete EMI');
         },
     });
 };
@@ -67,6 +80,10 @@ export const useUpdateEmiList = () => {
         mutationFn: (emiList: IEmi[]) => EmiService.updateEmiList(emiList),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
+            successToast('EMI list updated successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to update EMI list');
         },
     });
 };
@@ -119,6 +136,10 @@ export const useShareEmi = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+            successToast('EMI shared successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to share EMI');
         },
     });
 };
@@ -132,6 +153,10 @@ export const useShareEmiByUserId = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+            successToast('EMI shared successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to share EMI');
         },
     });
 };
@@ -145,6 +170,10 @@ export const useUnshareEmi = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+            successToast('Share removed successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to remove share');
         },
     });
 };
@@ -165,6 +194,10 @@ export const useUpdateSharePermission = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiShares'] });
+            successToast('Permission updated successfully');
+        },
+        onError: (error: Error) => {
+            errorToast(error.message || 'Failed to update share permission');
         },
     });
 };
@@ -200,6 +233,7 @@ export const useSetEmiSplits = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiSplits', variables.emiId] });
+            successToast('EMI splits updated successfully');
         },
     });
 };
@@ -222,6 +256,7 @@ export const useRemoveSplit = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiSplits', variables.emiId] });
+            successToast('Split removed successfully');
         },
     });
 };
@@ -234,6 +269,7 @@ export const useRemoveAllSplits = () => {
         onSuccess: (_, emiId) => {
             queryClient.invalidateQueries({ queryKey: ['emis'] });
             queryClient.invalidateQueries({ queryKey: ['emiSplits', emiId] });
+            successToast('All splits removed successfully');
         },
     });
 };

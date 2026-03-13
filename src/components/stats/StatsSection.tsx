@@ -1,8 +1,8 @@
 import { AlertCircle, ArrowUpDown, Clock, IndianRupee, Tag, User } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
-import { formatAmount } from '@/utils/utils';
 import useStats from '@/hooks/useStats';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { IEmi } from '@/types/emi.types';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
@@ -13,6 +13,7 @@ import { Button } from '../ui/button';
 
 const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
     const { tag } = useSelector((state: IRootState) => state.filterModel);
+    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { statistics, filteredStatistics, uniqueTags, tagStatistics } = useStats(emiData);
     const dispatch = useRematchDispatch((state: IDispatch) => state.filterModel);
 
@@ -41,7 +42,7 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            ₹{formatAmount(filteredStatistics.totalMonthlyPayment)}
+                            {formatCurrencyAmount(filteredStatistics.totalMonthlyPayment)}
                         </div>
                         <p className="text-xs text-muted-foreground">Total monthly EMI payments</p>
                     </CardContent>
@@ -73,7 +74,7 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            ₹{formatAmount(filteredStatistics.totalRemainingBalance)}
+                            {formatCurrencyAmount(filteredStatistics.totalRemainingBalance)}
                         </div>
                         <p className="text-xs text-muted-foreground">Total remaining balance</p>
                     </CardContent>
@@ -98,7 +99,7 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                                         <span className="text-xs text-muted-foreground">
                                             {filteredStatistics.activeEMIs} active EMIs,{' '}
                                             {filteredStatistics.activeEMIs > 0
-                                                ? `₹${formatAmount(filteredStatistics.totalMonthlyPayment)} /month`
+                                                ? `${formatCurrencyAmount(filteredStatistics.totalMonthlyPayment)} /month`
                                                 : 'N/A'}
                                         </span>
                                     </div>
@@ -139,7 +140,7 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                                                     <p className="text-muted-foreground">Monthly</p>
                                                     <p className="font-medium">
                                                         {tagStats.activeEMIs > 0
-                                                            ? `₹${formatAmount(tagStats.totalMonthlyPayment)} /month`
+                                                            ? `${formatCurrencyAmount(tagStats.totalMonthlyPayment)} /month`
                                                             : 'N/A'}
                                                     </p>
                                                 </div>
@@ -147,7 +148,7 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                                                     <p className="text-muted-foreground">Outstanding</p>
                                                     <p className="font-medium">
                                                         {tagStats.activeEMIs > 0
-                                                            ? `₹${formatAmount(tagStats.totalRemainingBalance)}`
+                                                            ? formatCurrencyAmount(tagStats.totalRemainingBalance)
                                                             : 'N/A'}
                                                     </p>
                                                 </div>
@@ -202,12 +203,12 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                                                 <td className="text-center py-2">{tagStats.activeEMIs}</td>
                                                 <td className="text-right py-2">
                                                     {tagStats.activeEMIs > 0
-                                                        ? `₹${formatAmount(tagStats.totalMonthlyPayment)}`
+                                                        ? formatCurrencyAmount(tagStats.totalMonthlyPayment)
                                                         : 'N/A'}
                                                 </td>
                                                 <td className="text-right py-2">
                                                     {tagStats.activeEMIs > 0
-                                                        ? `₹${formatAmount(tagStats.totalRemainingBalance)}`
+                                                        ? formatCurrencyAmount(tagStats.totalRemainingBalance)
                                                         : 'N/A'}
                                                 </td>
                                             </tr>
@@ -218,10 +219,10 @@ const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
                                         <td className="text-center py-2">{statistics.totalEMIs}</td>
                                         <td className="text-center py-2">{statistics.activeEMIs}</td>
                                         <td className="text-right py-2">
-                                            ₹{formatAmount(statistics.totalMonthlyPayment)}
+                                            {formatCurrencyAmount(statistics.totalMonthlyPayment)}
                                         </td>
                                         <td className="text-right py-2">
-                                            ₹{formatAmount(statistics.totalRemainingBalance)}
+                                            {formatCurrencyAmount(statistics.totalRemainingBalance)}
                                         </td>
                                     </tr>
                                 </tbody>

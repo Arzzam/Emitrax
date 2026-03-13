@@ -14,9 +14,9 @@ import {
     useRegisteredUserLookup,
     useRegisteredUsers,
 } from '@/hooks/useSplitEmi';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import { IRootState } from '@/store/types/store.types';
-import { formatAmount } from '@/utils/utils';
 
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
@@ -28,10 +28,12 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SplitEmiEditRow from '@/components/emi/SplitEmiEditRow';
+import { useAccountDetails } from '@/hooks/useAccount';
 
 const SplitEMI = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const [notFound, setNotFound] = useState(false);
@@ -39,7 +41,8 @@ const SplitEMI = () => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedSplits, setEditedSplits] = useState<EditableSplit[]>([]);
     const allRegisteredUsers = useRegisteredUsers();
-    const { id: currentUserId, email: currentUserEmail } = useSelector((state: IRootState) => state.userModel);
+    const { id: userId } = useSelector((state: IRootState) => state.userModel);
+    const { data: profile } = useAccountDetails({ enabled: !!userId });
     const { data: existingSplits } = useEmiSplits(id || '');
     const { mutate: setSplits } = useSetEmiSplits();
     const { mutate: removeSplit } = useRemoveSplit();
@@ -64,7 +67,7 @@ const SplitEMI = () => {
     }, [isFetching, data, currentData, navigate]);
 
     // Get owner ID
-    const ownerId = currentData?.userId || currentUserId;
+    const ownerId = currentData?.userId || userId;
     const emiAmount = currentData
         ? currentData.emi +
           (currentData.amortizationSchedules[currentData.tenure - currentData.remainingTenure]?.gst || 0)
@@ -87,8 +90,8 @@ const SplitEMI = () => {
     const splitCount = existingSplits?.length || 0;
     const { findUserByEmail } = useRegisteredUserLookup(allRegisteredUsers);
     const currentUserSplitIndex = useMemo(
-        () => editedSplits.findIndex((split) => split.userId === currentUserId),
-        [editedSplits, currentUserId]
+        () => editedSplits.findIndex((split) => split.userId === userId),
+        [editedSplits, userId]
     );
     const hasCurrentUserSplit = currentUserSplitIndex >= 0;
     const remainingForCurrentUser = useMemo(() => {
@@ -97,8 +100,11 @@ const SplitEMI = () => {
             return sum + split.percentage;
         }, 0);
 
+        const currentUserPercentage = editedSplits.find((split) => split.userId === userId)?.percentage || 0;
         const remaining = 100 - totalWithoutCurrentUser;
-        return Number(Math.max(0, remaining).toFixed(2));
+        const isSameAsCurrentUserPercentage = currentUserPercentage === remaining;
+
+        return isSameAsCurrentUserPercentage ? 0 : Number(Math.max(0, remaining).toFixed(2));
     }, [currentUserSplitIndex, editedSplits]);
 
     const handleUpdateSplit = useCallback(
@@ -134,7 +140,7 @@ const SplitEMI = () => {
     }, []);
 
     const handleAddCurrentUserWithRemaining = useCallback(() => {
-        if (!currentUserId) {
+        if (!userId) {
             errorToast('Unable to identify current user');
             return;
         }
@@ -144,17 +150,17 @@ const SplitEMI = () => {
             return;
         }
 
-        const normalizedCurrentEmail = normalizeEmail(currentUserEmail || '');
-        const currentUserDisplay = currentUserEmail || 'You';
+        const normalizedCurrentEmail = normalizeEmail(profile?.email || '');
+        const currentUserDisplay = profile?.displayName || 'You';
 
         setEditedSplits((previousSplits) => {
-            const currentIndex = previousSplits.findIndex((split) => split.userId === currentUserId);
+            const currentIndex = previousSplits.findIndex((split) => split.userId === userId);
 
             if (currentIndex >= 0) {
                 const updated = [...previousSplits];
                 updated[currentIndex] = {
                     ...updated[currentIndex],
-                    userId: currentUserId,
+                    userId: userId,
                     isExternal: false,
                     name: currentUserDisplay,
                     email: normalizedCurrentEmail,
@@ -167,7 +173,7 @@ const SplitEMI = () => {
                 ...previousSplits,
                 {
                     tempId: `temp-self-${Date.now()}-${Math.random()}`,
-                    userId: currentUserId,
+                    userId: userId,
                     isExternal: false,
                     name: currentUserDisplay,
                     email: normalizedCurrentEmail,
@@ -175,7 +181,7 @@ const SplitEMI = () => {
                 },
             ];
         });
-    }, [currentUserEmail, currentUserId, remainingForCurrentUser]);
+    }, [profile?.email, profile?.displayName, userId, remainingForCurrentUser]);
 
     const handleRemoveSplitRow = useCallback((index: number) => {
         setEditedSplits((previousSplits) => previousSplits.filter((_, currentIndex) => currentIndex !== index));
@@ -339,7 +345,7 @@ const SplitEMI = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Monthly EMI</p>
-                                    <p className="font-semibold">₹{formatAmount(emiAmount)}</p>
+                                    <p className="font-semibold">{formatCurrencyAmount(emiAmount)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">No. of Persons Split</p>
@@ -390,8 +396,9 @@ const SplitEMI = () => {
                                                         {split.displayEmail}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
-                                                        {split.splitPercentage.toFixed(3)}% • ₹
-                                                        {formatAmount(getSplitAmount(split.splitPercentage))}/month
+                                                        {split.splitPercentage.toFixed(3)}% •{' '}
+                                                        {formatCurrencyAmount(getSplitAmount(split.splitPercentage))}
+                                                        /month
                                                     </div>
                                                 </div>
                                                 <Button
@@ -478,7 +485,7 @@ const SplitEMI = () => {
                                         <Button
                                             variant="outline"
                                             onClick={handleAddCurrentUserWithRemaining}
-                                            disabled={isSubmitting || !currentUserId || remainingForCurrentUser <= 0}
+                                            disabled={isSubmitting || !userId || remainingForCurrentUser <= 0}
                                             className="flex-1"
                                         >
                                             {hasCurrentUserSplit ? 'Set My Share' : 'Add Me'} (

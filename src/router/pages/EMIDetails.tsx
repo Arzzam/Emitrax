@@ -18,7 +18,7 @@ import {
     Split,
 } from 'lucide-react';
 
-import { formatAmount } from '@/utils/utils';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import { EmiService } from '@/utils/EMIService';
@@ -40,6 +40,7 @@ const EMIDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
@@ -174,8 +175,6 @@ const EMIDetails = () => {
         year: 'numeric',
     });
 
-    console.log(nextBillDate);
-
     const formattedEndDate = new Date(endDate).toLocaleDateString('en-US', {
         month: 'long',
         day: '2-digit',
@@ -185,11 +184,7 @@ const EMIDetails = () => {
     const handleConfirmDelete = () => {
         mutate(currentData.id, {
             onSuccess: () => {
-                successToast('EMI deleted successfully');
                 navigate('/');
-            },
-            onError: () => {
-                errorToast('Failed to delete EMI');
             },
         });
     };
@@ -314,7 +309,7 @@ const EMIDetails = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-sm text-muted-foreground">Your Monthly Payment</p>
-                                        <p className="text-2xl font-bold text-primary">₹{formatAmount(myEMI)}</p>
+                                        <p className="text-2xl font-bold text-primary">{formatCurrencyAmount(myEMI)}</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -329,11 +324,11 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    ₹{formatAmount(hasMySplit && !isOwner ? myEMI : emiWithGST)}
+                                    {formatCurrencyAmount(hasMySplit && !isOwner ? myEMI : emiWithGST)}
                                 </div>
                                 {hasMySplit && !isOwner ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Full EMI: ₹{formatAmount(emiWithGST)} • {splitPercentage.toFixed(2)}%
+                                        Full EMI: {formatCurrencyAmount(emiWithGST)} • {splitPercentage.toFixed(2)}%
                                     </p>
                                 ) : (
                                     <p className="text-xs text-muted-foreground">
@@ -349,16 +344,16 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    ₹{formatAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
+                                    {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
                                 </div>
                                 {hasMySplit && !isOwner ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Full Loan: ₹{formatAmount(totalLoan)} • Principal: ₹{formatAmount(myPrincipal)}{' '}
-                                        of ₹{formatAmount(principal)}
+                                        Full Loan: {formatCurrencyAmount(totalLoan)} • Principal:{' '}
+                                        {formatCurrencyAmount(myPrincipal)} of {formatCurrencyAmount(principal)}
                                     </p>
                                 ) : (
                                     <p className="text-xs text-muted-foreground">
-                                        Principal: ₹{formatAmount(principal)}
+                                        Principal: {formatCurrencyAmount(principal)}
                                     </p>
                                 )}
                             </CardContent>
@@ -371,9 +366,9 @@ const EMIDetails = () => {
                             <CardContent>
                                 <div className="text-2xl font-bold">{interestRate}%</div>
                                 <p className="text-xs text-muted-foreground">
-                                    Total Interest: ₹
-                                    {formatAmount(hasMySplit && !isOwner ? myTotalInterest : totalInterest)}
-                                    {hasMySplit && !isOwner && ` (of ₹${formatAmount(totalInterest)})`}
+                                    Total Interest:{' '}
+                                    {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalInterest : totalInterest)}
+                                    {hasMySplit && !isOwner && ` (of ${formatCurrencyAmount(totalInterest)})`}
                                 </p>
                             </CardContent>
                         </Card>
@@ -414,11 +409,11 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Principal Amount</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            ₹{formatAmount(hasMySplit && !isOwner ? myPrincipal : principal)}
+                                            {formatCurrencyAmount(hasMySplit && !isOwner ? myPrincipal : principal)}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(principal)}
+                                                of {formatCurrencyAmount(principal)}
                                             </span>
                                         )}
                                     </div>
@@ -427,11 +422,11 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Total Loan Amount</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            ₹{formatAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
+                                            {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(totalLoan)}
+                                                of {formatCurrencyAmount(totalLoan)}
                                             </span>
                                         )}
                                     </div>
@@ -440,11 +435,11 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Monthly EMI</span>
                                     <div className="text-right">
                                         <span className="font-medium text-lg">
-                                            ₹{formatAmount(hasMySplit && !isOwner ? myEMI : emi)}
+                                            {formatCurrencyAmount(hasMySplit && !isOwner ? myEMI : emi)}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(emi)} ({splitPercentage.toFixed(2)}%)
+                                                of {formatCurrencyAmount(emi)} ({splitPercentage.toFixed(2)}%)
                                             </span>
                                         )}
                                     </div>
@@ -453,11 +448,13 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Total Interest</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            ₹{formatAmount(hasMySplit && !isOwner ? myTotalInterest : totalInterest)}
+                                            {formatCurrencyAmount(
+                                                hasMySplit && !isOwner ? myTotalInterest : totalInterest
+                                            )}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(totalInterest)}
+                                                of {formatCurrencyAmount(totalInterest)}
                                             </span>
                                         )}
                                     </div>
@@ -482,14 +479,13 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Remaining Balance</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            ₹
-                                            {formatAmount(
+                                            {formatCurrencyAmount(
                                                 hasMySplit && !isOwner ? myRemainingBalance : remainingBalance
                                             )}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(remainingBalance)}
+                                                of {formatCurrencyAmount(remainingBalance)}
                                             </span>
                                         )}
                                     </div>
@@ -534,11 +530,11 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Total GST</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            ₹{formatAmount(hasMySplit && !isOwner ? myTotalGST : totalGST)}
+                                            {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalGST : totalGST)}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of ₹{formatAmount(totalGST)}
+                                                of {formatCurrencyAmount(totalGST)}
                                             </span>
                                         )}
                                     </div>
@@ -547,7 +543,9 @@ const EMIDetails = () => {
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-muted-foreground">Interest Discount</span>
                                         <span className="font-medium">
-                                            {interestDiscount} {interestDiscountType === 'percent' ? '%' : '₹'}
+                                            {interestDiscountType === 'percent'
+                                                ? `${interestDiscount}%`
+                                                : formatCurrencyAmount(interestDiscount)}
                                         </span>
                                     </div>
                                 )}
@@ -626,7 +624,7 @@ const EMIDetails = () => {
                                                             Monthly Amount
                                                         </span>
                                                         <span className="font-semibold">
-                                                            ₹{formatAmount(splitEmiAmount)}
+                                                            {formatCurrencyAmount(splitEmiAmount)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -645,7 +643,7 @@ const EMIDetails = () => {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-2xl font-bold text-primary">
-                                                    ₹{formatAmount(mySplitAmount)}
+                                                    {formatCurrencyAmount(mySplitAmount)}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">per month</p>
                                             </div>

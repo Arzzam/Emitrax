@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { IEmi } from '@/types/emi.types';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis } from '@/hooks/useEmi';
-import { formatAmount, getFormattedDate } from '@/utils/utils';
+import { getFormattedDate } from '@/utils/utils';
 
 import { Table, TableCell, TableBody, TableRow, TableHead, TableHeader } from '@/components/ui/table';
 import MainContainer from '@/components/common/Container';
@@ -15,6 +16,7 @@ import LoadingDetails from '@/components/common/LoadingDetails';
 const AmortizationSchedule = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const { amortizationSchedules } = currentData || {};
@@ -111,12 +113,14 @@ const AmortizationSchedule = () => {
                                         <TableCell className="whitespace-nowrap">
                                             {getFormattedDate(item.billDate)}
                                         </TableCell>
-                                        <TableCell>₹{formatAmount(Number(item.emi))}</TableCell>
-                                        <TableCell>₹{formatAmount(Number(item.interest))}</TableCell>
-                                        <TableCell>₹{formatAmount(Number(item.principalPaid))}</TableCell>
-                                        <TableCell>₹{formatAmount(Number(item.balance))}</TableCell>
-                                        <TableCell>₹{formatAmount(item.gst)}</TableCell>
-                                        <TableCell>₹{formatAmount(Number(item.emi) + Number(item.gst))}</TableCell>
+                                        <TableCell>{formatCurrencyAmount(Number(item.emi))}</TableCell>
+                                        <TableCell>{formatCurrencyAmount(Number(item.interest))}</TableCell>
+                                        <TableCell>{formatCurrencyAmount(Number(item.principalPaid))}</TableCell>
+                                        <TableCell>{formatCurrencyAmount(Number(item.balance))}</TableCell>
+                                        <TableCell>{formatCurrencyAmount(item.gst)}</TableCell>
+                                        <TableCell>
+                                            {formatCurrencyAmount(Number(item.emi) + Number(item.gst))}
+                                        </TableCell>
                                     </TableRow>
                                 );
                             })}
@@ -124,12 +128,12 @@ const AmortizationSchedule = () => {
                             {/* Totals row */}
                             <TableRow className="font-semibold">
                                 <TableCell colSpan={2}>Totals</TableCell>
-                                <TableCell>₹{formatAmount(totals.emi)}</TableCell>
-                                <TableCell>₹{formatAmount(totals.interest)}</TableCell>
-                                <TableCell>₹{formatAmount(totals.principal)}</TableCell>
+                                <TableCell>{formatCurrencyAmount(totals.emi)}</TableCell>
+                                <TableCell>{formatCurrencyAmount(totals.interest)}</TableCell>
+                                <TableCell>{formatCurrencyAmount(totals.principal)}</TableCell>
                                 <TableCell>—</TableCell>
-                                <TableCell>₹{formatAmount(totals.gst)}</TableCell>
-                                <TableCell>₹{formatAmount(totals.emi + totals.gst)}</TableCell>
+                                <TableCell>{formatCurrencyAmount(totals.gst)}</TableCell>
+                                <TableCell>{formatCurrencyAmount(totals.emi + totals.gst)}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

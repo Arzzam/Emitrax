@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router';
 import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon, Users, Split } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { formatAmount } from '@/utils/utils';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { IEmi } from '@/types/emi.types';
 import { cn } from '@/lib/utils';
 import { EmiService } from '@/utils/EMIService';
@@ -14,6 +14,7 @@ import { Button } from '../ui/button';
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { formatCurrencyAmount } = useCurrencyPreferences();
 
     const {
         id,
@@ -138,14 +139,11 @@ const EMICard = (props: IEmi) => {
                             )}
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                            <span className="flex items-center text-base">
-                                {`\u20B9`}
-                                {formatAmount(emiWithGST)}
-                            </span>
+                            <span className="flex items-center text-base">{formatCurrencyAmount(emiWithGST)}</span>
                             {mySplit && mySplitAmount && (
                                 <span className="text-xs text-muted-foreground">
-                                    Your share: {`\u20B9`}
-                                    {formatAmount(mySplitAmount)} ({mySplit.splitPercentage.toFixed(1)}%)
+                                    Your share: {formatCurrencyAmount(mySplitAmount)} (
+                                    {mySplit.splitPercentage.toFixed(1)}%)
                                 </span>
                             )}
                         </div>
