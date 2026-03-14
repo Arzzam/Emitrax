@@ -1,13 +1,14 @@
 import { Icons } from '@/assets/icons';
+
 import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
-    AlertDialogDescription,
     AlertDialogContent,
-    AlertDialogTitle,
+    AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
+    AlertDialogTitle,
 } from '../ui/alert-dialog';
 
 const ConfirmationModal = ({

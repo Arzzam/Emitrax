@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-import { IEmi } from '@/types/emi.types';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis } from '@/hooks/useEmi';
+import { IEmi } from '@/types/emi.types';
 import { getFormattedDate } from '@/utils/utils';
 
-import { Table, TableCell, TableBody, TableRow, TableHead, TableHeader } from '@/components/ui/table';
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
-import NotFound from '@/components/common/NotFound';
 import LoadingDetails from '@/components/common/LoadingDetails';
+import NotFound from '@/components/common/NotFound';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const AmortizationSchedule = () => {
     const { id } = useParams();

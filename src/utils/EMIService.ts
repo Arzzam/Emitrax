@@ -1,7 +1,8 @@
-import store from '@/store/store';
-import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
-import { supabase } from '@/supabase/supabase';
 import { format } from 'date-fns';
+
+import store from '@/store/store';
+import { supabase } from '@/supabase/supabase';
+import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
 
 export class EmiService {
     static async createEmi(emi: Omit<IEmi, 'id'>) {

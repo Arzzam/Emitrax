@@ -1,5 +1,6 @@
 import { Models } from '@rematch/core';
-import { userModel, lastUpdateAt, filterModel, currencyPreferencesModel } from './models';
+
+import { currencyPreferencesModel, filterModel, lastUpdateAt, userModel } from './models';
 
 export interface RootModel extends Models<RootModel> {
     userModel: typeof userModel;

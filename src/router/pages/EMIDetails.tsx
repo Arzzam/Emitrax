@@ -1,40 +1,40 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+    ArchiveIcon,
+    ArchiveRestoreIcon,
+    Calculator,
     CalendarIcon,
+    Clock,
     CreditCard,
     IndianRupee,
     Percent,
-    Clock,
-    Calculator,
     Receipt,
-    Tag,
-    Wallet,
-    ArchiveIcon,
-    ArchiveRestoreIcon,
-    Trash2,
     Share2,
-    Users,
     Split,
+    Tag,
+    Trash2,
+    Users,
+    Wallet,
 } from 'lucide-react';
 
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
-import { errorToast, successToast } from '@/utils/toast.utils';
 import { EmiService } from '@/utils/EMIService';
-import { useQueryClient } from '@tanstack/react-query';
+import { errorToast, successToast } from '@/utils/toast.utils';
 
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
+import LoadingDetails from '@/components/common/LoadingDetails';
+import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
 import ShareEMIModal from '@/components/emi/ShareEMIModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import ConfirmationModal from '@/components/common/ConfirmationModal';
-import NotFound from '@/components/common/NotFound';
-import LoadingDetails from '@/components/common/LoadingDetails';
 
 const EMIDetails = () => {
     const { id } = useParams();

@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 
-import { IEmi } from '@/types/emi.types';
 import { IRootState } from '@/store/types/store.types';
+import { IComboboxOption } from '@/types/common.types';
+import { IEmi } from '@/types/emi.types';
 
 import { useEmis } from './useEmi';
-import { IComboboxOption } from '@/types/common.types';
 
 export const useUniqueTagsOptions = (): IComboboxOption[] => {
     const { data: emiData } = useEmis();

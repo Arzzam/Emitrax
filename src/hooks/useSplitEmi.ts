@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { IEmiSplit } from '@/types/emi.types';
 import { supabase } from '@/supabase/supabase';
+import { IEmiSplit } from '@/types/emi.types';
 
 export const PERCENTAGE_TOLERANCE = 0.01;
 const USER_FETCH_LIMIT = 1000;

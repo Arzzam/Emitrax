@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
+import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { isEqual, omit } from 'lodash';
 
+import { useRematchDispatch } from '@/store/store';
+import { IDispatch, IRootState } from '@/store/types/store.types';
 import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
+import { calculateEMI } from '@/utils/calculation';
 import { EmiService } from '@/utils/EMIService';
 import { EmiShareService } from '@/utils/EmiShareService';
 import { EmiSplitService } from '@/utils/EmiSplitService';
-import { calculateEMI } from '@/utils/calculation';
-import { IDispatch, IRootState } from '@/store/types/store.types';
-import { useRematchDispatch } from '@/store/store';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
 // Helper function to strip comparison fields for EMI comparison

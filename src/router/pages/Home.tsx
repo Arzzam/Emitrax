@@ -1,23 +1,23 @@
-import { useEffect, useState, useMemo } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { AlertCircle } from 'lucide-react';
 
-import { useUser } from '@/hooks/useUser';
+import { useAutoRecalculateEmis, useEmis, useUpdateEmiList } from '@/hooks/useEmi';
 import useStats from '@/hooks/useStats';
-import { useEmis, useAutoRecalculateEmis, useUpdateEmiList } from '@/hooks/useEmi';
+import { useUser } from '@/hooks/useUser';
 import { useRematchDispatch } from '@/store/store';
-import { IEmi } from '@/types/emi.types';
 import { IDispatch, IRootState } from '@/store/types/store.types';
+import { IEmi } from '@/types/emi.types';
 
+import EMILoadingAndError from '@/components/cards/EMILoadingAndError';
+import LoginCard from '@/components/cards/LoginCard';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
 import EMICard from '@/components/emi/EMICard';
-import { Card } from '@/components/ui/card';
-import ConfirmationModal from '@/components/common/ConfirmationModal';
 import FilterSection from '@/components/filter/FilterSection';
-import LoginCard from '@/components/cards/LoginCard';
-import EMILoadingAndError from '@/components/cards/EMILoadingAndError';
 import StatsSection from '@/components/stats/StatsSection';
+import { Card } from '@/components/ui/card';
 
 const Home = () => {
     const { data: user, isError: userError } = useUser();

@@ -1,15 +1,15 @@
 import { useNavigate } from 'react-router';
-import { CircleCheckBigIcon, Tag, User, ArchiveIcon, ArchiveRestoreIcon, Users, Split } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ArchiveIcon, ArchiveRestoreIcon, CircleCheckBigIcon, Split, Tag, User, Users } from 'lucide-react';
 
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
-import { IEmi } from '@/types/emi.types';
 import { cn } from '@/lib/utils';
+import { IEmi } from '@/types/emi.types';
 import { EmiService } from '@/utils/EMIService';
 
 import { Badge } from '../ui/badge';
-import { Card, CardContent, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardTitle } from '../ui/card';
 
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();

@@ -1,21 +1,19 @@
 import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
-import * as z from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, IndianRupee, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
+import * as z from 'zod';
 
-import { cn } from '@/lib/utils';
-import { calculateEMI } from '@/utils/calculation';
 import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
-import { IEmi } from '@/types/emi.types';
-import { IComboboxOption } from '@/types/common.types';
-
-import { Field, FieldError, FieldLabel } from '../ui/field';
-import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import ToolTipWrapper from '../common/TooltipWrapper';
 import { useUniqueTagsOptions } from '@/hooks/useStats';
+import { cn } from '@/lib/utils';
+import { IComboboxOption } from '@/types/common.types';
+import { IEmi } from '@/types/emi.types';
+import { calculateEMI } from '@/utils/calculation';
+
+import ToolTipWrapper from '../common/TooltipWrapper';
+import { Button } from '../ui/button';
+import { Calendar } from '../ui/calendar';
 import {
     Combobox,
     ComboboxContent,
@@ -24,7 +22,9 @@ import {
     ComboboxList,
     ComboboxSeparator,
 } from '../ui/combobox';
-import { Calendar } from '../ui/calendar';
+import { Field, FieldError, FieldLabel } from '../ui/field';
+import { Input } from '../ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 const formSchema = z
     .object({

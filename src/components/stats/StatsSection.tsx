@@ -1,15 +1,15 @@
-import { AlertCircle, ArrowUpDown, Clock, IndianRupee, Tag, User } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { AlertCircle, ArrowUpDown, Clock, IndianRupee, Tag, User } from 'lucide-react';
 
-import useStats from '@/hooks/useStats';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
-import { IEmi } from '@/types/emi.types';
+import useStats from '@/hooks/useStats';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
+import { IEmi } from '@/types/emi.types';
 
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const StatsSection = ({ emiData }: { emiData: IEmi[] }) => {
     const { tag } = useSelector((state: IRootState) => state.filterModel);

@@ -1,12 +1,12 @@
-import { Dispatch } from 'redux';
 import { useDispatch } from 'react-redux';
 import { Action, init } from '@rematch/core';
-import storage from 'redux-persist/lib/storage';
 import loadingPlugin from '@rematch/loading';
 import persistPlugin from '@rematch/persist';
+import { Dispatch } from 'redux';
+import storage from 'redux-persist/lib/storage';
 
-import { models } from './IModels';
 import { IDispatch } from './types/store.types';
+import { models } from './IModels';
 
 const persistConfig = {
     key: 'root',

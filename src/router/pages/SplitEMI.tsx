@@ -1,34 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
-import { Trash2, AlertCircle, CheckCircle2, Users, Edit2, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router';
+import { AlertCircle, CheckCircle2, Edit2, Plus, Trash2, Users } from 'lucide-react';
 
-import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
-import { useEmis, useSetEmiSplits, useEmiSplits, useRemoveSplit } from '@/hooks/useEmi';
+import { useAccountDetails } from '@/hooks/useAccount';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
+import { useEmis, useEmiSplits, useRemoveSplit, useSetEmiSplits } from '@/hooks/useEmi';
 import {
-    EditableSplit,
-    PERCENTAGE_TOLERANCE,
     createEditableSplit,
+    EditableSplit,
     mapExistingToEditableSplits,
     normalizeEmail,
+    PERCENTAGE_TOLERANCE,
     useRegisteredUserLookup,
     useRegisteredUsers,
 } from '@/hooks/useSplitEmi';
-import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
-import { errorToast, successToast } from '@/utils/toast.utils';
 import { IRootState } from '@/store/types/store.types';
+import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
+import { errorToast, successToast } from '@/utils/toast.utils';
 
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
-import NotFound from '@/components/common/NotFound';
 import LoadingDetails from '@/components/common/LoadingDetails';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NotFound from '@/components/common/NotFound';
 import SplitEmiEditRow from '@/components/emi/SplitEmiEditRow';
-import { useAccountDetails } from '@/hooks/useAccount';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const SplitEMI = () => {
     const { id } = useParams();

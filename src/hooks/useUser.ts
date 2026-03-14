@@ -1,5 +1,6 @@
-import { supabase } from '@/supabase/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { supabase } from '@/supabase/supabase';
 
 export const useUser = () => {
     return useQuery({

@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { BadgeCheckIcon, LogOutIcon } from 'lucide-react';
 
 import { useLogout, useUser } from '@/hooks/useUser';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {

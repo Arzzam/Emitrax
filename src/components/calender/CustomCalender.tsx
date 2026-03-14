@@ -3,10 +3,10 @@ import { DayPicker } from 'react-day-picker';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+
+import { CalenderCaption, CalenderContent, CalenderNav } from './CalendarControls';
 import { ICalendarProps } from './calender.type';
 import { getDayPickerClassNames } from './calender.util';
-
-import { CalenderCaption, CalenderNav, CalenderContent } from './CalendarControls';
 
 function CustomCalendar({
     className,

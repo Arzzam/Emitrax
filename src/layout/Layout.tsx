@@ -1,5 +1,6 @@
-import { useCurrencyPreferencesBootstrap } from '@/hooks/useCurrencyPreferencesBootstrap';
 import { Outlet } from 'react-router';
+
+import { useCurrencyPreferencesBootstrap } from '@/hooks/useCurrencyPreferencesBootstrap';
 // import TooltipSidebar from '@/components/sidebar/Sidebar';
 
 const Layout = () => {

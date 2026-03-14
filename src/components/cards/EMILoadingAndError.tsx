@@ -2,8 +2,8 @@ import { AlertCircle } from 'lucide-react';
 
 import { useEmis } from '@/hooks/useEmi';
 
-import { Card, CardHeader } from '../ui/card';
 import EMICardSkeleton from '../emi/EMICardSkeleton';
+import { Card, CardHeader } from '../ui/card';
 
 const EMILoadingAndError = () => {
     const { isLoading, isError } = useEmis();

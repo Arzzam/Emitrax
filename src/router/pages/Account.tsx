@@ -1,13 +1,14 @@
-import Header from '@/components/common/Header';
-import MainContainer from '@/components/common/Container';
+import { useAccountDetails } from '@/hooks/useAccount';
+import { useUser } from '@/hooks/useUser';
+
+import { AccountForm } from '@/components/account/AccountForm';
 import LoginCard from '@/components/cards/LoginCard';
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
+import MainContainer from '@/components/common/Container';
+import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAccountDetails } from '@/hooks/useAccount';
-import { useUser } from '@/hooks/useUser';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
-import { AccountForm } from '@/components/account/AccountForm';
 
 const Account = () => {
     const { data: userData, isLoading: isUserLoading } = useUser();
