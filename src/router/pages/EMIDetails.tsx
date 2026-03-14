@@ -31,7 +31,6 @@ import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
-import ShareEMIModal from '@/components/emi/ShareEMIModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +44,6 @@ const EMIDetails = () => {
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
     const [open, setOpen] = useState(false);
-    const [shareModalOpen, setShareModalOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
 
@@ -226,20 +224,18 @@ const EMIDetails = () => {
                                 {canEdit && <FormModal data={currentData} />}
                                 {isOwner && (
                                     <>
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 sm:flex-none"
-                                            onClick={() => setShareModalOpen(true)}
-                                        >
-                                            <Share2 className="h-4 w-4 mr-2" />
-                                            {isShared ? (
-                                                <>
-                                                    <Users className="h-4 w-4 mr-1" />
-                                                    {sharedWith.length}
-                                                </>
-                                            ) : (
-                                                'Share'
-                                            )}
+                                        <Button variant="outline" className="flex-1 sm:flex-none" asChild>
+                                            <Link to={`/emi/${id}/share`} className="flex items-center gap-2">
+                                                <Share2 className="h-4 w-4" />
+                                                {isShared ? (
+                                                    <>
+                                                        <Users className="h-4 w-4" />
+                                                        {sharedWith.length}
+                                                    </>
+                                                ) : (
+                                                    'Share'
+                                                )}
+                                            </Link>
                                         </Button>
                                         <Button variant="outline" className="flex-1 sm:flex-none" asChild>
                                             <Link to={`/emi/${id}/split`} className="flex items-center gap-2">
@@ -692,8 +688,6 @@ const EMIDetails = () => {
                     onCancel={() => setOpen(false)}
                     onConfirm={handleConfirmDelete}
                 />
-
-                {id && <ShareEMIModal emiId={id} open={shareModalOpen} onOpenChange={setShareModalOpen} />}
             </MainContainer>
         </>
     );

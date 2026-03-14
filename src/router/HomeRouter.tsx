@@ -7,6 +7,7 @@ import EMIDetails from '@/router/pages/EMIDetails';
 import Home from '@/router/pages/Home';
 import NotFoundPage from '@/router/pages/NotFoundPage';
 import { OAuth } from '@/router/pages/OAuthRoute';
+import ShareEMI from '@/router/pages/ShareEMI';
 import SplitEMI from '@/router/pages/SplitEMI';
 
 const HomeRouter = () => {
@@ -19,6 +20,7 @@ const HomeRouter = () => {
                     <Route path="/account" element={<Account />} />
                     <Route path="/emi/:id" element={<EMIDetails />} />
                     <Route path="/emi/:id/amortization" element={<AmortizationSchedule />} />
+                    <Route path="/emi/:id/share" element={<ShareEMI />} />
                     <Route path="/emi/:id/split" element={<SplitEMI />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>

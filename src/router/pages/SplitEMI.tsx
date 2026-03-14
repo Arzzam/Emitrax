@@ -29,6 +29,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SplitEMI = () => {
     const { id } = useParams();
@@ -43,7 +44,7 @@ const SplitEMI = () => {
     const allRegisteredUsers = useRegisteredUsers();
     const { id: userId } = useSelector((state: IRootState) => state.userModel);
     const { data: profile } = useAccountDetails({ enabled: !!userId });
-    const { data: existingSplits } = useEmiSplits(id || '');
+    const { data: existingSplits, isLoading: splitsLoading } = useEmiSplits(id || '');
     const { mutate: setSplits } = useSetEmiSplits();
     const { mutate: removeSplit } = useRemoveSplit();
     const breadcrumbItems = useMemo(
@@ -373,7 +374,23 @@ const SplitEMI = () => {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            {!isEditMode ? (
+                            {splitsLoading ? (
+                                <ul className="space-y-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <li
+                                            key={i}
+                                            className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                                        >
+                                            <div className="flex-1 space-y-2">
+                                                <Skeleton className="h-4 w-36" />
+                                                <Skeleton className="h-3 w-48" />
+                                                <Skeleton className="h-3 w-32" />
+                                            </div>
+                                            <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : !isEditMode ? (
                                 <div className="space-y-3">
                                     {existingSplits && existingSplits.length > 0 ? (
                                         existingSplits.map((split) => (
