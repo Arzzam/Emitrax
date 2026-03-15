@@ -34,8 +34,8 @@ export const createEditableSplit = (): EditableSplit => ({
 export const mapExistingToEditableSplits = (splits: IEmiSplit[]): EditableSplit[] =>
     splits.map((split) => ({
         id: split.id,
-        name: split.participantName || split.displayName || split.displayEmail || '',
-        email: split.displayEmail || split.participantEmail || '',
+        name: split.participantName || split.participantEmail || '',
+        email: split.participantEmail || '',
         percentage: split.splitPercentage,
         userId: split.userId,
         isExternal: split.isExternal,

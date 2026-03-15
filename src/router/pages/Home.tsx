@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { AlertCircle } from 'lucide-react';
 
+import { useAdvancedFilter } from '@/hooks/useAdvancedFilter';
 import { useAutoRecalculateEmis, useEmis, useUpdateEmiList } from '@/hooks/useEmi';
-import useStats from '@/hooks/useStats';
 import { useUser } from '@/hooks/useUser';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
@@ -15,14 +15,13 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
 import EMICard from '@/components/emi/EMICard';
-import FilterSection from '@/components/filter/FilterSection';
+import AdvancedFilterBar from '@/components/filter/AdvancedFilterBar';
 import StatsSection from '@/components/stats/StatsSection';
 import { Card } from '@/components/ui/card';
 
 const Home = () => {
     const { data: user, isError: userError } = useUser();
     const { data, isLoading: isEMILoading, isError: isEmisError } = useEmis();
-    const { searchQuery } = useSelector((state: IRootState) => state.filterModel);
     const { setUser } = useRematchDispatch((state: IDispatch) => state.userModel);
     const { recalculateNow } = useAutoRecalculateEmis();
     const { isPending: isUpdatingEmis } = useUpdateEmiList();
@@ -41,8 +40,27 @@ const Home = () => {
 
     const emiData = useMemo(() => (data || []) as IEmi[], [data]);
 
-    const { filteredEmiData } = useStats(emiData);
+    const advancedFilter = useAdvancedFilter(emiData);
+    const { filteredEmiData, filterTag, statistics, filteredStatistics, tagStatistics, uniqueTags, splitContext } =
+        advancedFilter;
+
+    const searchQuery = useSelector((state: IRootState) => state.advancedFilterModel.searchQuery);
+    const setAdvancedTag = useRematchDispatch((d: IDispatch) => d.advancedFilterModel.setTag);
+
     const hasUser = user && !userError;
+
+    const statsOverride = useMemo(
+        () => ({
+            statistics,
+            filteredStatistics,
+            tagStatistics,
+            uniqueTags,
+            filterTag,
+            onSetTag: setAdvancedTag,
+            splitContext,
+        }),
+        [statistics, filteredStatistics, tagStatistics, uniqueTags, filterTag, setAdvancedTag, splitContext]
+    );
 
     return (
         <>
@@ -56,12 +74,12 @@ const Home = () => {
                             <EMILoadingAndError />
                         ) : (
                             <>
-                                {/* Stats Section */}
-                                <StatsSection emiData={emiData} />
-                                {/* Filter Section */}
-                                <FilterSection emiData={emiData} setOpenConfirmationModal={setOpenConfirmationModal} />
+                                <StatsSection emiData={emiData} statsOverride={statsOverride} />
+                                <AdvancedFilterBar
+                                    emiData={emiData}
+                                    setOpenConfirmationModal={setOpenConfirmationModal}
+                                />
 
-                                {/* EMI Cards Grid */}
                                 <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
                                     {filteredEmiData.length === 0 ? (
                                         <Card className="col-span-full p-8">

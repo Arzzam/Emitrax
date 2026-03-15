@@ -27,9 +27,6 @@ export interface IEmiSplit {
     user_profiles?: {
         email: string;
     };
-    // Computed fields (set by service layer)
-    displayName?: string; // Name to show in UI
-    displayEmail?: string; // Email to show in UI
 }
 
 // Input type for creating splits

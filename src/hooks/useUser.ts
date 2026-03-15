@@ -1,6 +1,14 @@
+import { User } from '@supabase/supabase-js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/supabase/supabase';
+
+import { useAccountDetails } from './useAccount';
+
+export interface IDisplayUser {
+    user: User | null;
+    displayName: string | null;
+}
 
 export const useUser = () => {
     return useQuery({
@@ -9,6 +17,16 @@ export const useUser = () => {
         staleTime: 1000 * 60 * 5, // 5 minutes
         gcTime: 1000 * 60 * 5, // 5 minutes
     });
+};
+
+export const useDisplayUser = (): IDisplayUser => {
+    const { data: userData } = useUser();
+    const userId = userData?.user?.id;
+    const { data: accountDetails } = useAccountDetails({ enabled: !!userId });
+    return {
+        user: userData?.user ?? null,
+        displayName: accountDetails?.displayName ?? null,
+    };
 };
 
 const getUser = async () => {

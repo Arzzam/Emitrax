@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use AdvancedFilterBar and advancedFilterModel for new filter behavior.
+ * This component is kept for backward compatibility only.
+ */
 import { useSelector } from 'react-redux';
 import { ArrowUpDown, Search } from 'lucide-react';
 

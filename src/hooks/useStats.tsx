@@ -40,6 +40,7 @@ const useStats = (emiData: IEmi[]) => {
                 (sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance),
                 0
             ),
+            totalLoanAmount: filteredEmis.reduce((sum, emi) => sum + emi.totalLoan, 0),
             tagCounts: {} as Record<string, number>,
         };
 
@@ -65,6 +66,7 @@ const useStats = (emiData: IEmi[]) => {
                     (sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance),
                     0
                 ),
+                totalLoanAmount: filteredEmis.reduce((sum, emi) => sum + emi.totalLoan, 0),
                 tagCounts: statistics.tagCounts, // Keep the overall tag counts
             };
         }
@@ -81,6 +83,7 @@ const useStats = (emiData: IEmi[]) => {
                 (sum, emi) => sum + (emi.isCompleted ? 0 : emi.remainingBalance),
                 0
             ),
+            totalLoanAmount: tagFilteredEmis.reduce((sum, emi) => sum + emi.totalLoan, 0),
             tagCounts: statistics.tagCounts, // Keep the overall tag counts
         };
     }, [filteredEmis, tag, statistics.tagCounts]);
@@ -94,6 +97,7 @@ const useStats = (emiData: IEmi[]) => {
                 totalEMIs: number;
                 totalMonthlyPayment: number;
                 totalRemainingBalance: number;
+                totalLoanAmount: number;
             }
         > = {};
 
@@ -106,10 +110,12 @@ const useStats = (emiData: IEmi[]) => {
                     totalEMIs: 0,
                     totalMonthlyPayment: 0,
                     totalRemainingBalance: 0,
+                    totalLoanAmount: 0,
                 };
             }
 
             stats[tag].totalEMIs++;
+            stats[tag].totalLoanAmount += emi.totalLoan;
 
             if (!emi.isCompleted) {
                 stats[tag].activeEMIs++;

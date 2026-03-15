@@ -128,16 +128,7 @@ export class EmiSplitService {
             throw error;
         }
 
-        return (data || []).map((split: IEmiSplit) => {
-            const userProfile = split.user_profiles;
-
-            return {
-                ...split,
-                displayName:
-                    split.participantName || split.participantEmail || userProfile?.email || split.participantEmail,
-                displayEmail: split.participantEmail || userProfile?.email || split.participantEmail,
-            } as IEmiSplit;
-        });
+        return data || [];
     }
 
     /**

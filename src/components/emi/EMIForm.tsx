@@ -99,7 +99,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             if (!values.tag) {
                 values.tag = 'Personal';
             }
-            const calculatedValues = calculateEMI(values as TFormValues, data?.id);
+            const calculatedValues = calculateEMI(values as IEmi, data?.id);
             if (calculatedValues) {
                 if (isEdit) {
                     updateEmi(calculatedValues);

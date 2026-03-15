@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use AdvancedFilterBar and advancedFilterModel for new filter behavior.
+ * This component is kept for backward compatibility only.
+ */
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { X } from 'lucide-react';

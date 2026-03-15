@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use ShareEMI page instead.
+ * This component is kept for backward compatibility only.
+ */
+
 import { useForm } from '@tanstack/react-form';
 import { Edit, Eye, Share2, Trash2, UserPlus } from 'lucide-react';
 import * as z from 'zod';

@@ -90,6 +90,7 @@ export type Tables = {
             locale: string;
             currency: string;
             number_format: string;
+            filter_config: string | null;
             created_at: string;
             updated_at: string;
         };

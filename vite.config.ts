@@ -39,38 +39,69 @@ export default defineConfig(({ mode }) => {
         build: {
             rollupOptions: {
                 output: {
-                    manualChunks: {
-                        react: ['react', 'react-dom'],
-                        router: ['react-router'],
-                        radix: [
-                            '@radix-ui/react-alert-dialog',
-                            '@radix-ui/react-dialog',
-                            '@radix-ui/react-label',
-                            '@radix-ui/react-popover',
-                            '@radix-ui/react-select',
-                            '@radix-ui/react-separator',
-                            '@radix-ui/react-slot',
-                            '@radix-ui/react-switch',
-                            '@radix-ui/react-toggle',
-                            '@radix-ui/react-toggle-group',
-                            '@radix-ui/react-tooltip',
-                            'sonner',
-                        ],
-                        redux: [
-                            'redux',
-                            'react-redux',
-                            'redux-persist',
-                            '@rematch/core',
-                            '@rematch/loading',
-                            '@rematch/persist',
-                        ],
-                        icons: ['lucide-react'],
-                        query: ['@tanstack/react-query'],
-                        lodash: ['lodash'],
-                        supabase: ['@supabase/supabase-js'],
+                    manualChunks(id) {
+                        if (!id.includes('node_modules')) return;
+
+                        // React core
+                        if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+                            return 'react-core';
+                        }
+
+                        // Router
+                        if (id.includes('react-router')) {
+                            return 'router';
+                        }
+
+                        // Tanstack
+                        if (id.includes('@tanstack')) {
+                            return 'tanstack';
+                        }
+
+                        // Radix
+                        if (id.includes('@radix-ui')) {
+                            return 'radix';
+                        }
+
+                        // Supabase
+                        if (id.includes('@supabase')) {
+                            return 'supabase';
+                        }
+
+                        // State
+                        if (id.includes('redux') || id.includes('react-redux') || id.includes('@rematch')) {
+                            return 'state';
+                        }
+
+                        // Utils
+                        if (
+                            id.includes('lodash') ||
+                            id.includes('clsx') ||
+                            id.includes('tailwind-merge') ||
+                            id.includes('class-variance-authority')
+                        ) {
+                            return 'utils';
+                        }
+
+                        // Date
+                        if (id.includes('date-fns')) {
+                            return 'date-utils';
+                        }
+
+                        // UI
+                        if (
+                            id.includes('cmdk') ||
+                            id.includes('lucide-react') ||
+                            id.includes('sonner') ||
+                            id.includes('react-day-picker')
+                        ) {
+                            return 'ui-utils';
+                        }
+
+                        return 'vendor';
                     },
                 },
             },
+            chunkSizeWarningLimit: 500,
         },
     };
 });

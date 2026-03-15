@@ -268,15 +268,8 @@ export class EmiService {
                 if (!acc[split.emiId]) {
                     acc[split.emiId] = [];
                 }
-                const isExternal = split.isExternal;
-                const userProfile = split.user_profiles;
-                acc[split.emiId].push({
-                    ...split,
-                    displayName: isExternal
-                        ? split.participantName || split.participantEmail
-                        : userProfile?.email || split.participantEmail,
-                    displayEmail: isExternal ? split.participantEmail : userProfile?.email || split.participantEmail,
-                } as IEmiSplit);
+
+                acc[split.emiId].push(split);
                 return acc;
             }, {});
         }

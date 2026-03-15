@@ -589,7 +589,7 @@ const EMIDetails = () => {
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className="font-semibold text-sm truncate">
                                                                 {split.participantName ||
-                                                                    split.displayName ||
+                                                                    split.participantEmail ||
                                                                     'Unknown'}
                                                             </span>
                                                             {isCurrentUser && (
@@ -604,7 +604,9 @@ const EMIDetails = () => {
                                                             )}
                                                         </div>
                                                         <p className="text-xs text-muted-foreground truncate">
-                                                            {split.participantEmail || split.displayEmail || 'No email'}
+                                                            {split.participantEmail ??
+                                                                split.user_profiles?.email ??
+                                                                'No email'}
                                                         </p>
                                                     </div>
                                                 </div>

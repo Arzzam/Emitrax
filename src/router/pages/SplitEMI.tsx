@@ -35,6 +35,7 @@ const SplitEMI = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { data: accountDetails } = useAccountDetails();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const [notFound, setNotFound] = useState(false);
@@ -122,7 +123,7 @@ const SplitEMI = () => {
                     if (user) {
                         updatedSplit.userId = user.id;
                         updatedSplit.isExternal = false;
-                        updatedSplit.name = user.email;
+                        updatedSplit.name = accountDetails?.displayName || user.email;
                     } else {
                         updatedSplit.userId = undefined;
                         updatedSplit.isExternal = true;
@@ -401,7 +402,9 @@ const SplitEMI = () => {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-medium">
-                                                            {split.displayName || split.participantEmail || 'Unknown'}
+                                                            {split.participantName ||
+                                                                split.participantEmail ||
+                                                                'Unknown'}
                                                         </span>
                                                         {split.isExternal && (
                                                             <Badge variant="outline" className="text-xs">
@@ -410,7 +413,7 @@ const SplitEMI = () => {
                                                         )}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
-                                                        {split.displayEmail}
+                                                        {split.participantEmail}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
                                                         {split.splitPercentage.toFixed(3)}% •{' '}

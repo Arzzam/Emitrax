@@ -11,7 +11,7 @@ import { models } from './IModels';
 const persistConfig = {
     key: 'root',
     storage,
-    whitelist: ['userModel', 'lastUpdateAt', 'filterModel'],
+    whitelist: ['userModel', 'lastUpdateAt', 'filterModel', 'advancedFilterModel'],
 };
 
 // const persistedConfig: Plugin<IRootModel, Models<IRootModel>, Partial<Models<IRootModel>>> = persistPlugin(persistConfig);
