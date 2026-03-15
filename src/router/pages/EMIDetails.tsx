@@ -275,7 +275,7 @@ const EMIDetails = () => {
                                 {isOwner && (
                                     <Button
                                         variant="destructive"
-                                        className="flex-1 sm:flex-none"
+                                        className="flex-1 sm:flex-none bg-destructive/85"
                                         onClick={() => setOpen(true)}
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -557,93 +557,112 @@ const EMIDetails = () => {
 
                     {/* Split Breakdown Section - Full Width */}
                     {isSplit && splits && splits.length > 0 && (
-                        <Card className="border-primary/20">
-                            <CardHeader>
+                        <Card className="border-border/80 shadow-sm">
+                            <CardHeader className="pb-2">
                                 <div className="flex items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Split className="h-5 w-5" />
-                                        Split Breakdown
+                                    <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                                        <Split className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                        Split breakdown
                                     </CardTitle>
-                                    <Badge variant="outline" className="text-xs">
-                                        {splitCount} {splitCount === 1 ? 'Participant' : 'Participants'}
+                                    <Badge variant="secondary" className="text-xs font-normal">
+                                        {splitCount} {splitCount === 1 ? 'participant' : 'participants'}
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {splits.map((split) => {
-                                        const splitEmiAmount = split.splitAmount || (emi * split.splitPercentage) / 100;
+                                        const pct = split.splitPercentage / 100;
+                                        const splitEmiAmount = split.splitAmount ?? emi * pct;
+                                        const splitLoanShare = totalLoan * pct;
+                                        const splitRemainingShare = remainingBalance * pct;
                                         const isCurrentUser = mySplit?.id === split.id;
+                                        const displayName =
+                                            (split.participantName ||
+                                                split.participantEmail ||
+                                                split.user_profiles?.email) ??
+                                            'Unknown';
 
                                         return (
                                             <div
                                                 key={split.id}
-                                                className={`p-4 rounded-lg border transition-colors ${
+                                                className={`rounded-lg border p-4 transition-colors ${
                                                     isCurrentUser
-                                                        ? 'border-primary/50 bg-primary/5'
-                                                        : 'border-border bg-card'
+                                                        ? 'border-primary/40 bg-primary/5'
+                                                        : 'border-border/80 bg-muted/30'
                                                 }`}
                                             >
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-semibold text-sm truncate">
-                                                                {split.participantName ||
-                                                                    split.participantEmail ||
-                                                                    'Unknown'}
-                                                            </span>
-                                                            {isCurrentUser && (
-                                                                <Badge variant="default" className="text-xs shrink-0">
-                                                                    You
-                                                                </Badge>
-                                                            )}
-                                                            {split.isExternal && (
-                                                                <Badge variant="outline" className="text-xs shrink-0">
-                                                                    External
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground truncate">
+                                                <div className="mb-3 flex items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-medium">{displayName}</p>
+                                                        <p className="truncate text-xs text-muted-foreground">
                                                             {split.participantEmail ??
                                                                 split.user_profiles?.email ??
-                                                                'No email'}
+                                                                '—'}
                                                         </p>
                                                     </div>
+                                                    <div className="flex shrink-0 gap-1">
+                                                        {isCurrentUser && (
+                                                            <Badge variant="default" className="text-xs">
+                                                                You
+                                                            </Badge>
+                                                        )}
+                                                        {split.isExternal && (
+                                                            <Badge variant="outline" className="text-xs">
+                                                                External
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2 pt-2 border-t">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-muted-foreground">Share</span>
-                                                        <span className="font-medium text-sm">
-                                                            {split.splitPercentage.toFixed(2)}%
+                                                <div className="space-y-2 border-t border-border/60 pt-3">
+                                                    <div className="flex items-center justify-between text-sm">
+                                                        <span className="text-muted-foreground">Share</span>
+                                                        <span className="tabular-nums font-medium">
+                                                            {split.splitPercentage.toFixed(1)}%
                                                         </span>
                                                     </div>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-muted-foreground">
-                                                            Monthly Amount
-                                                        </span>
-                                                        <span className="font-semibold">
+                                                    <div className="flex items-center justify-between text-sm">
+                                                        <span className="text-muted-foreground">Monthly</span>
+                                                        <span className="tabular-nums font-semibold">
                                                             {formatCurrencyAmount(splitEmiAmount)}
                                                         </span>
                                                     </div>
+                                                    <div className="flex items-center justify-between text-sm">
+                                                        <span className="text-muted-foreground">Loan share</span>
+                                                        <span className="tabular-nums font-medium">
+                                                            {formatCurrencyAmount(splitLoanShare)}
+                                                        </span>
+                                                    </div>
+                                                    {!isCompleted && (
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <span className="text-muted-foreground">Outstanding</span>
+                                                            <span className="tabular-nums font-medium">
+                                                                {formatCurrencyAmount(splitRemainingShare)}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
-                                {mySplit && mySplitAmount && (
-                                    <div className="mt-6 pt-6 border-t">
-                                        <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
-                                            <div>
-                                                <p className="text-sm font-medium mb-1">Your Total Responsibility</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Based on your {mySplit.splitPercentage.toFixed(2)}% share
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-2xl font-bold text-primary">
-                                                    {formatCurrencyAmount(mySplitAmount)}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">per month</p>
+                                {mySplit && mySplitAmount != null && (
+                                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                            Your total responsibility
+                                        </p>
+                                        <div className="flex flex-wrap items-baseline justify-between gap-4">
+                                            <p className="text-xl font-semibold tabular-nums text-primary">
+                                                {formatCurrencyAmount(mySplitAmount)}
+                                                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                                                    /month
+                                                </span>
+                                            </p>
+                                            <div className="flex gap-6 text-sm text-muted-foreground">
+                                                <span>Loan: {formatCurrencyAmount(myTotalLoan)}</span>
+                                                {!isCompleted && (
+                                                    <span>Outstanding: {formatCurrencyAmount(myRemainingBalance)}</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

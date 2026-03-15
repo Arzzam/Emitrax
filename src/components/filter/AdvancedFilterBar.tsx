@@ -81,7 +81,7 @@ const AdvancedFilterBar = ({ emiData, setOpenConfirmationModal }: AdvancedFilter
                                     aria-label="Search EMIs"
                                 />
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-end gap-2">
                                 <div className="min-w-[120px] flex-1 basis-[120px]">
                                     <Label className="text-sm font-medium">Status</Label>
                                     <Select

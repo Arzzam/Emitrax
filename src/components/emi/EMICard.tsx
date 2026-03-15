@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArchiveIcon, ArchiveRestoreIcon, CircleCheckBigIcon, Split, Tag, User, Users } from 'lucide-react';
+import { ArchiveIcon, ArchiveRestoreIcon, CircleCheckBigIcon, Split, Tag, Users } from 'lucide-react';
 
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
@@ -35,7 +35,6 @@ const EMICard = (props: IEmi) => {
         mySplit,
         mySplitAmount,
     } = props;
-    const isPersonal = !tag || tag === 'Personal';
     const isShared = sharedWith && sharedWith.length > 0;
     const isSharedWithMe = !isOwner;
     const splitCount = splits?.length || 0;
@@ -77,7 +76,6 @@ const EMICard = (props: IEmi) => {
         <Card
             className={cn(
                 'hover:bg-accent/50 transition-colors relative',
-                !isPersonal && 'border-primary/30 bg-primary/5',
                 isSharedWithMe && 'border-blue-300/50 bg-blue-50/30 dark:bg-blue-950/20'
             )}
         >
@@ -129,11 +127,8 @@ const EMICard = (props: IEmi) => {
                         <div className="flex flex-col gap-1">
                             <CardTitle className={'flex items-center text-lg'}>{itemName}</CardTitle>
                             {tag && (
-                                <Badge
-                                    variant={isPersonal ? 'outline' : 'secondary'}
-                                    className="flex items-center gap-1 w-fit"
-                                >
-                                    {isPersonal ? <Tag className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                <Badge variant={'secondary'} className="flex items-center gap-1 w-fit">
+                                    <Tag className="w-3 h-3" />
                                     <span className="text-xs">{tag}</span>
                                 </Badge>
                             )}

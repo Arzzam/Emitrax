@@ -1,5 +1,5 @@
 import { useSelector } from 'react-redux';
-import { AlertCircle, ArrowUpDown, Banknote, Clock, IndianRupee, Tag, User } from 'lucide-react';
+import { AlertCircle, ArrowUpDown, Banknote, Clock, IndianRupee, Tag } from 'lucide-react';
 
 import type { ISplitStatsContext } from '@/hooks/useAdvancedFilter';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
@@ -8,7 +8,6 @@ import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { IEmi } from '@/types/emi.types';
 
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
@@ -137,169 +136,81 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
             </section>
 
             {uniqueTags.length > 0 && (
-                <Card className="mb-6 border-border/80 shadow-sm">
+                <Card className="mb-6 border-border/80 shadow-sm" aria-label="Breakdown by category">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5">
-                        <CardTitle className="text-sm font-medium tracking-tight">
-                            {tag && tag !== 'All' ? `${tag} Statistics` : 'EMIs by category'}
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium tracking-tight">Breakdown by category</CardTitle>
                         <Tag className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                     </CardHeader>
                     <CardContent>
-                        {tag && tag !== 'All' ? (
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-md bg-primary/10 border border-primary/20 gap-3">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{tag}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {filteredStatistics.activeEMIs} active EMIs,{' '}
-                                            {filteredStatistics.activeEMIs > 0
-                                                ? `${formatCurrencyAmount(filteredStatistics.totalMonthlyPayment)} /month`
-                                                : 'N/A'}
-                                        </span>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setTag('All')}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        View All Categories
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {uniqueTags.map((uTag) => {
-                                    const tagStats = tagStatistics[uTag];
-                                    return (
-                                        <div
-                                            key={uTag}
-                                            className={`flex flex-col p-3 rounded-md cursor-pointer hover:bg-muted ${
-                                                tag === uTag ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'
-                                            }`}
-                                            onClick={() => setTag(uTag)}
-                                        >
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="font-medium">{uTag}</span>
-                                                <Badge variant="outline" className="text-xs">
-                                                    {tagStats.totalEMIs} EMIs
-                                                </Badge>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                                <div>
-                                                    <p className="text-muted-foreground">Active EMIs</p>
-                                                    <p className="font-medium">{tagStats.activeEMIs}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-muted-foreground">Monthly</p>
-                                                    <p className="font-medium">
-                                                        {tagStats.activeEMIs > 0
-                                                            ? `${formatCurrencyAmount(tagStats.totalMonthlyPayment)} /mo`
-                                                            : 'N/A'}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-muted-foreground">Outstanding</p>
-                                                    <p className="font-medium">
-                                                        {tagStats.activeEMIs > 0
-                                                            ? formatCurrencyAmount(tagStats.totalRemainingBalance)
-                                                            : 'N/A'}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-muted-foreground">Loan</p>
-                                                    <p className="font-medium">
-                                                        {'totalLoanAmount' in tagStats
-                                                            ? formatCurrencyAmount(tagStats.totalLoanAmount)
-                                                            : 'N/A'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                        {tag && tag !== 'All' && (
+                            <div className="mb-3">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setTag('All')}
+                                    className="text-muted-foreground hover:text-foreground -ml-2"
+                                >
+                                    All categories
+                                </Button>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
-            )}
-
-            {(!tag || tag === 'All') && uniqueTags.length > 0 && (
-                <Card className="mb-6 border-border/80 shadow-sm">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5">
-                        <CardTitle className="text-sm font-medium tracking-tight">Summary by category</CardTitle>
-                        <User className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto -mx-4 px-4">
-                            <table className="w-full text-sm min-w-[680px]">
-                                <thead>
-                                    <tr className="border-b">
-                                        <th className="text-left py-2 font-medium">Category</th>
-                                        <th className="text-center py-2 font-medium">EMIs</th>
-                                        <th className="text-center py-2 font-medium">Active</th>
-                                        <th className="text-right py-2 font-medium">Monthly</th>
-                                        <th className="text-right py-2 font-medium">Outstanding</th>
-                                        <th className="text-right py-2 font-medium">Total loan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {uniqueTags.map((ut) => {
-                                        const tagStats = tagStatistics[ut];
-                                        const isPersonal = ut === 'Personal';
-                                        return (
-                                            <tr
-                                                key={ut}
-                                                className="border-b hover:bg-muted/50 cursor-pointer"
-                                                onClick={() => setTag(ut)}
-                                            >
-                                                <td className="py-2 flex items-center gap-2">
-                                                    {isPersonal ? (
-                                                        <Tag className="h-3 w-3 text-muted-foreground" />
-                                                    ) : (
-                                                        <User className="h-3 w-3 text-primary" />
-                                                    )}
-                                                    {ut}
-                                                </td>
-                                                <td className="text-center py-2">{tagStats.totalEMIs}</td>
-                                                <td className="text-center py-2">{tagStats.activeEMIs}</td>
-                                                <td className="text-right py-2">
-                                                    {tagStats.activeEMIs > 0
-                                                        ? formatCurrencyAmount(tagStats.totalMonthlyPayment)
-                                                        : 'N/A'}
-                                                </td>
-                                                <td className="text-right py-2">
-                                                    {tagStats.activeEMIs > 0
-                                                        ? formatCurrencyAmount(tagStats.totalRemainingBalance)
-                                                        : 'N/A'}
-                                                </td>
-                                                <td className="text-right py-2">
-                                                    {'totalLoanAmount' in tagStats
-                                                        ? formatCurrencyAmount(tagStats.totalLoanAmount)
-                                                        : 'N/A'}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                    <tr className="bg-muted/30 font-medium">
-                                        <td className="py-2">Total</td>
-                                        <td className="text-center py-2">{statistics.totalEMIs}</td>
-                                        <td className="text-center py-2">{statistics.activeEMIs}</td>
-                                        <td className="text-right py-2">
-                                            {formatCurrencyAmount(statistics.totalMonthlyPayment)}
-                                        </td>
-                                        <td className="text-right py-2">
-                                            {formatCurrencyAmount(statistics.totalRemainingBalance)}
-                                        </td>
-                                        <td className="text-right py-2">
-                                            {'totalLoanAmount' in statistics
-                                                ? formatCurrencyAmount(statistics.totalLoanAmount)
-                                                : 'N/A'}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul className="divide-y divide-border/60" role="list">
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={() => setTag('All')}
+                                    className={`flex w-full flex-col gap-0.5 py-2.5 pl-3 pr-0 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
+                                        !tag || tag === 'All'
+                                            ? 'border-l-2 border-primary bg-primary/10'
+                                            : 'border-l-2 border-transparent'
+                                    }`}
+                                    aria-current={!tag || tag === 'All' ? 'true' : undefined}
+                                >
+                                    <span className="font-medium">All</span>
+                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                        {statistics.totalEMIs} EMIs ·{' '}
+                                        {formatCurrencyAmount(statistics.totalMonthlyPayment)}/mo ·{' '}
+                                        {formatCurrencyAmount(statistics.totalRemainingBalance)} outstanding
+                                        {'totalLoanAmount' in statistics &&
+                                            ` · ${formatCurrencyAmount(statistics.totalLoanAmount)} loan`}
+                                    </span>
+                                </button>
+                            </li>
+                            {uniqueTags.map((uTag) => {
+                                const tagStats = tagStatistics[uTag];
+                                const isSelected = tag === uTag;
+                                const loanStr =
+                                    'totalLoanAmount' in tagStats
+                                        ? formatCurrencyAmount(tagStats.totalLoanAmount)
+                                        : 'N/A';
+                                return (
+                                    <li key={uTag}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTag(uTag)}
+                                            className={`flex w-full flex-col gap-0.5 py-2.5 pl-3 pr-0 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
+                                                isSelected
+                                                    ? 'border-l-2 border-primary bg-primary/10'
+                                                    : 'border-l-2 border-transparent'
+                                            }`}
+                                            aria-current={isSelected ? 'true' : undefined}
+                                        >
+                                            <span className="flex items-center gap-2 font-medium">
+                                                <Tag className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden />
+                                                {uTag}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground tabular-nums">
+                                                {tagStats.totalEMIs} EMIs ·{' '}
+                                                {tagStats.activeEMIs > 0
+                                                    ? `${formatCurrencyAmount(tagStats.totalMonthlyPayment)}/mo · ${formatCurrencyAmount(tagStats.totalRemainingBalance)} out.`
+                                                    : '—'}{' '}
+                                                · {loanStr} loan
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </CardContent>
                 </Card>
             )}
