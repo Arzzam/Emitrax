@@ -159,7 +159,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                                 <button
                                     type="button"
                                     onClick={() => setTag('All')}
-                                    className={`flex w-full flex-col gap-0.5 py-2.5 pl-3 pr-0 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
+                                    className={`flex w-full flex-col gap-0.5 py-2.5 px-3 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
                                         !tag || tag === 'All'
                                             ? 'border-l-2 border-primary bg-primary/10'
                                             : 'border-l-2 border-transparent'
@@ -170,7 +170,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                                     <span className="text-xs text-muted-foreground tabular-nums">
                                         {statistics.totalEMIs} EMIs ·{' '}
                                         {formatCurrencyAmount(statistics.totalMonthlyPayment)}/mo ·{' '}
-                                        {formatCurrencyAmount(statistics.totalRemainingBalance)} outstanding
+                                        {formatCurrencyAmount(statistics.totalRemainingBalance)} outstanding.
                                         {'totalLoanAmount' in statistics &&
                                             ` · ${formatCurrencyAmount(statistics.totalLoanAmount)} loan`}
                                     </span>
@@ -188,7 +188,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                                         <button
                                             type="button"
                                             onClick={() => setTag(uTag)}
-                                            className={`flex w-full flex-col gap-0.5 py-2.5 pl-3 pr-0 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
+                                            className={`flex w-full flex-col gap-0.5 py-2.5 px-3 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
                                                 isSelected
                                                     ? 'border-l-2 border-primary bg-primary/10'
                                                     : 'border-l-2 border-transparent'
@@ -202,7 +202,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                                             <span className="text-xs text-muted-foreground tabular-nums">
                                                 {tagStats.totalEMIs} EMIs ·{' '}
                                                 {tagStats.activeEMIs > 0
-                                                    ? `${formatCurrencyAmount(tagStats.totalMonthlyPayment)}/mo · ${formatCurrencyAmount(tagStats.totalRemainingBalance)} out.`
+                                                    ? `${formatCurrencyAmount(tagStats.totalMonthlyPayment)}/mo · ${formatCurrencyAmount(tagStats.totalRemainingBalance)} outstanding.`
                                                     : '—'}{' '}
                                                 · {loanStr} loan
                                             </span>

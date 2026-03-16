@@ -25,6 +25,7 @@ import {
 import { Field, FieldError, FieldLabel } from '../ui/field';
 import { Input } from '../ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Textarea } from '../ui/textarea';
 
 const formSchema = z
     .object({
@@ -51,6 +52,7 @@ const formSchema = z
             })
             .optional(),
         tag: z.string().optional(),
+        notes: z.string().max(2000).optional(),
     })
     .refine(
         (data) => {
@@ -90,6 +92,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
             gst: data?.gst ?? undefined,
             tag: data?.tag || '',
+            notes: data?.notes ?? '',
         },
         validators: {
             onSubmit: formSchema as never,
@@ -221,6 +224,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         </Field>
                     );
                 }}
+            </form.Field>
+            <form.Field name="notes">
+                {(field) => (
+                    <Field className="col-span-2">
+                        <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
+                        <Textarea
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value ?? ''}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            placeholder="Optional notes for this EMI"
+                            rows={3}
+                            className="resize-none h-[3.5rem] min-h-[3.5rem] max-h-[3.5rem] overflow-y-auto"
+                        />
+                        <FieldError errors={field.state.meta.errors?.map((m) => ({ message: m }))} />
+                    </Field>
+                )}
             </form.Field>
             <form.Field
                 name="principal"

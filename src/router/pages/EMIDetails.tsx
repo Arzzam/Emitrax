@@ -8,6 +8,7 @@ import {
     CalendarIcon,
     Clock,
     CreditCard,
+    FileText,
     IndianRupee,
     Percent,
     Receipt,
@@ -118,6 +119,7 @@ const EMIDetails = () => {
         interestDiscount,
         interestDiscountType,
         tag,
+        notes,
         amortizationSchedules,
         isOwner,
         permission,
@@ -554,6 +556,27 @@ const EMIDetails = () => {
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* Notes - show when notes exist or when user can edit (empty state) */}
+                    {(notes?.trim() || canEdit) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5" />
+                                    Notes
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {notes?.trim() ? (
+                                    <p className="whitespace-pre-wrap text-sm text-foreground">{notes}</p>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No notes added. Use Edit to add notes for this EMI.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Split Breakdown Section - Full Width */}
                     {isSplit && splits && splits.length > 0 && (

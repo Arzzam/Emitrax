@@ -74,6 +74,7 @@ export const calculateEMI = (
         gst: gst || 0,
         totalGST: Number(totalGST.toFixed(2)),
         tag: tag || 'Personal',
+        notes: emiData.notes ?? undefined,
     };
 
     return payload;

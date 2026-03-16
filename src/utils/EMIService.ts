@@ -37,6 +37,7 @@ export class EmiService {
                 isArchived: emi.isArchived,
                 userId: userId,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
             })
             .select();
 
@@ -368,6 +369,7 @@ export class EmiService {
                 isCompleted: emi.isCompleted,
                 isArchived: emi.isArchived,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
                 updatedAt: new Date().toISOString(), // <-- important
             })
             .eq('id', emi.id)
@@ -421,6 +423,7 @@ export class EmiService {
                 isCompleted: emi.isCompleted,
                 isArchived: emi.isArchived,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
                 updatedAt: new Date().toISOString(),
             }))
         );

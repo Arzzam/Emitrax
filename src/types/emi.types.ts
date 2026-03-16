@@ -59,6 +59,7 @@ export interface IEmi {
     isArchived?: boolean;
     amortizationSchedules: ScheduleData[];
     tag?: string;
+    notes?: string;
     createdAt?: string;
     updatedAt?: string;
     userId?: string;

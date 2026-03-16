@@ -19,6 +19,7 @@ export type Tables = {
             remainingTenure: number;
             endDate: string;
             isCompleted: boolean;
+            notes: string | null;
             createdAt: string;
             updatedAt: string;
         };
