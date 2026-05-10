@@ -1,13 +1,18 @@
+/**
+ * @deprecated Use AdvancedFilterBar and advancedFilterModel for new filter behavior.
+ * This component is kept for backward compatibility only.
+ */
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { X } from 'lucide-react';
 
-import { IEmi } from '@/types/emi.types';
-import { IDispatch, IRootState } from '@/store/types/store.types';
 import { useRematchDispatch } from '@/store/store';
+import { IDispatch, IRootState } from '@/store/types/store.types';
+import { IEmi } from '@/types/emi.types';
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { Button } from '../ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '../ui/label';
 
 export type TFilterOptions = {

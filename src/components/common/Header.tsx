@@ -1,7 +1,10 @@
-import { Separator } from '@/components/ui/separator';
 import { useUser } from '@/hooks/useUser';
-import { ModeToggle } from './ModeToggle';
+
+import { Separator } from '@/components/ui/separator';
+
 import LoginModal from '../login/AuthModal';
+
+import { ModeToggle } from './ModeToggle';
 import UserMenu from './UserMenu';
 
 const Header = ({ title }: { title: string }) => {

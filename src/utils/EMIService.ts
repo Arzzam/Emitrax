@@ -1,7 +1,8 @@
-import store from '@/store/store';
-import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
-import { supabase } from '@/supabase/supabase';
 import { format } from 'date-fns';
+
+import store from '@/store/store';
+import { supabase } from '@/supabase/supabase';
+import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
 
 export class EmiService {
     static async createEmi(emi: Omit<IEmi, 'id'>) {
@@ -36,6 +37,7 @@ export class EmiService {
                 isArchived: emi.isArchived,
                 userId: userId,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
             })
             .select();
 
@@ -267,15 +269,8 @@ export class EmiService {
                 if (!acc[split.emiId]) {
                     acc[split.emiId] = [];
                 }
-                const isExternal = split.isExternal;
-                const userProfile = split.user_profiles;
-                acc[split.emiId].push({
-                    ...split,
-                    displayName: isExternal
-                        ? split.participantName || split.participantEmail
-                        : userProfile?.email || split.participantEmail,
-                    displayEmail: isExternal ? split.participantEmail : userProfile?.email || split.participantEmail,
-                } as IEmiSplit);
+
+                acc[split.emiId].push(split);
                 return acc;
             }, {});
         }
@@ -374,6 +369,7 @@ export class EmiService {
                 isCompleted: emi.isCompleted,
                 isArchived: emi.isArchived,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
                 updatedAt: new Date().toISOString(), // <-- important
             })
             .eq('id', emi.id)
@@ -427,6 +423,7 @@ export class EmiService {
                 isCompleted: emi.isCompleted,
                 isArchived: emi.isArchived,
                 tag: emi.tag,
+                notes: emi.notes ?? null,
                 updatedAt: new Date().toISOString(),
             }))
         );

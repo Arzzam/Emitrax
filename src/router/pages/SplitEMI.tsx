@@ -1,39 +1,41 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
-import { Trash2, AlertCircle, CheckCircle2, Users, Edit2, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router';
+import { AlertCircle, CheckCircle2, Edit2, Plus, Trash2, Users } from 'lucide-react';
 
-import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
-import { useEmis, useSetEmiSplits, useEmiSplits, useRemoveSplit } from '@/hooks/useEmi';
+import { useAccountDetails } from '@/hooks/useAccount';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
+import { useEmis, useEmiSplits, useRemoveSplit, useSetEmiSplits } from '@/hooks/useEmi';
 import {
-    EditableSplit,
-    PERCENTAGE_TOLERANCE,
     createEditableSplit,
+    EditableSplit,
     mapExistingToEditableSplits,
     normalizeEmail,
+    PERCENTAGE_TOLERANCE,
     useRegisteredUserLookup,
     useRegisteredUsers,
 } from '@/hooks/useSplitEmi';
-import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
-import { errorToast, successToast } from '@/utils/toast.utils';
 import { IRootState } from '@/store/types/store.types';
+import { IEmi, IEmiSplit, IEmiSplitInput } from '@/types/emi.types';
+import { errorToast, successToast } from '@/utils/toast.utils';
 
+import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
 import Header from '@/components/common/Header';
-import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
-import NotFound from '@/components/common/NotFound';
 import LoadingDetails from '@/components/common/LoadingDetails';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import NotFound from '@/components/common/NotFound';
 import SplitEmiEditRow from '@/components/emi/SplitEmiEditRow';
-import { useAccountDetails } from '@/hooks/useAccount';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SplitEMI = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { data: accountDetails } = useAccountDetails();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const [notFound, setNotFound] = useState(false);
@@ -43,7 +45,7 @@ const SplitEMI = () => {
     const allRegisteredUsers = useRegisteredUsers();
     const { id: userId } = useSelector((state: IRootState) => state.userModel);
     const { data: profile } = useAccountDetails({ enabled: !!userId });
-    const { data: existingSplits } = useEmiSplits(id || '');
+    const { data: existingSplits, isLoading: splitsLoading } = useEmiSplits(id || '');
     const { mutate: setSplits } = useSetEmiSplits();
     const { mutate: removeSplit } = useRemoveSplit();
     const breadcrumbItems = useMemo(
@@ -121,7 +123,7 @@ const SplitEMI = () => {
                     if (user) {
                         updatedSplit.userId = user.id;
                         updatedSplit.isExternal = false;
-                        updatedSplit.name = user.email;
+                        updatedSplit.name = accountDetails?.displayName || user.email;
                     } else {
                         updatedSplit.userId = undefined;
                         updatedSplit.isExternal = true;
@@ -373,7 +375,23 @@ const SplitEMI = () => {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            {!isEditMode ? (
+                            {splitsLoading ? (
+                                <ul className="space-y-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <li
+                                            key={i}
+                                            className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                                        >
+                                            <div className="flex-1 space-y-2">
+                                                <Skeleton className="h-4 w-36" />
+                                                <Skeleton className="h-3 w-48" />
+                                                <Skeleton className="h-3 w-32" />
+                                            </div>
+                                            <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : !isEditMode ? (
                                 <div className="space-y-3">
                                     {existingSplits && existingSplits.length > 0 ? (
                                         existingSplits.map((split) => (
@@ -384,7 +402,9 @@ const SplitEMI = () => {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-medium">
-                                                            {split.displayName || split.participantEmail || 'Unknown'}
+                                                            {split.participantName ||
+                                                                split.participantEmail ||
+                                                                'Unknown'}
                                                         </span>
                                                         {split.isExternal && (
                                                             <Badge variant="outline" className="text-xs">
@@ -393,7 +413,7 @@ const SplitEMI = () => {
                                                         )}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
-                                                        {split.displayEmail}
+                                                        {split.participantEmail}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
                                                         {split.splitPercentage.toFixed(3)}% •{' '}

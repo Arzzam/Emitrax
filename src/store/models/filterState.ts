@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use advancedFilterModel (advancedFilterState) for new filter behavior.
+ * This state is kept for backward compatibility only.
+ */
 import { TFilterOptions } from '@/components/filter/FilterOptions';
 
 interface IFilterState extends TFilterOptions {

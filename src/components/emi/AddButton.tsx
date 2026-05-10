@@ -3,6 +3,7 @@ import { PencilIcon, PlusIcon } from 'lucide-react';
 
 import { IEmi } from '@/types/emi.types';
 
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -11,8 +12,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+
 import EMIForm from './EMIForm';
-import { Button } from '@/components/ui/button';
 
 const FormModal = ({ data }: { data?: IEmi }) => {
     const [isOpen, setIsOpen] = useState(false);

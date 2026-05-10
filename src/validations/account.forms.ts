@@ -1,5 +1,6 @@
-import { AccountDetails } from '@/types/account.types';
 import * as z from 'zod';
+
+import { AccountDetails } from '@/types/account.types';
 
 export const LOCALE_OPTIONS = [
     { label: 'English (India)', value: 'en-IN' },

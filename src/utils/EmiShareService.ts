@@ -1,6 +1,7 @@
 import store from '@/store/store';
 import { supabase } from '@/supabase/supabase';
 import { IEmiShare } from '@/types/emi.types';
+
 import { errorToast } from './toast.utils';
 
 export class EmiShareService {

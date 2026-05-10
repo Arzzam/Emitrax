@@ -1,5 +1,6 @@
-import { Card, CardContent, CardTitle } from '../ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+
+import { Card, CardContent, CardTitle } from '../ui/card';
 
 const EMICardSkeleton = () => {
     return (

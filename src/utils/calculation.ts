@@ -1,23 +1,25 @@
-import { v4 as uuidv4 } from 'uuid';
 import { addMonths, format, isBefore } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 
 import { IEmi, ScheduleData } from '@/types/emi.types';
-import { TFormValues } from '@/components/emi/EMIForm';
 
 export const calculateEMI = (
-    {
-        principal,
-        interestRate,
-        tenure,
-        billDate,
-        itemName,
-        interestDiscount,
-        interestDiscountType,
-        gst,
-        tag,
-    }: TFormValues,
+    // {
+    //     principal,
+    //     interestRate,
+    //     tenure,
+    //     billDate,
+    //     itemName,
+    //     interestDiscount,
+    //     interestDiscountType,
+    //     gst,
+    //     tag,
+    // }: TFormValues,
+    emiData: IEmi,
     id?: string
 ): IEmi => {
+    const { principal, interestRate, tenure, billDate, itemName, interestDiscount, interestDiscountType, gst, tag } =
+        emiData;
     const P = principal;
     const r = interestRate / 100 / 12;
     const n = tenure;
@@ -51,6 +53,7 @@ export const calculateEMI = (
     }, 0);
 
     const payload: IEmi = {
+        ...(emiData || {}),
         id: id ? id : uuidv4(),
         itemName,
         principal,
@@ -71,6 +74,7 @@ export const calculateEMI = (
         gst: gst || 0,
         totalGST: Number(totalGST.toFixed(2)),
         tag: tag || 'Personal',
+        notes: emiData.notes ?? undefined,
     };
 
     return payload;

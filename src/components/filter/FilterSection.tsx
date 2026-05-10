@@ -1,14 +1,19 @@
-import { ArrowUpDown, Search } from 'lucide-react';
+/**
+ * @deprecated Use AdvancedFilterBar and advancedFilterModel for new filter behavior.
+ * This component is kept for backward compatibility only.
+ */
 import { useSelector } from 'react-redux';
+import { ArrowUpDown, Search } from 'lucide-react';
 
-import { IEmi } from '@/types/emi.types';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
+import { IEmi } from '@/types/emi.types';
 
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
 import FormModal from '../emi/AddButton';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
+
 import FilterOptions from './FilterOptions';
 
 interface EMIFilterOptionsProps {

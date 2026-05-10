@@ -1,22 +1,24 @@
+import { useForm, useStore } from '@tanstack/react-form';
 import * as z from 'zod';
+
 import { useUpsertAccountDetails } from '@/hooks/useAccount';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch } from '@/store/types/store.types';
 import { AccountDetails, NumberFormatMode } from '@/types/account.types';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import {
-    accountSchema,
     AccountFormValues,
-    getAccountFormDefaults,
+    accountSchema,
     CURRENCY_OPTIONS,
+    getAccountFormDefaults,
     LOCALE_OPTIONS,
     NUMBER_FORMAT_OPTIONS,
 } from '@/validations/account.forms';
-import { useForm, useStore } from '@tanstack/react-form';
+
 import { Button } from '../ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '../ui/field';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 function validateField<T>(schema: z.ZodType<T>, value: T): string | undefined {
     const result = schema.safeParse(value);

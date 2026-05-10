@@ -1,5 +1,5 @@
-import { Toaster } from 'sonner';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 
 import StoreProvider from './context/StoreProvider/StoreProvider';
 import { ThemeProvider } from './context/ThemeProvider/themeProvider';
