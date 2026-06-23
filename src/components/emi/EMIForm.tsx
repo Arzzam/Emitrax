@@ -345,7 +345,6 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                             field.handleChange(date);
                                             setOpen(false);
                                         }}
-                                        disabled={{ after: new Date() }}
                                     />
                                 </PopoverContent>
                             </Popover>
