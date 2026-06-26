@@ -49,6 +49,8 @@ export interface IEmi {
     emi: number;
     gst: number;
     totalGST: number;
+    processingFee?: number;
+    processingFeeGst?: number;
     totalLoan: number;
     totalPaidEMIs: number;
     totalInterest: number;

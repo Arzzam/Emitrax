@@ -51,6 +51,19 @@ const formSchema = z
                 message: 'GST must be between 0 and 100.',
             })
             .optional(),
+        processingFee: z
+            .number()
+            .min(0, {
+                message: 'Processing fee must be a positive value.',
+            })
+            .optional(),
+        processingFeeGst: z
+            .number()
+            .min(0)
+            .max(100, {
+                message: 'Processing fee GST must be between 0 and 100.',
+            })
+            .optional(),
         tag: z.string().optional(),
         notes: z.string().max(2000).optional(),
     })
@@ -91,6 +104,8 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
             interestDiscount: data?.interestDiscount ?? undefined,
             interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
             gst: data?.gst ?? undefined,
+            processingFee: data?.processingFee ?? undefined,
+            processingFeeGst: data?.processingFeeGst ?? undefined,
             tag: data?.tag || '',
             notes: data?.notes ?? '',
         },
@@ -122,91 +137,97 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
 
     return (
         <form
-            className="grid grid-cols-2 gap-4"
+            className="flex flex-col gap-6"
             onSubmit={(e) => {
                 e.preventDefault();
                 void form.handleSubmit();
             }}
         >
-            <form.Field
-                name="itemName"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <FieldLabel htmlFor={field.name}>Item Name</FieldLabel>
-                            <Input
-                                id={field.name}
-                                name={field.name}
-                                value={field.state.value}
-                                onBlur={field.handleBlur}
-                                onChange={(e) => field.handleChange(e.target.value)}
-                                aria-invalid={isInvalid}
-                                placeholder="e.g., Laptop"
-                            />
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
-            <form.Field name="tag">
-                {(field) => {
-                    return (
-                        <Field>
-                            <div className="flex flex-row gap-2">
-                                <FieldLabel htmlFor={field.name}>Category Tag</FieldLabel>
-                                <ToolTipWrapper content="Select from existing categories or type to create a new one">
-                                    <Tag className="w-4 h-4" />
-                                </ToolTipWrapper>
-                            </div>
-                            <Combobox
-                                items={uniqueTags}
-                                value={field.state.value}
-                                autoHighlight
-                                onValueChange={(v) => field.handleChange(v ?? '')}
-                                modal={true}
-                                onInputValueChange={(v) => setTagInput(v ?? '')}
-                            >
-                                <ComboboxInput
-                                    placeholder="Select a Tag"
-                                    id={field.name}
-                                    aria-invalid={!!field.state.meta.errors.length}
-                                    aria-describedby={`${field.name}-label`}
-                                    value={tagInput || field.state.value || ''}
-                                />
-                                <ComboboxContent>
-                                    <ComboboxList>
-                                        {({ value, label }) => {
-                                            return (
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                    <h3 className="text-sm font-medium text-foreground">Basic details</h3>
+                    <p className="text-xs text-muted-foreground">Identify and categorize this EMI.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <form.Field
+                        name="itemName"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <FieldLabel htmlFor={field.name}>Item Name</FieldLabel>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        value={field.state.value}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) => field.handleChange(e.target.value)}
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., Laptop"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                    <form.Field name="tag">
+                        {(field) => {
+                            return (
+                                <Field>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>Category Tag</FieldLabel>
+                                        <ToolTipWrapper content="Select from existing categories or type to create a new one">
+                                            <Tag className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Combobox
+                                        items={uniqueTags}
+                                        value={field.state.value}
+                                        autoHighlight
+                                        onValueChange={(v) => field.handleChange(v ?? '')}
+                                        modal={true}
+                                        onInputValueChange={(v) => setTagInput(v ?? '')}
+                                    >
+                                        <ComboboxInput
+                                            placeholder="Select a Tag"
+                                            id={field.name}
+                                            aria-invalid={!!field.state.meta.errors.length}
+                                            aria-describedby={`${field.name}-label`}
+                                            value={tagInput || field.state.value || ''}
+                                        />
+                                        <ComboboxContent>
+                                            <ComboboxList>
+                                                {({ value, label }) => {
+                                                    return (
+                                                        <>
+                                                            <ComboboxItem
+                                                                key={value}
+                                                                value={value}
+                                                                className="pointer-events-auto"
+                                                                onSelect={() => {
+                                                                    handleTagChange(value);
+                                                                }}
+                                                            >
+                                                                {label}
+                                                            </ComboboxItem>
+                                                        </>
+                                                    );
+                                                }}
+                                            </ComboboxList>
+                                            {tagInput && (
                                                 <>
+                                                    <ComboboxSeparator />
                                                     <ComboboxItem
-                                                        key={value}
-                                                        value={value}
+                                                        value={`${tagInput}`}
                                                         className="pointer-events-auto"
-                                                        onSelect={() => {
-                                                            handleTagChange(value);
-                                                        }}
+                                                        onSelect={() => handleTagChange(`${tagInput.trim()}`)}
                                                     >
-                                                        {label}
+                                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                                        Create &quot;{tagInput}&quot;
                                                     </ComboboxItem>
                                                 </>
-                                            );
-                                        }}
-                                    </ComboboxList>
-                                    {tagInput && (
-                                        <>
-                                            <ComboboxSeparator />
-                                            <ComboboxItem
-                                                value={`${tagInput}`}
-                                                className="pointer-events-auto"
-                                                onSelect={() => handleTagChange(`${tagInput.trim()}`)}
-                                            >
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                Create &quot;{tagInput}&quot;
-                                            </ComboboxItem>
-                                        </>
-                                    )}
-                                    {/* <ComboboxEmpty>
+                                            )}
+                                            {/* <ComboboxEmpty>
                                         <ComboboxItem
                                             value={`${tagInput}`}
                                             className="pointer-events-auto"
@@ -218,261 +239,370 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                             Create &quot;{tagInput}&quot;
                                         </ComboboxItem>
                                     </ComboboxEmpty> */}
-                                </ComboboxContent>
-                            </Combobox>
+                                        </ComboboxContent>
+                                    </Combobox>
+                                    <FieldError errors={field.state.meta.errors?.map((m) => ({ message: m }))} />
+                                </Field>
+                            );
+                        }}
+                    </form.Field>
+                </div>
+            </section>
+
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                    <h3 className="text-sm font-medium text-foreground">Loan terms</h3>
+                    <p className="text-xs text-muted-foreground">Core loan amount, rate, and repayment period.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <form.Field
+                        name="principal"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>Principal Amount (₹)</FieldLabel>
+                                        <ToolTipWrapper content="Principal amount is the amount of money borrowed from the bank or lender.">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 50000"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                    <form.Field
+                        name="interestRate"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>Interest Rate (%)</FieldLabel>
+                                        <ToolTipWrapper content="If it is No Interest Loan, then use 0 for interest rate and interest discount">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        step="0.01"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 12.5"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                    <form.Field
+                        name="billDate"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={`${field.name}-trigger`}>Bill Date</FieldLabel>
+                                        <ToolTipWrapper content="Use statement date as bill date. So that you can track your EMI date and bill date.">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Popover open={open} onOpenChange={setOpen} modal={true}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                type="button"
+                                                id={`${field.name}-trigger`}
+                                                aria-invalid={isInvalid}
+                                                className={cn(
+                                                    'pl-3 text-left font-normal w-full',
+                                                    !field.state.value && 'text-muted-foreground'
+                                                )}
+                                            >
+                                                {field.state.value ? (
+                                                    format(field.state.value, 'PPP')
+                                                ) : (
+                                                    <span className="truncate">Select Bill Date</span>
+                                                )}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 overflow-hidden" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                required
+                                                selected={field.state.value}
+                                                defaultMonth={field.state.value}
+                                                captionLayout="dropdown"
+                                                onSelect={(date) => {
+                                                    field.handleChange(date);
+                                                    setOpen(false);
+                                                }}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                    <form.Field
+                        name="tenure"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <FieldLabel htmlFor={field.name}>Tenure (Months)</FieldLabel>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 12"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                </div>
+            </section>
+
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                    <h3 className="text-sm font-medium text-foreground">Charges & discounts</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Optional discounts, interest GST, and one-time processing fees.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <form.Subscribe selector={(state) => state.values.interestDiscountType}>
+                        {(interestDiscountType) => (
+                            <>
+                                <form.Field
+                                    name="interestDiscount"
+                                    children={(field) => {
+                                        const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                        const placeholder =
+                                            interestDiscountType === 'amount' ? 'e.g., 1000 (₹)' : 'e.g., 12.5 (%)';
+                                        return (
+                                            <Field data-invalid={isInvalid}>
+                                                <FieldLabel htmlFor={field.name}>
+                                                    Interest Discount (%) / (₹)
+                                                </FieldLabel>
+                                                <div className="relative">
+                                                    <Input
+                                                        id={field.name}
+                                                        name={field.name}
+                                                        type="number"
+                                                        value={field.state.value ?? ''}
+                                                        onBlur={field.handleBlur}
+                                                        onChange={(e) =>
+                                                            field.handleChange(
+                                                                e.target.value === ''
+                                                                    ? undefined
+                                                                    : Number(e.target.value)
+                                                            )
+                                                        }
+                                                        aria-invalid={isInvalid}
+                                                        placeholder={placeholder}
+                                                        className="pr-16"
+                                                    />
+                                                    <form.Field
+                                                        name="interestDiscountType"
+                                                        children={(typeField) => (
+                                                            <div className="absolute inset-y-0 right-2 flex items-center space-x-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        typeField.handleChange(
+                                                                            typeField.state.value === 'amount'
+                                                                                ? 'percent'
+                                                                                : 'amount'
+                                                                        )
+                                                                    }
+                                                                    className="bg-transparent border-none text-gray-500 hover:bg-transparent hover:text-foreground cursor-pointer"
+                                                                >
+                                                                    {typeField.state.value === 'amount' ? (
+                                                                        <IndianRupee className="w-4 h-4 transition-all duration-300 scale-100" />
+                                                                    ) : (
+                                                                        <PercentIcon className="w-4 h-4 transition-all duration-300 scale-100" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                </div>
+                                                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                            </Field>
+                                        );
+                                    }}
+                                />
+                            </>
+                        )}
+                    </form.Subscribe>
+
+                    <form.Field
+                        name="gst"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>GST (%)</FieldLabel>
+                                        <ToolTipWrapper content="GST is the tax on the interest rate. It is calculated on the interest rate and principal amount.">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        step="0.01"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 18"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+
+                    <form.Field
+                        name="processingFee"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>Processing Fee (₹)</FieldLabel>
+                                        <ToolTipWrapper content="One-time processing fee charged at loan origination. Added to total outflow, not monthly EMI.">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        step="0.01"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 500"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+
+                    <form.Field
+                        name="processingFeeGst"
+                        children={(field) => {
+                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                            return (
+                                <Field data-invalid={isInvalid}>
+                                    <div className="flex flex-row gap-2">
+                                        <FieldLabel htmlFor={field.name}>Processing Fee GST (%)</FieldLabel>
+                                        <ToolTipWrapper content="GST rate applied to the one-time processing fee.">
+                                            <Info className="w-4 h-4" />
+                                        </ToolTipWrapper>
+                                    </div>
+                                    <Input
+                                        id={field.name}
+                                        name={field.name}
+                                        type="number"
+                                        step="0.01"
+                                        value={field.state.value ?? ''}
+                                        onBlur={field.handleBlur}
+                                        onChange={(e) =>
+                                            field.handleChange(
+                                                e.target.value === '' ? undefined : Number(e.target.value)
+                                            )
+                                        }
+                                        aria-invalid={isInvalid}
+                                        placeholder="e.g., 18"
+                                    />
+                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                </Field>
+                            );
+                        }}
+                    />
+                </div>
+            </section>
+
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                    <h3 className="text-sm font-medium text-foreground">Notes</h3>
+                    <p className="text-xs text-muted-foreground">Optional context for this EMI.</p>
+                </div>
+                <form.Field name="notes">
+                    {(field) => (
+                        <Field>
+                            <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
+                            <Textarea
+                                id={field.name}
+                                name={field.name}
+                                value={field.state.value ?? ''}
+                                onBlur={field.handleBlur}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                                placeholder="Optional notes for this EMI"
+                                rows={3}
+                                className="resize-none"
+                            />
                             <FieldError errors={field.state.meta.errors?.map((m) => ({ message: m }))} />
                         </Field>
-                    );
-                }}
-            </form.Field>
-            <form.Field name="notes">
-                {(field) => (
-                    <Field className="col-span-2">
-                        <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
-                        <Textarea
-                            id={field.name}
-                            name={field.name}
-                            value={field.state.value ?? ''}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Optional notes for this EMI"
-                            rows={3}
-                            className="resize-none h-[3.5rem] min-h-[3.5rem] max-h-[3.5rem] overflow-y-auto"
-                        />
-                        <FieldError errors={field.state.meta.errors?.map((m) => ({ message: m }))} />
-                    </Field>
-                )}
-            </form.Field>
-            <form.Field
-                name="principal"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <div className="flex flex-row gap-2">
-                                <FieldLabel htmlFor={field.name}>Principal Amount (₹)</FieldLabel>
-                                <ToolTipWrapper content="Principal amount is the amount of money borrowed from the bank or lender.">
-                                    <Info className="w-4 h-4" />
-                                </ToolTipWrapper>
-                            </div>
-                            <Input
-                                id={field.name}
-                                name={field.name}
-                                type="number"
-                                value={field.state.value ?? ''}
-                                onBlur={field.handleBlur}
-                                onChange={(e) =>
-                                    field.handleChange(e.target.value === '' ? undefined : Number(e.target.value))
-                                }
-                                aria-invalid={isInvalid}
-                                placeholder="e.g., 50000"
-                            />
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
-            <form.Field
-                name="interestRate"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <div className="flex flex-row gap-2">
-                                <FieldLabel htmlFor={field.name}>Interest Rate (%)</FieldLabel>
-                                <ToolTipWrapper content="If it is No Interest Loan, then use 0 for interest rate and interest discount">
-                                    <Info className="w-4 h-4" />
-                                </ToolTipWrapper>
-                            </div>
-                            <Input
-                                id={field.name}
-                                name={field.name}
-                                type="number"
-                                step="0.01"
-                                value={field.state.value ?? ''}
-                                onBlur={field.handleBlur}
-                                onChange={(e) =>
-                                    field.handleChange(e.target.value === '' ? undefined : Number(e.target.value))
-                                }
-                                aria-invalid={isInvalid}
-                                placeholder="e.g., 12.5"
-                            />
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
-            <form.Field
-                name="billDate"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <div className="flex flex-row gap-2">
-                                <FieldLabel htmlFor={`${field.name}-trigger`}>Bill Date</FieldLabel>
-                                <ToolTipWrapper content="Use statement date as bill date. So that you can track your EMI date and bill date.">
-                                    <Info className="w-4 h-4" />
-                                </ToolTipWrapper>
-                            </div>
-                            <Popover open={open} onOpenChange={setOpen} modal={true}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        type="button"
-                                        id={`${field.name}-trigger`}
-                                        aria-invalid={isInvalid}
-                                        className={cn(
-                                            'pl-3 text-left font-normal w-full',
-                                            !field.state.value && 'text-muted-foreground'
-                                        )}
-                                    >
-                                        {field.state.value ? (
-                                            format(field.state.value, 'PPP')
-                                        ) : (
-                                            <span className="truncate">Select Bill Date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 overflow-hidden" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        required
-                                        selected={field.state.value}
-                                        defaultMonth={field.state.value}
-                                        captionLayout="dropdown"
-                                        onSelect={(date) => {
-                                            field.handleChange(date);
-                                            setOpen(false);
-                                        }}
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
-            <form.Field
-                name="tenure"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <FieldLabel htmlFor={field.name}>Tenure (Months)</FieldLabel>
-                            <Input
-                                id={field.name}
-                                name={field.name}
-                                type="number"
-                                value={field.state.value ?? ''}
-                                onBlur={field.handleBlur}
-                                onChange={(e) =>
-                                    field.handleChange(e.target.value === '' ? undefined : Number(e.target.value))
-                                }
-                                aria-invalid={isInvalid}
-                                placeholder="e.g., 12"
-                            />
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
+                    )}
+                </form.Field>
+            </section>
 
-            <form.Subscribe selector={(state) => state.values.interestDiscountType}>
-                {(interestDiscountType) => (
-                    <>
-                        <form.Field
-                            name="interestDiscount"
-                            children={(field) => {
-                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                                const placeholder =
-                                    interestDiscountType === 'amount' ? 'e.g., 1000 (₹)' : 'e.g., 12.5 (%)';
-                                return (
-                                    <Field data-invalid={isInvalid}>
-                                        <FieldLabel htmlFor={field.name}>Interest Discount (%) / (₹)</FieldLabel>
-                                        <div className="relative">
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                type="number"
-                                                value={field.state.value ?? ''}
-                                                onBlur={field.handleBlur}
-                                                onChange={(e) =>
-                                                    field.handleChange(
-                                                        e.target.value === '' ? undefined : Number(e.target.value)
-                                                    )
-                                                }
-                                                aria-invalid={isInvalid}
-                                                placeholder={placeholder}
-                                                className="pr-16"
-                                            />
-                                            <form.Field
-                                                name="interestDiscountType"
-                                                children={(typeField) => (
-                                                    <div className="absolute inset-y-0 right-2 flex items-center space-x-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                typeField.handleChange(
-                                                                    typeField.state.value === 'amount'
-                                                                        ? 'percent'
-                                                                        : 'amount'
-                                                                )
-                                                            }
-                                                            className="bg-transparent border-none text-gray-500 hover:bg-transparent hover:text-foreground cursor-pointer"
-                                                        >
-                                                            {typeField.state.value === 'amount' ? (
-                                                                <IndianRupee className="w-4 h-4 transition-all duration-300 scale-100" />
-                                                            ) : (
-                                                                <PercentIcon className="w-4 h-4 transition-all duration-300 scale-100" />
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            />
-                                        </div>
-                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                    </Field>
-                                );
-                            }}
-                        />
-                    </>
-                )}
-            </form.Subscribe>
-
-            <form.Field
-                name="gst"
-                children={(field) => {
-                    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    return (
-                        <Field data-invalid={isInvalid}>
-                            <div className="flex flex-row gap-2">
-                                <FieldLabel htmlFor={field.name}>GST (%)</FieldLabel>
-                                <ToolTipWrapper content="GST is the tax on the interest rate. It is calculated on the interest rate and principal amount.">
-                                    <Info className="w-4 h-4" />
-                                </ToolTipWrapper>
-                            </div>
-                            <Input
-                                id={field.name}
-                                name={field.name}
-                                type="number"
-                                step="0.01"
-                                value={field.state.value ?? ''}
-                                onBlur={field.handleBlur}
-                                onChange={(e) =>
-                                    field.handleChange(e.target.value === '' ? undefined : Number(e.target.value))
-                                }
-                                aria-invalid={isInvalid}
-                                placeholder="e.g., 18"
-                            />
-                            {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                        </Field>
-                    );
-                }}
-            />
-            <Button type="submit" className="w-36 col-span-2 ml-auto">
-                {isEdit ? (isUpdatingEmi ? 'Updating...' : 'Update') : isAddingEmi ? 'Adding...' : 'Add'}
-            </Button>
+            <div className="sticky bottom-0 -mx-6 border-t bg-background px-6 py-4">
+                <Button type="submit" className="ml-auto w-full sm:w-36">
+                    {isEdit ? (isUpdatingEmi ? 'Updating...' : 'Update') : isAddingEmi ? 'Adding...' : 'Add'}
+                </Button>
+            </div>
         </form>
     );
 };

@@ -3,6 +3,69 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { IEmi, ScheduleData } from '@/types/emi.types';
 
+export function coerceOptionalNumber(value: unknown): number {
+    if (value === undefined || value === null || value === '') {
+        return 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export const calculateProcessingFeeCharges = (
+    processingFee?: number | string | null,
+    processingFeeGst?: number | string | null
+) => {
+    const fee = coerceOptionalNumber(processingFee);
+    const gstRate = coerceOptionalNumber(processingFeeGst);
+
+    if (fee <= 0 || gstRate <= 0) {
+        return { processingFeeGstAmount: 0 };
+    }
+
+    return {
+        processingFeeGstAmount: Number(((fee * gstRate) / 100).toFixed(2)),
+    };
+};
+
+export const calculateTotalLoanOutflow = (params: {
+    principal: number | string;
+    totalInterest: number | string;
+    totalGST: number | string;
+    processingFee?: number | string | null;
+    processingFeeGst?: number | string | null;
+}): number => {
+    const principal = coerceOptionalNumber(params.principal);
+    const totalInterest = coerceOptionalNumber(params.totalInterest);
+    const totalGST = coerceOptionalNumber(params.totalGST);
+    const processingFee = coerceOptionalNumber(params.processingFee);
+    const processingFeeGst = coerceOptionalNumber(params.processingFeeGst);
+    const { processingFeeGstAmount } = calculateProcessingFeeCharges(processingFee, processingFeeGst);
+    const oneTimeCharges = processingFee + processingFeeGstAmount;
+
+    return Number((principal + totalInterest + totalGST + oneTimeCharges).toFixed(2));
+};
+
+/** Reconcile stored loan totals with processing-fee charges (handles stale DB rows and string numerics). */
+export const normalizeEmiFinancials = (emi: IEmi): IEmi => {
+    const processingFee = coerceOptionalNumber(emi.processingFee);
+    const processingFeeGst = coerceOptionalNumber(emi.processingFeeGst);
+    const totalLoan = calculateTotalLoanOutflow({
+        principal: emi.principal,
+        totalInterest: emi.totalInterest,
+        totalGST: emi.totalGST,
+        processingFee,
+        processingFeeGst,
+    });
+
+    return {
+        ...emi,
+        totalLoan,
+        processingFee: processingFee > 0 ? processingFee : undefined,
+        processingFeeGst: processingFeeGst > 0 ? processingFeeGst : undefined,
+    };
+};
+
 export const calculateEMI = (
     // {
     //     principal,
@@ -20,6 +83,8 @@ export const calculateEMI = (
 ): IEmi => {
     const { principal, interestRate, tenure, billDate, itemName, interestDiscount, interestDiscountType, gst, tag } =
         emiData;
+    const processingFee = coerceOptionalNumber(emiData.processingFee);
+    const processingFeeGst = coerceOptionalNumber(emiData.processingFeeGst);
     const P = principal;
     const r = interestRate / 100 / 12;
     const n = tenure;
@@ -63,7 +128,13 @@ export const calculateEMI = (
         interestDiscount: interestDiscount || 0,
         interestDiscountType: interestDiscountType || 'percent',
         emi: emiValue,
-        totalLoan: Number((P + totalInterest + totalGST).toFixed(2)),
+        totalLoan: calculateTotalLoanOutflow({
+            principal: P,
+            totalInterest,
+            totalGST,
+            processingFee,
+            processingFeeGst,
+        }),
         totalPaidEMIs: completedMonths,
         totalInterest,
         remainingBalance: Number((P + totalGST - totalPrincipalPaid).toFixed(2)),
@@ -73,6 +144,8 @@ export const calculateEMI = (
         isCompleted: remainingMonths === 0,
         gst: gst || 0,
         totalGST: Number(totalGST.toFixed(2)),
+        processingFee: processingFee > 0 ? processingFee : undefined,
+        processingFeeGst: processingFeeGst > 0 ? processingFeeGst : undefined,
         tag: tag || 'Personal',
         notes: emiData.notes ?? undefined,
     };

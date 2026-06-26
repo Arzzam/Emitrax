@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import store from '@/store/store';
 import { supabase } from '@/supabase/supabase';
 import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
+import { normalizeEmiFinancials } from '@/utils/calculation';
 
 export class EmiService {
     static async createEmi(emi: Omit<IEmi, 'id'>) {
@@ -30,6 +31,8 @@ export class EmiService {
                 totalInterest: emi.totalInterest,
                 gst: emi.gst,
                 totalGST: emi.totalGST,
+                processingFee: emi.processingFee ?? null,
+                processingFeeGst: emi.processingFeeGst ?? null,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),
@@ -171,7 +174,7 @@ export class EmiService {
         // Process owned EMIs
         const ownedEmisProcessed = (ownedEmis || []).map((emi: IEmi) => {
             const shares = sharesByEmiId[emi.id] || [];
-            return {
+            return normalizeEmiFinancials({
                 ...emi,
                 userId: emi.userId,
                 billDate: new Date(emi.billDate),
@@ -188,7 +191,7 @@ export class EmiService {
                     balance: schedule.balance,
                     gst: schedule.gst,
                 })),
-            };
+            });
         });
 
         // Process shared EMIs
@@ -196,24 +199,26 @@ export class EmiService {
             const permission = permissionByEmiId[emi.id];
             if (!permission) return acc;
 
-            acc.push({
-                ...emi,
-                userId: emi.userId,
-                billDate: new Date(emi.billDate),
-                endDate: new Date(emi.endDate),
-                isOwner: false,
-                permission: permission as 'read' | 'write',
-                sharedWith: [],
-                amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
-                    month: schedule.month,
-                    billDate: schedule.billDate,
-                    emi: schedule.emi,
-                    interest: schedule.interest,
-                    principalPaid: schedule.principalPaid,
-                    balance: schedule.balance,
-                    gst: schedule.gst,
-                })),
-            });
+            acc.push(
+                normalizeEmiFinancials({
+                    ...emi,
+                    userId: emi.userId,
+                    billDate: new Date(emi.billDate),
+                    endDate: new Date(emi.endDate),
+                    isOwner: false,
+                    permission: permission as 'read' | 'write',
+                    sharedWith: [],
+                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
+                        month: schedule.month,
+                        billDate: schedule.billDate,
+                        emi: schedule.emi,
+                        interest: schedule.interest,
+                        principalPaid: schedule.principalPaid,
+                        balance: schedule.balance,
+                        gst: schedule.gst,
+                    })),
+                })
+            );
             return acc;
         }, [] as IEmi[]);
 
@@ -223,24 +228,26 @@ export class EmiService {
             if (emi.userId === userId) return acc; // Already in owned
             if (sharedEmiIds.includes(emi.id)) return acc; // Already in shared
 
-            acc.push({
-                ...emi,
-                userId: emi.userId,
-                billDate: new Date(emi.billDate),
-                endDate: new Date(emi.endDate),
-                isOwner: false,
-                permission: undefined, // Split participants don't have share permissions
-                sharedWith: [],
-                amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
-                    month: schedule.month,
-                    billDate: schedule.billDate,
-                    emi: schedule.emi,
-                    interest: schedule.interest,
-                    principalPaid: schedule.principalPaid,
-                    balance: schedule.balance,
-                    gst: schedule.gst,
-                })),
-            });
+            acc.push(
+                normalizeEmiFinancials({
+                    ...emi,
+                    userId: emi.userId,
+                    billDate: new Date(emi.billDate),
+                    endDate: new Date(emi.endDate),
+                    isOwner: false,
+                    permission: undefined, // Split participants don't have share permissions
+                    sharedWith: [],
+                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
+                        month: schedule.month,
+                        billDate: schedule.billDate,
+                        emi: schedule.emi,
+                        interest: schedule.interest,
+                        principalPaid: schedule.principalPaid,
+                        balance: schedule.balance,
+                        gst: schedule.gst,
+                    })),
+                })
+            );
             return acc;
         }, [] as IEmi[]);
 
@@ -363,6 +370,8 @@ export class EmiService {
                 totalInterest: emi.totalInterest,
                 gst: emi.gst,
                 totalGST: emi.totalGST,
+                processingFee: emi.processingFee ?? null,
+                processingFeeGst: emi.processingFeeGst ?? null,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),
@@ -417,6 +426,8 @@ export class EmiService {
                 totalInterest: emi.totalInterest,
                 gst: emi.gst,
                 totalGST: emi.totalGST,
+                processingFee: emi.processingFee ?? null,
+                processingFeeGst: emi.processingFeeGst ?? null,
                 remainingBalance: emi.remainingBalance,
                 remainingTenure: emi.remainingTenure,
                 endDate: format(emi.endDate, 'yyyy-MM-dd'),

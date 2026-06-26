@@ -15,6 +15,8 @@ export type Tables = {
             totalPaidEMIs: number;
             totalInterest: number;
             gst: number;
+            processingFee: number | null;
+            processingFeeGst: number | null;
             remainingBalance: number;
             remainingTenure: number;
             endDate: string;
