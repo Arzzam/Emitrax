@@ -22,6 +22,7 @@ import {
 
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
+import { calculateProcessingFeeCharges, calculateTotalLoanOutflow } from '@/utils/calculation';
 import { EmiService } from '@/utils/EMIService';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
@@ -34,7 +35,8 @@ import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 const EMIDetails = () => {
     const { id } = useParams();
@@ -107,7 +109,6 @@ const EMIDetails = () => {
         tenure,
         billDate,
         emi,
-        totalLoan,
         totalInterest,
         totalPaidEMIs,
         remainingBalance,
@@ -116,6 +117,8 @@ const EMIDetails = () => {
         isCompleted,
         totalGST,
         gst,
+        processingFee,
+        processingFeeGst,
         interestDiscount,
         interestDiscountType,
         tag,
@@ -136,13 +139,36 @@ const EMIDetails = () => {
     const hasMySplit = !!mySplit && !!mySplitAmount;
     const splitPercentage = mySplit?.splitPercentage || 0;
 
+    const effectiveTotalLoan = calculateTotalLoanOutflow({
+        principal,
+        totalInterest,
+        totalGST,
+        processingFee,
+        processingFeeGst,
+    });
+
     // Calculate user's portion of EMI details if they have a split
     const myPrincipal = hasMySplit ? (principal * splitPercentage) / 100 : principal;
-    const myTotalLoan = hasMySplit ? (totalLoan * splitPercentage) / 100 : totalLoan;
+    const myTotalLoan = hasMySplit ? (effectiveTotalLoan * splitPercentage) / 100 : effectiveTotalLoan;
     const myEMI = hasMySplit ? mySplitAmount! : emi;
     const myTotalInterest = hasMySplit ? (totalInterest * splitPercentage) / 100 : totalInterest;
     const myTotalGST = hasMySplit ? (totalGST * splitPercentage) / 100 : totalGST;
     const myRemainingBalance = hasMySplit ? (remainingBalance * splitPercentage) / 100 : remainingBalance;
+
+    const processingFeeValue = processingFee ?? 0;
+    const processingFeeGstRate = processingFeeGst ?? 0;
+    const { processingFeeGstAmount } = calculateProcessingFeeCharges(processingFee, processingFeeGst);
+    const hasProcessingCharges = processingFeeValue > 0;
+    const recurringLoanTotal = principal + totalInterest + totalGST;
+
+    const displayProcessingFee =
+        hasMySplit && !isOwner ? (processingFeeValue * splitPercentage) / 100 : processingFeeValue;
+    const displayProcessingFeeGstAmount =
+        hasMySplit && !isOwner ? (processingFeeGstAmount * splitPercentage) / 100 : processingFeeGstAmount;
+    const displayTotalOneTimeCharges = displayProcessingFee + displayProcessingFeeGstAmount;
+    const displayRecurringLoanTotal =
+        hasMySplit && !isOwner ? myPrincipal + myTotalInterest + myTotalGST : recurringLoanTotal;
+    const displayTotalLoan = hasMySplit && !isOwner ? myTotalLoan : effectiveTotalLoan;
 
     const formattedBillDate = new Date(billDate).toLocaleDateString('en-US', {
         month: 'long',
@@ -342,16 +368,18 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
+                                    {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : effectiveTotalLoan)}
                                 </div>
                                 {hasMySplit && !isOwner ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Full Loan: {formatCurrencyAmount(totalLoan)} • Principal:{' '}
+                                        Full Loan: {formatCurrencyAmount(effectiveTotalLoan)} • Principal:{' '}
                                         {formatCurrencyAmount(myPrincipal)} of {formatCurrencyAmount(principal)}
                                     </p>
                                 ) : (
                                     <p className="text-xs text-muted-foreground">
                                         Principal: {formatCurrencyAmount(principal)}
+                                        {hasProcessingCharges &&
+                                            ` · incl. ${formatCurrencyAmount(processingFeeValue + processingFeeGstAmount)} one-time`}
                                     </p>
                                 )}
                             </CardContent>
@@ -389,6 +417,165 @@ const EMIDetails = () => {
                         </Card>
                     </div>
 
+                    <Card className="border-border/80 shadow-sm">
+                        <CardHeader className="pb-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1">
+                                    <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                                        <Receipt className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                        Cost breakdown
+                                    </CardTitle>
+                                    <CardDescription>
+                                        How principal, interest, taxes, and one-time charges compose your total loan.
+                                    </CardDescription>
+                                </div>
+                                {hasMySplit && !isOwner && (
+                                    <Badge variant="outline" className="w-fit text-xs font-normal">
+                                        Your {splitPercentage.toFixed(1)}% portion
+                                    </Badge>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className={`grid gap-4 ${hasProcessingCharges ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
+                                <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
+                                    <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Loan components
+                                    </p>
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="text-muted-foreground">Principal</span>
+                                            <div className="text-right">
+                                                <span className="font-medium tabular-nums">
+                                                    {formatCurrencyAmount(
+                                                        hasMySplit && !isOwner ? myPrincipal : principal
+                                                    )}
+                                                </span>
+                                                {hasMySplit && !isOwner && (
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        of {formatCurrencyAmount(principal)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="text-muted-foreground">Total interest</span>
+                                            <div className="text-right">
+                                                <span className="font-medium tabular-nums">
+                                                    {formatCurrencyAmount(
+                                                        hasMySplit && !isOwner ? myTotalInterest : totalInterest
+                                                    )}
+                                                </span>
+                                                {hasMySplit && !isOwner && (
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        of {formatCurrencyAmount(totalInterest)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="text-muted-foreground">
+                                                Interest GST{gst > 0 ? ` (${gst}%)` : ''}
+                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-medium tabular-nums">
+                                                    {formatCurrencyAmount(
+                                                        hasMySplit && !isOwner ? myTotalGST : totalGST
+                                                    )}
+                                                </span>
+                                                {hasMySplit && !isOwner && (
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        of {formatCurrencyAmount(totalGST)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Separator className="my-3" />
+                                    <div className="flex items-center justify-between gap-4 text-sm">
+                                        <span className="font-medium text-foreground">Recurring subtotal</span>
+                                        <span className="font-semibold tabular-nums">
+                                            {formatCurrencyAmount(displayRecurringLoanTotal)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {hasProcessingCharges && (
+                                    <div className="rounded-lg border border-dashed border-border/80 bg-background p-4">
+                                        <div className="mb-3 flex items-center justify-between gap-2">
+                                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                One-time charges
+                                            </p>
+                                            <Badge variant="secondary" className="text-[10px] font-normal">
+                                                Upfront
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-2.5">
+                                            <div className="flex items-center justify-between gap-4 text-sm">
+                                                <span className="text-muted-foreground">Processing fee</span>
+                                                <div className="text-right">
+                                                    <span className="font-medium tabular-nums">
+                                                        {formatCurrencyAmount(displayProcessingFee)}
+                                                    </span>
+                                                    {hasMySplit && !isOwner && (
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            of {formatCurrencyAmount(processingFeeValue)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {processingFeeGstRate > 0 && (
+                                                <div className="flex items-center justify-between gap-4 text-sm">
+                                                    <span className="text-muted-foreground">
+                                                        Processing fee GST ({processingFeeGstRate}%)
+                                                    </span>
+                                                    <div className="text-right">
+                                                        <span className="font-medium tabular-nums">
+                                                            {formatCurrencyAmount(displayProcessingFeeGstAmount)}
+                                                        </span>
+                                                        {hasMySplit && !isOwner && (
+                                                            <span className="block text-xs text-muted-foreground">
+                                                                of {formatCurrencyAmount(processingFeeGstAmount)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Separator className="my-3" />
+                                        <div className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="font-medium text-foreground">One-time subtotal</span>
+                                            <span className="font-semibold tabular-nums">
+                                                {formatCurrencyAmount(displayTotalOneTimeCharges)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5">
+                                <div>
+                                    <p className="text-sm font-medium text-foreground">Total loan outflow</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {hasProcessingCharges
+                                            ? 'Recurring loan total plus one-time charges'
+                                            : 'Principal, interest, and interest GST'}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xl font-semibold tabular-nums text-primary">
+                                        {formatCurrencyAmount(displayTotalLoan)}
+                                    </p>
+                                    {hasMySplit && !isOwner && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Full loan: {formatCurrencyAmount(effectiveTotalLoan)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <Card>
                             <CardHeader>
@@ -420,11 +607,13 @@ const EMIDetails = () => {
                                     <span className="text-sm text-muted-foreground">Total Loan Amount</span>
                                     <div className="text-right">
                                         <span className="font-medium">
-                                            {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : totalLoan)}
+                                            {formatCurrencyAmount(
+                                                hasMySplit && !isOwner ? myTotalLoan : effectiveTotalLoan
+                                            )}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of {formatCurrencyAmount(totalLoan)}
+                                                of {formatCurrencyAmount(effectiveTotalLoan)}
                                             </span>
                                         )}
                                     </div>
@@ -537,6 +726,34 @@ const EMIDetails = () => {
                                         )}
                                     </div>
                                 </div>
+                                {hasProcessingCharges && (
+                                    <>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm text-muted-foreground">Processing fee</span>
+                                            <div className="text-right">
+                                                <span className="font-medium">
+                                                    {formatCurrencyAmount(displayProcessingFee)}
+                                                </span>
+                                                {hasMySplit && !isOwner && (
+                                                    <span className="text-xs text-muted-foreground block">
+                                                        of {formatCurrencyAmount(processingFeeValue)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {processingFeeGstRate > 0 && (
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-muted-foreground">
+                                                    Processing fee GST
+                                                </span>
+                                                <span className="font-medium">
+                                                    {processingFeeGstRate}% (
+                                                    {formatCurrencyAmount(displayProcessingFeeGstAmount)})
+                                                </span>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                                 {interestDiscount > 0 && (
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-muted-foreground">Interest Discount</span>
@@ -597,7 +814,7 @@ const EMIDetails = () => {
                                     {splits.map((split) => {
                                         const pct = split.splitPercentage / 100;
                                         const splitEmiAmount = split.splitAmount ?? emi * pct;
-                                        const splitLoanShare = totalLoan * pct;
+                                        const splitLoanShare = effectiveTotalLoan * pct;
                                         const splitRemainingShare = remainingBalance * pct;
                                         const isCurrentUser = mySplit?.id === split.id;
                                         const displayName =
