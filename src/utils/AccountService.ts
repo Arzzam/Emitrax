@@ -6,6 +6,7 @@ import {
     DEFAULT_ACCOUNT_PREFERENCES,
     NumberFormatMode,
 } from '@/types/account.types';
+import { DEFAULT_EXPORT_CONFIG, ExcelTemplate, ExportConfig, PdfTemplate } from '@/types/export.types';
 
 type UserProfileRow = {
     id: string;
@@ -22,6 +23,7 @@ type UserAccountPreferenceRow = {
     currency: string;
     number_format: NumberFormatMode;
     filter_config: string | null;
+    export_config: string | null;
 };
 
 function parseFilterConfig(raw: Record<string, unknown> | null): IAdvancedFilterState | null {
@@ -128,6 +130,27 @@ function parseFilterConfig(raw: Record<string, unknown> | null): IAdvancedFilter
     }
 }
 
+function parseExportConfig(json: string | null): ExportConfig {
+    if (json == null || json.trim() === '') return DEFAULT_EXPORT_CONFIG;
+    try {
+        const raw = JSON.parse(json) as unknown;
+        if (typeof raw !== 'object' || raw === null) return DEFAULT_EXPORT_CONFIG;
+        const r = raw as Record<string, unknown>;
+        const PDF_TEMPLATES: PdfTemplate[] = ['modern', 'classic', 'minimal'];
+        const EXCEL_TEMPLATES: ExcelTemplate[] = ['detailed', 'compact'];
+        return {
+            pdfTemplate: PDF_TEMPLATES.includes(r.pdfTemplate as PdfTemplate)
+                ? (r.pdfTemplate as PdfTemplate)
+                : DEFAULT_EXPORT_CONFIG.pdfTemplate,
+            excelTemplate: EXCEL_TEMPLATES.includes(r.excelTemplate as ExcelTemplate)
+                ? (r.excelTemplate as ExcelTemplate)
+                : DEFAULT_EXPORT_CONFIG.excelTemplate,
+        };
+    } catch {
+        return DEFAULT_EXPORT_CONFIG;
+    }
+}
+
 /** Parse filter_config column (JSON string) into typed state. */
 function parseFilterConfigFromString(json: string | null): IAdvancedFilterState | null {
     if (json == null || json.trim() === '') return null;
@@ -174,7 +197,7 @@ export class AccountService {
 
         const { data: preferences, error: preferencesError } = await supabase
             .from('user_account_preferences')
-            .select('user_id, phone, avatar_url, locale, currency, number_format, filter_config')
+            .select('user_id, phone, avatar_url, locale, currency, number_format, filter_config, export_config')
             .eq('user_id', userId)
             .maybeSingle<UserAccountPreferenceRow>();
 
@@ -183,6 +206,7 @@ export class AccountService {
         }
 
         const filterConfig = parseFilterConfigFromString(preferences?.filter_config ?? null);
+        const exportConfig = parseExportConfig(preferences?.export_config ?? null);
 
         return {
             id: profile.id,
@@ -195,6 +219,7 @@ export class AccountService {
                 currency: preferences?.currency ?? DEFAULT_ACCOUNT_PREFERENCES.currency,
                 numberFormat: preferences?.number_format ?? DEFAULT_ACCOUNT_PREFERENCES.numberFormat,
                 filterConfig: filterConfig ?? DEFAULT_ACCOUNT_PREFERENCES.filterConfig,
+                exportConfig,
             },
         };
     }
@@ -235,6 +260,7 @@ export class AccountService {
             locale: payload.locale.trim() || DEFAULT_ACCOUNT_PREFERENCES.locale,
             currency: payload.currency.trim().toUpperCase() || DEFAULT_ACCOUNT_PREFERENCES.currency,
             number_format: payload.numberFormat,
+            export_config: JSON.stringify(payload.exportConfig),
         };
 
         const { error: preferencesError } = await supabase

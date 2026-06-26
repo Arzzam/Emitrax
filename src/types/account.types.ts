@@ -1,5 +1,7 @@
 import type { IAdvancedFilterState } from '@/modules/filter/filter.types';
 
+import { DEFAULT_EXPORT_CONFIG, ExportConfig } from './export.types';
+
 export type NumberFormatMode = 'exact' | 'compact_short' | 'compact_long';
 
 export type AccountPreferences = {
@@ -10,6 +12,7 @@ export type AccountPreferences = {
     numberFormat: NumberFormatMode;
     /** Saved advanced filter state; null when not set or after reset. */
     filterConfig: IAdvancedFilterState | null;
+    exportConfig: ExportConfig;
 };
 
 export type AccountProfile = {
@@ -29,6 +32,7 @@ export type AccountUpdatePayload = {
     locale: string;
     currency: string;
     numberFormat: NumberFormatMode;
+    exportConfig: ExportConfig;
 };
 
 export const DEFAULT_ACCOUNT_PREFERENCES: AccountPreferences = {
@@ -38,4 +42,5 @@ export const DEFAULT_ACCOUNT_PREFERENCES: AccountPreferences = {
     currency: 'INR',
     numberFormat: 'exact',
     filterConfig: null,
+    exportConfig: DEFAULT_EXPORT_CONFIG,
 };

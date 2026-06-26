@@ -5,6 +5,7 @@ import { useUpsertAccountDetails } from '@/hooks/useAccount';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch } from '@/store/types/store.types';
 import { AccountDetails, NumberFormatMode } from '@/types/account.types';
+import { ExcelTemplate, PdfTemplate } from '@/types/export.types';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import {
     AccountFormValues,
@@ -19,6 +20,8 @@ import { Button } from '../ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '../ui/field';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
+import { ExportTemplateSelector } from './ExportTemplateSelector';
 
 function validateField<T>(schema: z.ZodType<T>, value: T): string | undefined {
     const result = schema.safeParse(value);
@@ -73,9 +76,21 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
         form.store,
         (state) => state.values.numberFormat !== defaultValues.numberFormat
     );
+    const isPdfTemplateDirty = useStore(form.store, (state) => state.values.pdfTemplate !== defaultValues.pdfTemplate);
+    const isExcelTemplateDirty = useStore(
+        form.store,
+        (state) => state.values.excelTemplate !== defaultValues.excelTemplate
+    );
 
     const isDirty =
-        isNameDirty || isPhoneDirty || isAvatarUrlDirty || isLocaleDirty || isCurrencyDirty || isNumberFormatDirty;
+        isNameDirty ||
+        isPhoneDirty ||
+        isAvatarUrlDirty ||
+        isLocaleDirty ||
+        isCurrencyDirty ||
+        isNumberFormatDirty ||
+        isPdfTemplateDirty ||
+        isExcelTemplateDirty;
 
     const onSubmit = async (values: AccountFormValues) => {
         try {
@@ -86,6 +101,10 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                 locale: values.locale,
                 currency: values.currency,
                 numberFormat: values.numberFormat as NumberFormatMode,
+                exportConfig: {
+                    pdfTemplate: values.pdfTemplate as PdfTemplate,
+                    excelTemplate: values.excelTemplate as ExcelTemplate,
+                },
             });
 
             setPreferences({
@@ -303,6 +322,41 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                                 )}
                             </form.Field>
                         </div>
+                    </section>
+
+                    <section className="rounded-xl border bg-card p-5 space-y-5">
+                        <div>
+                            <h2 className="font-semibold">Export Templates</h2>
+                            <p className="text-sm text-muted-foreground">
+                                Choose your preferred layout when exporting EMIs to PDF or Excel.
+                            </p>
+                        </div>
+
+                        <form.Field name="pdfTemplate">
+                            {(field) => (
+                                <FieldGroup className="gap-2">
+                                    <FieldLabel>PDF Template</FieldLabel>
+                                    <ExportTemplateSelector
+                                        type="pdf"
+                                        value={field.state.value as PdfTemplate}
+                                        onChange={field.handleChange}
+                                    />
+                                </FieldGroup>
+                            )}
+                        </form.Field>
+
+                        <form.Field name="excelTemplate">
+                            {(field) => (
+                                <FieldGroup className="gap-2">
+                                    <FieldLabel>Excel Template</FieldLabel>
+                                    <ExportTemplateSelector
+                                        type="excel"
+                                        value={field.state.value as ExcelTemplate}
+                                        onChange={field.handleChange}
+                                    />
+                                </FieldGroup>
+                            )}
+                        </form.Field>
                     </section>
                 </div>
             </div>

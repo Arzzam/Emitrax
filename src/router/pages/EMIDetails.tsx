@@ -33,6 +33,7 @@ import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
+import { ExportDropdown } from '@/components/emi/ExportDropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -249,6 +250,7 @@ const EMIDetails = () => {
                                         View Amortization
                                     </Link>
                                 </Button>
+                                <ExportDropdown emi={currentData} />
                                 {canEdit && <FormModal data={currentData} />}
                                 {isOwner && (
                                     <>

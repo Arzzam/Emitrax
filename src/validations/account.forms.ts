@@ -1,6 +1,18 @@
 import * as z from 'zod';
 
 import { AccountDetails } from '@/types/account.types';
+import { ExcelTemplate, PdfTemplate } from '@/types/export.types';
+
+export const PDF_TEMPLATE_OPTIONS: { value: PdfTemplate; label: string; description: string }[] = [
+    { value: 'modern', label: 'Modern', description: 'Gradient header, color-coded stat cards, zebra rows' },
+    { value: 'classic', label: 'Classic', description: 'Formal bordered layout, dense and print-ready' },
+    { value: 'minimal', label: 'Minimal', description: 'Clean typography, generous whitespace, Oxford-rules table' },
+];
+
+export const EXCEL_TEMPLATE_OPTIONS: { value: ExcelTemplate; label: string; description: string }[] = [
+    { value: 'detailed', label: 'Detailed', description: 'Summary + full amortization schedule on separate sheets' },
+    { value: 'compact', label: 'Compact', description: 'Single sheet with key summary and condensed schedule' },
+];
 
 export const LOCALE_OPTIONS = [
     { label: 'English (India)', value: 'en-IN' },
@@ -48,6 +60,8 @@ export const accountSchema = z.object({
     numberFormat: z.enum(NUMBER_FORMAT_OPTIONS.map((option) => option.value) as [string, ...string[]], {
         required_error: 'Number format is required.',
     }),
+    pdfTemplate: z.enum(['modern', 'classic', 'minimal'] as [PdfTemplate, ...PdfTemplate[]]).default('modern'),
+    excelTemplate: z.enum(['detailed', 'compact'] as [ExcelTemplate, ...ExcelTemplate[]]).default('detailed'),
 });
 
 export type AccountFormValues = z.infer<typeof accountSchema>;
@@ -60,5 +74,7 @@ export function getAccountFormDefaults(accountDetails: AccountDetails): AccountF
         locale: accountDetails.preferences.locale ?? '',
         currency: accountDetails.preferences.currency ?? '',
         numberFormat: accountDetails.preferences.numberFormat ?? '',
+        pdfTemplate: accountDetails.preferences.exportConfig.pdfTemplate,
+        excelTemplate: accountDetails.preferences.exportConfig.excelTemplate,
     };
 }
