@@ -10,6 +10,7 @@ import {
     CreditCard,
     FileText,
     IndianRupee,
+    LineChart,
     Percent,
     Receipt,
     Share2,
@@ -248,6 +249,12 @@ const EMIDetails = () => {
                                     <Link to={`/emi/${id}/amortization`} className="flex items-center gap-2">
                                         <Calculator className="h-4 w-4" />
                                         View Amortization
+                                    </Link>
+                                </Button>
+                                <Button variant="outline" className="flex-1 sm:flex-none" asChild>
+                                    <Link to={`/emi/${id}/scenarios`} className="flex items-center gap-2">
+                                        <LineChart className="h-4 w-4" />
+                                        Foreclosure Scenarios
                                     </Link>
                                 </Button>
                                 <ExportDropdown emi={currentData} />

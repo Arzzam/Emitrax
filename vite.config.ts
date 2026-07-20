@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig(({ mode }) => {
     return {
@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => {
         },
         build: {
             chunkSizeWarningLimit: 500,
+        },
+        test: {
+            environment: 'node',
+            include: ['src/**/*.{test,spec}.{ts,tsx}'],
         },
     };
 });
