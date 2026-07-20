@@ -9,6 +9,7 @@ const EMIDetails = lazy(() => import('@/router/pages/EMIDetails'));
 const AmortizationSchedule = lazy(() => import('@/router/pages/AmortizationSchedule'));
 const ShareEMI = lazy(() => import('@/router/pages/ShareEMI'));
 const SplitEMI = lazy(() => import('@/router/pages/SplitEMI'));
+const EMIScenarios = lazy(() => import('@/router/pages/EMIScenarios'));
 const NotFoundPage = lazy(() => import('@/router/pages/NotFoundPage'));
 const OAuth = lazy(() => import('@/router/pages/OAuthRoute').then((module) => ({ default: module.OAuth })));
 
@@ -29,6 +30,7 @@ const HomeRouter = () => {
                         <Route path="/emi/:id/amortization" element={<AmortizationSchedule />} />
                         <Route path="/emi/:id/share" element={<ShareEMI />} />
                         <Route path="/emi/:id/split" element={<SplitEMI />} />
+                        <Route path="/emi/:id/scenarios" element={<EMIScenarios />} />
                         <Route path="*" element={<NotFoundPage />} />
                     </Route>
                 </Routes>

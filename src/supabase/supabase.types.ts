@@ -103,6 +103,60 @@ export type Tables = {
             user_id?: string;
         };
     };
+    loan_scenarios: {
+        Row: {
+            id: string;
+            emiId: string;
+            userId: string;
+            name: string;
+            scenarioType: 'foreclosure';
+            simulationDate: string;
+            foreclosureChargeRate: number;
+            foreclosureChargeAmount: number;
+            foreclosureChargeGstRate: number;
+            includeNextInstallmentInterest: boolean;
+            outstandingPrincipal: number;
+            accruedInterest: number;
+            accruedGst: number;
+            foreclosureCharges: number;
+            foreclosureChargeGst: number;
+            totalPayoff: number;
+            paidToDate: number;
+            baselineRemainingOutflow: number;
+            baselineTotalOutflow: number;
+            foreclosureTotalOutflow: number;
+            interestSaved: number;
+            gstSaved: number;
+            netSavings: number;
+            monthsSaved: number;
+            confidence: 'exact' | 'estimated';
+            notes: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['loan_scenarios']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        };
+        Update: Partial<Omit<Tables['loan_scenarios']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    loan_scenario_breakdowns: {
+        Row: {
+            id: string;
+            scenarioId: string;
+            component: string;
+            label: string;
+            amount: number;
+            sortOrder: number;
+            createdAt: string;
+        };
+        Insert: Omit<Tables['loan_scenario_breakdowns']['Row'], 'id' | 'createdAt'> & {
+            id?: string;
+            createdAt?: string;
+        };
+        Update: Partial<Omit<Tables['loan_scenario_breakdowns']['Row'], 'id' | 'createdAt'>>;
+    };
 };
 
 export type DbResult<T> = T extends PromiseLike<infer U> ? U : never;
