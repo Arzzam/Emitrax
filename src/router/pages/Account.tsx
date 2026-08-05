@@ -5,7 +5,6 @@ import { AccountForm } from '@/components/account/AccountForm';
 import LoginCard from '@/components/cards/LoginCard';
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,12 +26,11 @@ const Account = () => {
 
     return (
         <>
-            <Header title="Account" />
             <BreadcrumbContainer
                 className="pt-4 pb-0 px-8"
                 items={[{ label: 'Dashboard', link: '/' }, { label: `Account` }]}
             />
-            <MainContainer className="max-w-6xl h-[calc(100vh-100px)]">
+            <MainContainer className="max-w-6xl">
                 {!hasUser ? (
                     <LoginCard />
                 ) : isAccountLoading ? (

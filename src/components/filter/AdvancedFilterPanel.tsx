@@ -44,8 +44,9 @@ function MultiSelectPerson({
         return <p className="text-muted-foreground text-xs">No {placeholder.toLowerCase()} to filter by.</p>;
     }
 
+    // modal: the panel is a modal Sheet, whose scroll lock otherwise swallows wheel/touch in this portaled list
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} modal>
             <PopoverTrigger asChild>
                 <Button variant="outline" className="h-9 w-full justify-between font-normal" aria-label={placeholder}>
                     <span className="truncate">{label}</span>
@@ -53,7 +54,7 @@ function MultiSelectPerson({
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <div className="max-h-56 overflow-y-auto">
+                <div className="max-h-56 overflow-y-auto overscroll-contain">
                     {options.map((opt) => {
                         const selected = selectedIds.includes(opt.id);
                         return (

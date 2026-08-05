@@ -1,18 +1,34 @@
 import { Outlet } from 'react-router';
 
+import { CommandPaletteProvider } from '@/context/CommandPaletteProvider/commandPaletteProvider';
+import { PageTitleProvider } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useAccountDataBootstrap } from '@/hooks/useAccountDataBootstrap';
-// import TooltipSidebar from '@/components/sidebar/Sidebar';
+
+import CommandPalette from '@/components/common/CommandPalette';
+import AppSidebar from '@/components/sidebar/AppSidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+
+import AppHeader from './AppHeader';
 
 const Layout = () => {
-    // const navigation = useNavigation();
-    // const isNavigating = Boolean(navigation.location);
-
     useAccountDataBootstrap();
 
     return (
-        <div className="min-w-screen min-h-screen overflow-hidden">
-            <Outlet />
-        </div>
+        <PageTitleProvider>
+            <CommandPaletteProvider>
+                <SidebarProvider>
+                    <AppSidebar />
+                    <SidebarInset className="flex min-h-svh min-w-0 flex-col">
+                        <AppHeader />
+                        {/* The app's single scroll container - pages must not nest their own. */}
+                        <div className="min-h-0 flex-1 overflow-y-auto">
+                            <Outlet />
+                        </div>
+                    </SidebarInset>
+                </SidebarProvider>
+                <CommandPalette />
+            </CommandPaletteProvider>
+        </PageTitleProvider>
     );
 };
 

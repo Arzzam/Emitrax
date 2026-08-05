@@ -13,7 +13,6 @@ import EMILoadingAndError from '@/components/cards/EMILoadingAndError';
 import LoginCard from '@/components/cards/LoginCard';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import EMICard from '@/components/emi/EMICard';
 import AdvancedFilterBar from '@/components/filter/AdvancedFilterBar';
 import StatsSection from '@/components/stats/StatsSection';
@@ -64,7 +63,6 @@ const Home = () => {
 
     return (
         <>
-            <Header title="Dashboard" />
             <MainContainer>
                 {!hasUser ? (
                     <LoginCard />

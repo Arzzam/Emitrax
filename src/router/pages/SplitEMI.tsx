@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import { AlertCircle, CheckCircle2, Edit2, Plus, Trash2, Users } from 'lucide-react';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useAccountDetails } from '@/hooks/useAccount';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis, useEmiSplits, useRemoveSplit, useSetEmiSplits } from '@/hooks/useEmi';
@@ -21,7 +22,6 @@ import { errorToast, successToast } from '@/utils/toast.utils';
 
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import SplitEmiEditRow from '@/components/emi/SplitEmiEditRow';
@@ -39,6 +39,8 @@ const SplitEMI = () => {
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const [notFound, setNotFound] = useState(false);
+
+    usePageTitle(currentData?.itemName ? `Split · ${currentData.itemName}` : 'Split EMI');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedSplits, setEditedSplits] = useState<EditableSplit[]>([]);
@@ -304,7 +306,6 @@ const SplitEMI = () => {
     if (!isOwner) {
         return (
             <>
-                <Header title="Split EMI" />
                 <BreadcrumbContainer className="py-4 px-8" items={breadcrumbItems} />
                 <MainContainer>
                     <Alert>
@@ -321,7 +322,6 @@ const SplitEMI = () => {
 
     return (
         <>
-            <Header title="Split EMI" />
             <BreadcrumbContainer className="pt-4 pb-0 px-8" items={breadcrumbItems} />
             <MainContainer>
                 <div className="space-y-6">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { addMonths, startOfDay } from 'date-fns';
 import { LineChart } from 'lucide-react';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis } from '@/hooks/useEmi';
 import {
@@ -25,7 +26,6 @@ import { ForeclosureScenarioFormValues } from '@/validations/scenario.forms';
 
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import ComparisonSummary from '@/components/emi/scenario/ComparisonSummary';
@@ -42,6 +42,8 @@ const EMIScenarios = () => {
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const [notFound, setNotFound] = useState(false);
+
+    usePageTitle(currentData?.itemName ? `Scenarios · ${currentData.itemName}` : 'Foreclosure Scenarios');
     const [preview, setPreview] = useState<ForeclosureScenarioResult | null>(null);
     const [selectedSaved, setSelectedSaved] = useState<ILoanScenario | null>(null);
     const [editingScenario, setEditingScenario] = useState<ILoanScenario | null>(null);
@@ -227,7 +229,6 @@ const EMIScenarios = () => {
 
     return (
         <>
-            <Header title="Foreclosure Scenarios" />
             <BreadcrumbContainer
                 className="py-4 px-8"
                 items={[
@@ -236,7 +237,7 @@ const EMIScenarios = () => {
                     { label: 'Foreclosure Scenarios' },
                 ]}
             />
-            <MainContainer className="h-[calc(100vh-100px)] space-y-6 overflow-y-auto pb-10">
+            <MainContainer className="space-y-6 pb-10">
                 <div className="flex items-start gap-3 px-2">
                     <div className="mt-0.5 rounded-md border bg-muted/40 p-2">
                         <LineChart className="h-4 w-4 text-muted-foreground" aria-hidden />

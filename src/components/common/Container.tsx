@@ -1,9 +1,7 @@
 import { cn } from '@/lib/utils';
 
 const MainContainer = ({ children, className }: { children: React.ReactNode; className?: string }) => {
-    return (
-        <div className={cn('container mx-auto p-4 h-[calc(100vh-65px)] overflow-y-auto', className)}>{children}</div>
-    );
+    return <div className={cn('container mx-auto w-full p-4', className)}>{children}</div>;
 };
 
 export default MainContainer;

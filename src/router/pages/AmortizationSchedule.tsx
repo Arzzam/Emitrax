@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis } from '@/hooks/useEmi';
 import { IEmi } from '@/types/emi.types';
@@ -8,7 +9,6 @@ import { getFormattedDate } from '@/utils/utils';
 
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,6 +21,8 @@ const AmortizationSchedule = () => {
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
     const { amortizationSchedules } = currentData || {};
     const [notFound, setNotFound] = useState(false);
+
+    usePageTitle(currentData?.itemName ? `Amortization · ${currentData.itemName}` : 'Amortization Schedule');
 
     useEffect(() => {
         if (!isFetching && data && !currentData) {
@@ -69,7 +71,6 @@ const AmortizationSchedule = () => {
 
     return (
         <>
-            <Header title="Amortization Schedule" />
             <BreadcrumbContainer
                 className="py-4 px-8"
                 items={[
@@ -78,7 +79,7 @@ const AmortizationSchedule = () => {
                     { label: 'Amortization Schedule' },
                 ]}
             />
-            <MainContainer className="h-[calc(100vh-100px)]">
+            <MainContainer>
                 <h3 className="text-lg font-bold pl-2">Amortization Schedule</h3>
                 <div className="p-4">
                     <Table>

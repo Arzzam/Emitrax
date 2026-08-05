@@ -21,6 +21,7 @@ import {
     Wallet,
 } from 'lucide-react';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
 import { calculateProcessingFeeCharges, calculateTotalLoanOutflow } from '@/utils/calculation';
@@ -30,7 +31,6 @@ import { errorToast, successToast } from '@/utils/toast.utils';
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
@@ -51,6 +51,8 @@ const EMIDetails = () => {
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
+
+    usePageTitle(currentData?.itemName ? `EMI · ${currentData.itemName}` : 'EMI Details');
 
     useEffect(() => {
         if (!isFetching && data && !currentData) {
@@ -221,12 +223,11 @@ const EMIDetails = () => {
 
     return (
         <>
-            <Header title="EMI Details" />
             <BreadcrumbContainer
                 className="pt-4 pb-0 px-8"
                 items={[{ label: 'Dashboard', link: '/' }, { label: `EMI Details (${itemName})` }]}
             />
-            <MainContainer className="h-[calc(100vh-100px)]">
+            <MainContainer>
                 <div className="flex flex-col space-y-6">
                     <Card>
                         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
