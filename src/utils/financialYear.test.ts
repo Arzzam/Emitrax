@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    addMonthsToPeriodMonth,
     formatFinancialYearKey,
     getCurrentFinancialYear,
     getElapsedMonthCount,
@@ -252,5 +253,33 @@ describe('listSelectableFinancialYears', () => {
     it('ignores malformed included keys', () => {
         const years = listSelectableFinancialYears({ today, pastYears: 1, include: ['nonsense', '2026-29'] });
         expect(years.map((year) => year.key)).toEqual(['2026-27', '2025-26']);
+    });
+});
+
+describe('addMonthsToPeriodMonth', () => {
+    it('crosses the financial year boundary', () => {
+        expect(addMonthsToPeriodMonth('2026-03-01', 1)).toBe('2026-04-01');
+    });
+
+    it('crosses the calendar year boundary', () => {
+        expect(addMonthsToPeriodMonth('2026-12-01', 1)).toBe('2027-01-01');
+    });
+
+    it('re-anchors a non-first-of-month input instead of overflowing', () => {
+        // Naively adding a month to 31 Jan lands in March; anchoring to day 1 does not.
+        expect(addMonthsToPeriodMonth('2026-01-31', 1)).toBe('2026-02-01');
+    });
+
+    it('is identity at zero and goes backwards on a negative offset', () => {
+        expect(addMonthsToPeriodMonth('2026-08-01', 0)).toBe('2026-08-01');
+        expect(addMonthsToPeriodMonth('2026-04-01', -1)).toBe('2026-03-01');
+    });
+
+    it('shifts by more than a year', () => {
+        expect(addMonthsToPeriodMonth('2026-08-01', 13)).toBe('2027-09-01');
+    });
+
+    it('throws on an unparseable input', () => {
+        expect(() => addMonthsToPeriodMonth('nonsense', 1)).toThrow(/Invalid period month/);
     });
 });

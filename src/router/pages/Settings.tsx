@@ -9,7 +9,7 @@ import LoadingDetails from '@/components/common/LoadingDetails';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const Account = () => {
+const Settings = () => {
     const { data: userData, isLoading: isUserLoading } = useUser();
     const hasUser = !!userData?.user;
     const { data: account, isLoading: isAccountLoading, isError, refetch } = useAccountDetails({ enabled: hasUser });
@@ -70,4 +70,4 @@ const Account = () => {
     );
 };
 
-export default Account;
+export default Settings;

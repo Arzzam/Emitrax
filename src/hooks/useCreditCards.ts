@@ -1,18 +1,22 @@
 import { useSelector } from 'react-redux';
-import { useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { QueryClient, useMutation, useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 
 import { IRootState } from '@/store/types/store.types';
 import {
     CreateCardInput,
     CreateIssuerInput,
+    ICreditCardBillEntry,
     ICreditCardIssuer,
     ICreditCardPaymentEntry,
     ICreditCardTrackerYear,
+    SaveBillEntryInput,
     SavePaymentEntryInput,
     UpdateCardInput,
     UpdateIssuerInput,
 } from '@/types/creditCard.types';
+import { isEmptyBillEntry } from '@/utils/creditCardBills.calc';
 import { CreditCardService } from '@/utils/CreditCardService';
+import { isEmptyPaymentEntry } from '@/utils/creditCardTracker.calc';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
 export const creditCardKeys = {
@@ -20,6 +24,7 @@ export const creditCardKeys = {
     issuers: () => [...creditCardKeys.all, 'issuers'] as const,
     entries: (financialYear: string) => [...creditCardKeys.all, 'entries', financialYear] as const,
     year: (financialYear: string) => [...creditCardKeys.all, 'year', financialYear] as const,
+    bills: (financialYear: string) => [...creditCardKeys.all, 'bills', financialYear] as const,
     years: () => [...creditCardKeys.all, 'years'] as const,
 };
 
@@ -160,6 +165,25 @@ export const useDeleteCard = () => {
 type SaveEntryContext = { previous: ICreditCardPaymentEntry[] | undefined };
 
 /**
+ * Materialises the tracker-year row on the first entry of a year, so notes and
+ * threshold overrides have somewhere to live. Fires at most once per year per
+ * session - the cached null is what gates it. Non-fatal on failure: the entry
+ * is saved either way and thresholds fall back to the statutory defaults.
+ */
+const ensureYearRowOnce = async (queryClient: QueryClient, financialYear: string) => {
+    const yearKey = creditCardKeys.year(financialYear);
+    if (queryClient.getQueryData<ICreditCardTrackerYear | null>(yearKey) !== null) {
+        return;
+    }
+
+    try {
+        queryClient.setQueryData(yearKey, await CreditCardService.ensureTrackerYear(financialYear));
+    } catch {
+        // Intentionally swallowed - see the doc comment.
+    }
+};
+
+/**
  * Saves a single grid cell.
  *
  * Deliberately breaks the house mutation pattern in two ways:
@@ -170,7 +194,6 @@ type SaveEntryContext = { previous: ICreditCardPaymentEntry[] | undefined };
 export const useSavePaymentEntry = (financialYear: string) => {
     const queryClient = useQueryClient();
     const entriesKey = creditCardKeys.entries(financialYear);
-    const yearKey = creditCardKeys.year(financialYear);
 
     return useMutation<ICreditCardPaymentEntry | null, Error, SavePaymentEntryInput, SaveEntryContext>({
         mutationFn: (input: SavePaymentEntryInput) => CreditCardService.savePaymentEntry(input),
@@ -184,7 +207,7 @@ export const useSavePaymentEntry = (financialYear: string) => {
                 );
                 const note = input.note?.trim() || null;
 
-                if (input.amount === 0 && input.cashAmount === 0 && !note) {
+                if (isEmptyPaymentEntry({ ...input, note })) {
                     return rest;
                 }
 
@@ -218,18 +241,7 @@ export const useSavePaymentEntry = (financialYear: string) => {
             errorToast(error.message || 'Failed to save payment');
         },
         onSuccess: async () => {
-            // The first entry in a year materialises its tracker-year row, so
-            // notes and threshold overrides have somewhere to live. Fires at
-            // most once per year per session - the cached null is what gates it.
-            if (queryClient.getQueryData<ICreditCardTrackerYear | null>(yearKey) === null) {
-                try {
-                    const year = await CreditCardService.ensureTrackerYear(financialYear);
-                    queryClient.setQueryData(yearKey, year);
-                } catch {
-                    // Non-fatal: the entry is saved, and thresholds fall back to
-                    // the statutory defaults until the row is created.
-                }
-            }
+            await ensureYearRowOnce(queryClient, financialYear);
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: entriesKey });
@@ -249,5 +261,88 @@ export const useUpdateTrackerYearNotes = (financialYear: string) => {
             queryClient.invalidateQueries({ queryKey: creditCardKeys.years() });
         },
         onError: (error: Error) => errorToast(error.message || 'Failed to save notes'),
+    });
+};
+
+// --- Bill entries -----------------------------------------------------------
+
+export const useCreditCardBillEntries = (financialYear: string): UseQueryResult<ICreditCardBillEntry[], Error> => {
+    const userId = useUserId();
+
+    return useQuery({
+        queryKey: creditCardKeys.bills(financialYear),
+        queryFn: () => CreditCardService.getBillEntriesForFinancialYear(financialYear),
+        enabled: !!userId && !!financialYear,
+        staleTime: 1000 * 60 * 2,
+    });
+};
+
+type SaveBillContext = { previous: ICreditCardBillEntry[] | undefined };
+
+/**
+ * Saves a single bill cell, reusing the payment recipe: optimistic so tabbing
+ * the grid never shows a stale cell, and deliberately silent on success because
+ * one toast per cell is unusable during bulk entry.
+ */
+export const useSaveBillEntry = (financialYear: string) => {
+    const queryClient = useQueryClient();
+    const billsKey = creditCardKeys.bills(financialYear);
+
+    return useMutation<ICreditCardBillEntry | null, Error, SaveBillEntryInput, SaveBillContext>({
+        mutationFn: (input: SaveBillEntryInput) => CreditCardService.saveBillEntry(input),
+        onMutate: async (input) => {
+            await queryClient.cancelQueries({ queryKey: billsKey });
+            const previous = queryClient.getQueryData<ICreditCardBillEntry[]>(billsKey);
+
+            queryClient.setQueryData<ICreditCardBillEntry[]>(billsKey, (current = []) => {
+                const matches = (entry: ICreditCardBillEntry) =>
+                    entry.cardId === input.cardId && entry.statementMonth === input.statementMonth;
+                const rest = current.filter((entry) => !matches(entry));
+                const note = input.note?.trim() || null;
+
+                // Same predicate the service uses, so the two cannot drift.
+                if (isEmptyBillEntry({ ...input, note })) {
+                    return rest;
+                }
+
+                const existing = current.find(matches);
+                const now = new Date().toISOString();
+                const isIssued = input.status === 'issued';
+
+                return [
+                    ...rest,
+                    {
+                        id: existing?.id ?? `optimistic-${input.cardId}-${input.statementMonth}`,
+                        userId: existing?.userId ?? '',
+                        cardId: input.cardId,
+                        statementMonth: input.statementMonth,
+                        status: input.status,
+                        totalDue: isIssued ? (input.totalDue ?? 0) : null,
+                        minimumDue: isIssued ? (input.minimumDue ?? null) : null,
+                        statementDate: input.statementDate ?? null,
+                        dueDate: input.dueDate ?? null,
+                        note,
+                        createdAt: existing?.createdAt ?? now,
+                        updatedAt: now,
+                    },
+                ];
+            });
+
+            return { previous };
+        },
+        onError: (error, _input, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(billsKey, context.previous);
+            }
+            errorToast(error.message || 'Failed to save bill');
+        },
+        onSuccess: async () => {
+            await ensureYearRowOnce(queryClient, financialYear);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: billsKey });
+            // A first bill in a previously empty year makes that year selectable.
+            queryClient.invalidateQueries({ queryKey: creditCardKeys.years() });
+        },
     });
 };

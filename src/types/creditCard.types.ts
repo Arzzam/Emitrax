@@ -23,6 +23,11 @@ export interface ICreditCard {
     last4: string | null;
     isActive: boolean;
     sortOrder: number;
+    /** Day of month the statement is generated (1-31). Pre-fills a bill row's dates. */
+    statementDay: number | null;
+    /** Day of month the payment is due (1-31). */
+    dueDay: number | null;
+    creditLimit: number | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -85,6 +90,9 @@ export interface CreateCardInput {
     name: string;
     last4?: string | null;
     sortOrder?: number;
+    statementDay?: number | null;
+    dueDay?: number | null;
+    creditLimit?: number | null;
 }
 
 export interface UpdateCardInput {
@@ -94,6 +102,9 @@ export interface UpdateCardInput {
     last4?: string | null;
     isActive?: boolean;
     sortOrder?: number;
+    statementDay?: number | null;
+    dueDay?: number | null;
+    creditLimit?: number | null;
 }
 
 export interface SavePaymentEntryInput {
@@ -102,6 +113,40 @@ export interface SavePaymentEntryInput {
     periodMonth: string;
     amount: number;
     cashAmount: number;
+    note?: string | null;
+}
+
+export type BillEntryStatus = 'issued' | 'no_statement';
+
+export interface ICreditCardBillEntry {
+    id: string;
+    userId: string;
+    cardId: string;
+    /**
+     * First day of the month the STATEMENT WAS GENERATED, 'yyyy-MM-dd'.
+     * Offset by one month from a payment's periodMonth in the general case.
+     */
+    statementMonth: string;
+    status: BillEntryStatus;
+    /** null only when status is 'no_statement'. May be negative (credit balance). */
+    totalDue: number | null;
+    minimumDue: number | null;
+    statementDate: string | null;
+    dueDate: string | null;
+    note: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SaveBillEntryInput {
+    cardId: string;
+    /** First day of the statement month, 'yyyy-MM-dd'. */
+    statementMonth: string;
+    status: BillEntryStatus;
+    totalDue: number | null;
+    minimumDue?: number | null;
+    statementDate?: string | null;
+    dueDate?: string | null;
     note?: string | null;
 }
 
@@ -124,11 +169,15 @@ export interface IssuerAggregate {
     cashStatus: ThresholdStatus;
 }
 
-/** Per-card, per-month lookup: cardId -> periodMonth -> entry. */
-export type TrackerEntryMatrix = Map<string, Map<string, ICreditCardPaymentEntry>>;
+/** Per-card, per-month lookup: cardId -> month key -> entry. */
+export type TrackerEntryMatrix<T> = Map<string, Map<string, T>>;
 
-export interface TrackerMatrix {
-    entries: TrackerEntryMatrix;
+/**
+ * Generic over the entry type so one grid serves both series. No default type
+ * argument: every call site should declare which series it means.
+ */
+export interface TrackerMatrix<T> {
+    entries: TrackerEntryMatrix<T>;
     /** periodMonth -> row total across all cards. */
     monthTotals: Map<string, number>;
     /** periodMonth -> issuerId -> subtotal. */
@@ -136,4 +185,27 @@ export interface TrackerMatrix {
     /** cardId -> financial-year total. */
     cardTotals: Map<string, number>;
     grandTotal: number;
+}
+
+export interface IssuerBillAggregate {
+    issuerId: string;
+    name: string;
+    color: IssuerColorToken | null;
+    cardCount: number;
+    activeCardCount: number;
+    /** Sum of totalDue over 'issued' rows. Can be reduced by a credit balance. */
+    totalBilled: number;
+    /** Months with at least one issued statement - the divisor for averageBill. */
+    monthsWithStatement: number;
+    monthsWithNoStatement: number;
+    monthsNotEntered: number;
+    averageBill: number;
+    peakBill: number;
+    /** periodMonth of peakBill, or null when nothing is billed. */
+    peakMonth: string | null;
+    projectedTotal: number;
+    /** Sum of creditLimit across the issuer's cards, or null when any card lacks one. */
+    combinedLimit: number | null;
+    /** Band of peakBill against combinedLimit; null when combinedLimit is null. */
+    peakStatus: ThresholdStatus | null;
 }

@@ -137,6 +137,23 @@ export function getPeriodMonthKey(date: Date): string {
 }
 
 /**
+ * Shifts a first-of-month key by whole months.
+ *
+ * Re-anchors to day 1 before shifting, so a 31st-of-month input cannot
+ * overflow into the following month. Follows this module's date rules:
+ * parse with `parseISO`, construct locally, serialize with `format`.
+ */
+export function addMonthsToPeriodMonth(periodMonth: string, offset: number): string {
+    const parsed = parseISO(periodMonth);
+    if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`Invalid period month: "${periodMonth}"`);
+    }
+
+    const anchored = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+    return format(addMonths(anchored, offset), DATE_FORMAT);
+}
+
+/**
  * Returns the 12 months of a financial year in order (April -> March).
  * Months are advanced with `addMonths` from a day-1 anchor, so 28/29/30/31-day
  * overflow cannot occur.

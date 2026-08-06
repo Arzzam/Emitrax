@@ -183,6 +183,11 @@ export type Tables = {
             last4: string | null;
             isActive: boolean;
             sortOrder: number;
+            /** Day of month the statement is generated (1-31). */
+            statementDay: number | null;
+            /** Day of month the payment is due (1-31). */
+            dueDay: number | null;
+            creditLimit: number | null;
             createdAt: string;
             updatedAt: string;
         };
@@ -190,6 +195,9 @@ export type Tables = {
             id?: string;
             createdAt?: string;
             updatedAt?: string;
+            statementDay?: number | null;
+            dueDay?: number | null;
+            creditLimit?: number | null;
         };
         Update: Partial<Omit<Tables['cc_cards']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
     };
@@ -212,6 +220,35 @@ export type Tables = {
             updatedAt?: string;
         };
         Update: Partial<Omit<Tables['cc_payment_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    cc_bill_entries: {
+        Row: {
+            id: string;
+            userId: string;
+            cardId: string;
+            /**
+             * First day of the month the STATEMENT WAS GENERATED, 'yyyy-MM-dd'.
+             * Offset by one month from cc_payment_entries.periodMonth in the
+             * general case - never join the two on their month columns.
+             */
+            statementMonth: string;
+            status: 'issued' | 'no_statement';
+            /** NULL only when status is 'no_statement'. May be negative (credit balance). */
+            totalDue: number | null;
+            minimumDue: number | null;
+            statementDate: string | null;
+            dueDate: string | null;
+            note: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_bill_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+            status?: 'issued' | 'no_statement';
+        };
+        Update: Partial<Omit<Tables['cc_bill_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
     };
     cc_tracker_years: {
         Row: {

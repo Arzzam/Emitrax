@@ -16,19 +16,41 @@ const RISK_RATIO = 0.85;
 const MONTHS_IN_YEAR = 12;
 
 /**
- * Indexes entries by card and month and precomputes the totals the grid needs.
- * Entries outside the supplied months are ignored, so a stale query result
- * cannot leak into another financial year's totals.
+ * How to read a month, a card and a signed amount off one series' entry type.
+ *
+ * This is the seam that lets one grid serve payments and bills - and the seam
+ * Casheq uses to feed the same grid from its derived+override cells, which is
+ * why Emitrax's entries carry no speculative `derived*` fields.
  */
-export function buildTrackerMatrix(
+export interface TrackerSeriesAccessors<T> {
+    /** First-of-month key the entry belongs to. */
+    getMonth: (entry: T) => string;
+    getCardId: (entry: T) => string;
+    /** Signed amount flowing into every total. An entry contributing nothing returns 0. */
+    getAmount: (entry: T) => number;
+}
+
+export const PAYMENT_SERIES: TrackerSeriesAccessors<ICreditCardPaymentEntry> = {
+    getMonth: (entry) => entry.periodMonth,
+    getCardId: (entry) => entry.cardId,
+    getAmount: (entry) => entry.amount,
+};
+
+/**
+ * Indexes entries by card and month and precomputes the totals the grid needs.
+ * Entries outside the supplied months, or for a card we do not know about, are
+ * ignored - a stale query result must never leak into a total.
+ */
+export function buildTrackerMatrix<T>(
     cards: ICreditCard[],
-    entries: ICreditCardPaymentEntry[],
-    months: FinancialYearMonth[]
-): TrackerMatrix {
+    entries: T[],
+    months: FinancialYearMonth[],
+    accessors: TrackerSeriesAccessors<T>
+): TrackerMatrix<T> {
     const cardIssuer = new Map(cards.map((card) => [card.id, card.issuerId]));
     const monthKeys = new Set(months.map((month) => month.periodMonth));
 
-    const matrix: TrackerEntryMatrix = new Map();
+    const matrix: TrackerEntryMatrix<T> = new Map();
     const monthTotals = new Map<string, number>();
     const monthIssuerTotals = new Map<string, Map<string, number>>();
     const cardTotals = new Map<string, number>();
@@ -40,22 +62,27 @@ export function buildTrackerMatrix(
     });
 
     entries.forEach((entry) => {
-        if (!monthKeys.has(entry.periodMonth) || !cardIssuer.has(entry.cardId)) {
+        const monthKey = accessors.getMonth(entry);
+        const cardId = accessors.getCardId(entry);
+
+        if (!monthKeys.has(monthKey) || !cardIssuer.has(cardId)) {
             return;
         }
 
-        const byMonth = matrix.get(entry.cardId) ?? new Map<string, ICreditCardPaymentEntry>();
-        byMonth.set(entry.periodMonth, entry);
-        matrix.set(entry.cardId, byMonth);
+        const byMonth = matrix.get(cardId) ?? new Map<string, T>();
+        byMonth.set(monthKey, entry);
+        matrix.set(cardId, byMonth);
 
-        monthTotals.set(entry.periodMonth, (monthTotals.get(entry.periodMonth) ?? 0) + entry.amount);
+        const amount = accessors.getAmount(entry);
 
-        const issuerId = cardIssuer.get(entry.cardId)!;
-        const issuerTotals = monthIssuerTotals.get(entry.periodMonth)!;
-        issuerTotals.set(issuerId, (issuerTotals.get(issuerId) ?? 0) + entry.amount);
+        monthTotals.set(monthKey, (monthTotals.get(monthKey) ?? 0) + amount);
 
-        cardTotals.set(entry.cardId, (cardTotals.get(entry.cardId) ?? 0) + entry.amount);
-        grandTotal += entry.amount;
+        const issuerId = cardIssuer.get(cardId)!;
+        const issuerTotals = monthIssuerTotals.get(monthKey)!;
+        issuerTotals.set(issuerId, (issuerTotals.get(issuerId) ?? 0) + amount);
+
+        cardTotals.set(cardId, (cardTotals.get(cardId) ?? 0) + amount);
+        grandTotal += amount;
     });
 
     return { entries: matrix, monthTotals, monthIssuerTotals, cardTotals, grandTotal };
@@ -142,4 +169,14 @@ export function aggregateByIssuer(
             cashStatus: getThresholdStatus(cash, projectedCash, thresholds.cash),
         };
     });
+}
+
+/**
+ * True when a payment entry carries no information and its row should be
+ * deleted rather than stored as a zero.
+ *
+ * Lives here so the service and the optimistic hook cannot drift apart.
+ */
+export function isEmptyPaymentEntry(input: { amount: number; cashAmount: number; note?: string | null }): boolean {
+    return input.amount === 0 && input.cashAmount === 0 && !input.note?.trim();
 }

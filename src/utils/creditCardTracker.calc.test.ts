@@ -11,6 +11,7 @@ import {
     aggregateByIssuer,
     buildTrackerMatrix,
     getThresholdStatus,
+    PAYMENT_SERIES,
     projectYearEnd,
 } from '@/utils/creditCardTracker.calc';
 import { getFinancialYearMonths } from '@/utils/financialYear';
@@ -26,6 +27,9 @@ const buildCard = (id: string, issuerId: string, overrides: Partial<ICreditCard>
     last4: null,
     isActive: true,
     sortOrder: 0,
+    statementDay: null,
+    dueDay: null,
+    creditLimit: null,
     createdAt: '2026-04-01T00:00:00Z',
     updatedAt: '2026-04-01T00:00:00Z',
     ...overrides,
@@ -110,44 +114,44 @@ describe('buildTrackerMatrix', () => {
     ];
 
     it('indexes entries by card and month', () => {
-        const matrix = buildTrackerMatrix(cards, entries, MONTHS);
+        const matrix = buildTrackerMatrix(cards, entries, MONTHS, PAYMENT_SERIES);
         expect(matrix.entries.get('card-a')?.get('2026-04-01')?.amount).toBe(40000);
         expect(matrix.entries.get('card-c')?.get('2026-05-01')).toBeUndefined();
     });
 
     it('totals each month across all cards', () => {
-        const matrix = buildTrackerMatrix(cards, entries, MONTHS);
+        const matrix = buildTrackerMatrix(cards, entries, MONTHS, PAYMENT_SERIES);
         expect(matrix.monthTotals.get('2026-04-01')).toBe(95000);
         expect(matrix.monthTotals.get('2026-05-01')).toBe(15000);
         expect(matrix.monthTotals.get('2026-06-01')).toBe(0);
     });
 
     it('subtotals each month by issuer', () => {
-        const matrix = buildTrackerMatrix(cards, entries, MONTHS);
+        const matrix = buildTrackerMatrix(cards, entries, MONTHS, PAYMENT_SERIES);
         expect(matrix.monthIssuerTotals.get('2026-04-01')?.get('issuer-1')).toBe(65000);
         expect(matrix.monthIssuerTotals.get('2026-04-01')?.get('issuer-2')).toBe(30000);
     });
 
     it('totals each card across the financial year', () => {
-        const matrix = buildTrackerMatrix(cards, entries, MONTHS);
+        const matrix = buildTrackerMatrix(cards, entries, MONTHS, PAYMENT_SERIES);
         expect(matrix.cardTotals.get('card-a')).toBe(55000);
         expect(matrix.grandTotal).toBe(110000);
     });
 
     it('ignores entries outside the supplied months', () => {
         const stale = [...entries, buildEntry('card-a', '2026-03-01', 999999)];
-        const matrix = buildTrackerMatrix(cards, stale, MONTHS);
+        const matrix = buildTrackerMatrix(cards, stale, MONTHS, PAYMENT_SERIES);
         expect(matrix.grandTotal).toBe(110000);
     });
 
     it('ignores entries for unknown cards', () => {
         const orphaned = [...entries, buildEntry('card-zzz', '2026-04-01', 999999)];
-        const matrix = buildTrackerMatrix(cards, orphaned, MONTHS);
+        const matrix = buildTrackerMatrix(cards, orphaned, MONTHS, PAYMENT_SERIES);
         expect(matrix.grandTotal).toBe(110000);
     });
 
     it('creates a zeroed row for every month even with no entries', () => {
-        const matrix = buildTrackerMatrix(cards, [], MONTHS);
+        const matrix = buildTrackerMatrix(cards, [], MONTHS, PAYMENT_SERIES);
         expect(matrix.monthTotals.size).toBe(12);
         expect(matrix.grandTotal).toBe(0);
     });

@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 
 import { useCreateCard, useCreateIssuer } from '@/hooks/useCreditCards';
+import { cn } from '@/lib/utils';
 import { ICreditCardIssuer } from '@/types/creditCard.types';
 import { errorToast } from '@/utils/toast.utils';
 
+import BillingCycleFields, {
+    BillingCycleErrors,
+    BillingCycleValues,
+    EMPTY_BILLING_CYCLE,
+    validateBillingCycle,
+} from '@/components/creditCards/BillingCycleFields';
 import IssuerCombobox, { IssuerSelection } from '@/components/creditCards/IssuerCombobox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +38,9 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
     const [issuer, setIssuer] = useState<IssuerSelection | null>(null);
     const [name, setName] = useState('');
     const [last4, setLast4] = useState('');
-    const [errors, setErrors] = useState<{ issuer?: string; name?: string; last4?: string }>({});
+    const [cycle, setCycle] = useState<BillingCycleValues>(EMPTY_BILLING_CYCLE);
+    const [showCycle, setShowCycle] = useState(false);
+    const [errors, setErrors] = useState<{ issuer?: string; name?: string; last4?: string } & BillingCycleErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { mutateAsync: createIssuer } = useCreateIssuer();
@@ -41,6 +50,8 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
         setIssuer(null);
         setName('');
         setLast4('');
+        setCycle(EMPTY_BILLING_CYCLE);
+        setShowCycle(false);
         setErrors({});
     };
 
@@ -55,12 +66,21 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
         if (last4.trim() && !/^\d{4}$/.test(last4.trim())) {
             next.last4 = 'Must be exactly four digits.';
         }
+
+        const cycleResult = validateBillingCycle(cycle);
+        if (!cycleResult.ok) {
+            Object.assign(next, cycleResult.errors);
+            // A cycle error is otherwise invisible while the block is collapsed.
+            setShowCycle(true);
+        }
+
         setErrors(next);
-        return Object.keys(next).length === 0;
+        return Object.keys(next).length === 0 ? (cycleResult.ok ? cycleResult.parsed : null) : null;
     };
 
     const submit = async () => {
-        if (!validate() || !issuer) {
+        const parsedCycle = validate();
+        if (!parsedCycle || !issuer) {
             return;
         }
 
@@ -77,6 +97,7 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
                 name: name.trim(),
                 last4: last4.trim() || null,
                 sortOrder: target?.cards.length ?? 0,
+                ...parsedCycle,
             });
 
             reset();
@@ -170,6 +191,44 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
                         </div>
                     </div>
                     {errors.last4 && <p className="-mt-2 text-xs text-destructive">{errors.last4}</p>}
+
+                    {/* Optional, and collapsed by default so the fast path stays two fields. */}
+                    <div className="border-t pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setShowCycle((current) => !current)}
+                            className="flex w-full cursor-pointer items-center justify-between text-sm font-medium"
+                            aria-expanded={showCycle}
+                        >
+                            Billing cycle
+                            <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                                Optional
+                                <ChevronDown
+                                    className={cn('size-4 transition-transform', showCycle && 'rotate-180')}
+                                    aria-hidden
+                                />
+                            </span>
+                        </button>
+
+                        {showCycle && (
+                            <div className="pt-3">
+                                <BillingCycleFields
+                                    idPrefix="add-card"
+                                    values={cycle}
+                                    errors={errors}
+                                    onChange={(next) => {
+                                        setCycle(next);
+                                        setErrors((current) => ({
+                                            ...current,
+                                            statementDay: undefined,
+                                            dueDay: undefined,
+                                            creditLimit: undefined,
+                                        }));
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <SheetFooter className="flex-row justify-end border-t">

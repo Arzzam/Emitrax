@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { ArrowLeftRight, Check, Landmark, MoreVertical, Pencil, Power, Settings2, Trash2, X } from 'lucide-react';
+import {
+    ArrowLeftRight,
+    CalendarClock,
+    Check,
+    Landmark,
+    MoreVertical,
+    Pencil,
+    Power,
+    Settings2,
+    Trash2,
+    X,
+} from 'lucide-react';
 
 import { useDeleteCard, useDeleteIssuer, useUpdateCard, useUpdateIssuer } from '@/hooks/useCreditCards';
 import { cn } from '@/lib/utils';
@@ -8,6 +19,11 @@ import { CreditCardService } from '@/utils/CreditCardService';
 
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import AddCardDialog from '@/components/creditCards/AddCardDialog';
+import BillingCycleFields, {
+    BillingCycleErrors,
+    BillingCycleValues,
+    validateBillingCycle,
+} from '@/components/creditCards/BillingCycleFields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,9 +37,18 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 
-type PendingDelete = { kind: 'issuer' | 'card'; id: string; name: string; entryCount: number };
+type EntryCounts = { payments: number; bills: number };
+type PendingDelete = { kind: 'issuer' | 'card'; id: string; name: string; counts: EntryCounts };
 
 /** Inline rename that commits on Enter / tick and reverts on Escape. */
 const InlineRename = ({
@@ -76,6 +101,83 @@ const InlineRename = ({
     );
 };
 
+const toCycleValues = (card: ICreditCard): BillingCycleValues => ({
+    statementDay: card.statementDay == null ? '' : String(card.statementDay),
+    dueDay: card.dueDay == null ? '' : String(card.dueDay),
+    creditLimit: card.creditLimit == null ? '' : String(card.creditLimit),
+});
+
+/**
+ * Editing the cycle after creation matters: a user who skipped the fields in
+ * the add sheet would otherwise have no way to set them, and a bank changing
+ * its cycle date mid-year would have no path at all.
+ */
+const BillingCycleSheet = ({
+    card,
+    open,
+    onOpenChange,
+}: {
+    card: ICreditCard;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) => {
+    const [values, setValues] = useState<BillingCycleValues>(() => toCycleValues(card));
+    const [errors, setErrors] = useState<BillingCycleErrors>({});
+    const { mutate: updateCard, isPending } = useUpdateCard();
+
+    const handleOpenChange = (next: boolean) => {
+        if (next) {
+            setValues(toCycleValues(card));
+            setErrors({});
+        }
+        onOpenChange(next);
+    };
+
+    const save = () => {
+        const result = validateBillingCycle(values);
+        if (!result.ok) {
+            setErrors(result.errors);
+            return;
+        }
+
+        updateCard({ id: card.id, ...result.parsed }, { onSuccess: () => onOpenChange(false) });
+    };
+
+    return (
+        <Sheet open={open} onOpenChange={handleOpenChange}>
+            <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-sm">
+                <SheetHeader className="shrink-0 border-b px-6 py-5">
+                    <SheetTitle>Billing cycle</SheetTitle>
+                    <SheetDescription>
+                        {card.name} — these pre-fill a bill's dates. Each bill keeps its own dates once entered.
+                    </SheetDescription>
+                </SheetHeader>
+
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
+                    <BillingCycleFields
+                        idPrefix={`cycle-${card.id}`}
+                        values={values}
+                        errors={errors}
+                        onChange={(next) => {
+                            setValues(next);
+                            setErrors({});
+                        }}
+                    />
+                </div>
+
+                <SheetFooter className="flex-row justify-end border-t">
+                    <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="button" disabled={isPending} onClick={save}>
+                        {isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                </SheetFooter>
+            </SheetContent>
+        </Sheet>
+    );
+};
+
 const CardRow = ({
     card,
     issuers,
@@ -86,6 +188,7 @@ const CardRow = ({
     onRequestDelete: (card: ICreditCard) => void;
 }) => {
     const [renaming, setRenaming] = useState(false);
+    const [cycleOpen, setCycleOpen] = useState(false);
     const { mutate: updateCard } = useUpdateCard();
 
     const otherIssuers = issuers.filter((issuer) => issuer.id !== card.issuerId);
@@ -134,6 +237,9 @@ const CardRow = ({
                     <DropdownMenuItem onSelect={() => setRenaming(true)}>
                         <Pencil /> Rename
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setCycleOpen(true)}>
+                        <CalendarClock /> Billing cycle
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => updateCard({ id: card.id, isActive: !card.isActive })}>
                         <Power /> {card.isActive ? 'Deactivate' : 'Reactivate'}
                     </DropdownMenuItem>
@@ -160,6 +266,8 @@ const CardRow = ({
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <BillingCycleSheet card={card} open={cycleOpen} onOpenChange={setCycleOpen} />
         </div>
     );
 };
@@ -238,6 +346,29 @@ const IssuerBlock = ({
     );
 };
 
+const plural = (count: number, noun: string) => `${count} logged ${noun}${count === 1 ? '' : 's'}`;
+
+/** Names both series, so the copy never under-reports what a delete destroys. */
+function buildDeleteDescription(counts: EntryCounts | undefined): string {
+    if (!counts) {
+        return '';
+    }
+
+    const parts: string[] = [];
+    if (counts.payments > 0) {
+        parts.push(plural(counts.payments, 'payment'));
+    }
+    if (counts.bills > 0) {
+        parts.push(plural(counts.bills, 'bill'));
+    }
+
+    if (parts.length === 0) {
+        return 'Nothing has been logged against this yet, so no history will be lost.';
+    }
+
+    return `This permanently deletes ${parts.join(' and ')} across every financial year. To keep the history, deactivate instead.`;
+}
+
 /**
  * Management surface for issuers and cards. Creation lives in AddCardDialog;
  * this handles rename, move, deactivate and delete.
@@ -252,12 +383,15 @@ const IssuerCardManager = ({ issuers }: { issuers: ICreditCardIssuer[] }) => {
     const { mutate: deleteIssuer } = useDeleteIssuer();
     const { mutate: deleteCard } = useDeleteCard();
 
-    const countEntries = async (cardIds: string[]) => {
+    const countEntries = async (cardIds: string[]): Promise<EntryCounts> => {
         try {
             const counts = await Promise.all(cardIds.map((id) => CreditCardService.countEntriesForCard(id)));
-            return counts.reduce((sum, count) => sum + count, 0);
+            return counts.reduce(
+                (sum, count) => ({ payments: sum.payments + count.payments, bills: sum.bills + count.bills }),
+                { payments: 0, bills: 0 }
+            );
         } catch {
-            return 0;
+            return { payments: 0, bills: 0 };
         }
     };
 
@@ -266,7 +400,7 @@ const IssuerCardManager = ({ issuers }: { issuers: ICreditCardIssuer[] }) => {
             kind: 'card',
             id: card.id,
             name: card.name,
-            entryCount: await countEntries([card.id]),
+            counts: await countEntries([card.id]),
         });
     };
 
@@ -275,7 +409,7 @@ const IssuerCardManager = ({ issuers }: { issuers: ICreditCardIssuer[] }) => {
             kind: 'issuer',
             id: issuer.id,
             name: issuer.name,
-            entryCount: await countEntries(issuer.cards.map((card) => card.id)),
+            counts: await countEntries(issuer.cards.map((card) => card.id)),
         });
     };
 
@@ -292,13 +426,7 @@ const IssuerCardManager = ({ issuers }: { issuers: ICreditCardIssuer[] }) => {
         setPendingDelete(null);
     };
 
-    const deleteDescription = pendingDelete
-        ? pendingDelete.entryCount > 0
-            ? `This permanently deletes ${pendingDelete.entryCount} logged payment${
-                  pendingDelete.entryCount === 1 ? '' : 's'
-              } across every financial year. To keep the history, deactivate instead.`
-            : 'Nothing has been logged against this yet, so no payment history will be lost.'
-        : '';
+    const deleteDescription = buildDeleteDescription(pendingDelete?.counts);
 
     return (
         <>

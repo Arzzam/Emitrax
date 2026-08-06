@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import Layout from '@/layout/Layout';
 
 const Home = lazy(() => import('@/router/pages/Home'));
-const Account = lazy(() => import('@/router/pages/Account'));
+const Settings = lazy(() => import('@/router/pages/Settings'));
 const CreditCards = lazy(() => import('@/router/pages/CreditCards'));
 const EMIDetails = lazy(() => import('@/router/pages/EMIDetails'));
 const AmortizationSchedule = lazy(() => import('@/router/pages/AmortizationSchedule'));
@@ -26,7 +26,7 @@ const HomeRouter = () => {
                     <Route path="/auth/callback" element={<OAuth />} />
                     <Route path="/" element={<Layout />}>
                         <Route index element={<Home />} />
-                        <Route path="/account" element={<Account />} />
+                        <Route path="/settings" element={<Settings />} />
                         <Route path="/credit-cards" element={<CreditCards />} />
                         <Route path="/emi/:id" element={<EMIDetails />} />
                         <Route path="/emi/:id/amortization" element={<AmortizationSchedule />} />
