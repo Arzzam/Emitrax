@@ -1,7 +1,8 @@
 import { Loader2 } from 'lucide-react';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
+
 import MainContainer from './Container';
-import Header from './Header';
 
 const LoadingDetails = ({
     title,
@@ -12,9 +13,10 @@ const LoadingDetails = ({
     description: string;
     description2?: string;
 }) => {
+    usePageTitle(title);
+
     return (
         <>
-            <Header title={title} />
             <MainContainer>
                 <div className="flex flex-col items-center justify-center h-[70vh]">
                     <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />

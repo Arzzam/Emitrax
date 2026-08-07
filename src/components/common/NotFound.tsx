@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router';
 import { AlertCircle } from 'lucide-react';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
+
 import { Button } from '../ui/button';
 
 import MainContainer from './Container';
-import Header from './Header';
 
 const NotFound = ({
     title,
@@ -20,9 +21,10 @@ const NotFound = ({
     redirectText?: string;
 }) => {
     const navigate = useNavigate();
+    usePageTitle(title);
+
     return (
         <>
-            <Header title={title} />
             <MainContainer>
                 <div className="flex flex-col items-center justify-center h-[70vh]">
                     <div className="bg-primary/10 p-6 rounded-full mb-4">

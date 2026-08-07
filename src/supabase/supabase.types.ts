@@ -157,6 +157,120 @@ export type Tables = {
         };
         Update: Partial<Omit<Tables['loan_scenario_breakdowns']['Row'], 'id' | 'createdAt'>>;
     };
+    cc_issuers: {
+        Row: {
+            id: string;
+            userId: string;
+            name: string;
+            color: string | null;
+            sortOrder: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_issuers']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        };
+        Update: Partial<Omit<Tables['cc_issuers']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    cc_cards: {
+        Row: {
+            id: string;
+            userId: string;
+            issuerId: string;
+            name: string;
+            last4: string | null;
+            isActive: boolean;
+            sortOrder: number;
+            /** Day of month the statement is generated (1-31). */
+            statementDay: number | null;
+            /** Day of month the payment is due (1-31). */
+            dueDay: number | null;
+            creditLimit: number | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_cards']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+            statementDay?: number | null;
+            dueDay?: number | null;
+            creditLimit?: number | null;
+        };
+        Update: Partial<Omit<Tables['cc_cards']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    cc_payment_entries: {
+        Row: {
+            id: string;
+            userId: string;
+            cardId: string;
+            /** First day of the month, 'yyyy-MM-dd'. */
+            periodMonth: string;
+            amount: number;
+            cashAmount: number;
+            note: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_payment_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        };
+        Update: Partial<Omit<Tables['cc_payment_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    cc_bill_entries: {
+        Row: {
+            id: string;
+            userId: string;
+            cardId: string;
+            /**
+             * First day of the month the STATEMENT WAS GENERATED, 'yyyy-MM-dd'.
+             * Offset by one month from cc_payment_entries.periodMonth in the
+             * general case - never join the two on their month columns.
+             */
+            statementMonth: string;
+            status: 'issued' | 'no_statement';
+            /** NULL only when status is 'no_statement'. May be negative (credit balance). */
+            totalDue: number | null;
+            minimumDue: number | null;
+            statementDate: string | null;
+            dueDate: string | null;
+            note: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_bill_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+            status?: 'issued' | 'no_statement';
+        };
+        Update: Partial<Omit<Tables['cc_bill_entries']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
+    cc_tracker_years: {
+        Row: {
+            id: string;
+            userId: string;
+            /** Financial year key, e.g. '2026-27'. */
+            financialYear: string;
+            notes: string | null;
+            thresholdAmount: number;
+            cashThresholdAmount: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+        Insert: Omit<Tables['cc_tracker_years']['Row'], 'id' | 'createdAt' | 'updatedAt'> & {
+            id?: string;
+            createdAt?: string;
+            updatedAt?: string;
+            thresholdAmount?: number;
+            cashThresholdAmount?: number;
+        };
+        Update: Partial<Omit<Tables['cc_tracker_years']['Row'], 'id' | 'createdAt' | 'updatedAt'>>;
+    };
 };
 
 export type DbResult<T> = T extends PromiseLike<infer U> ? U : never;

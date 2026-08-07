@@ -4,12 +4,12 @@ import { useForm } from '@tanstack/react-form';
 import { AlertCircle, Edit, Eye, Share2, Trash2, UserPlus, Users } from 'lucide-react';
 import * as z from 'zod';
 
+import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useEmis, useEmiShares, useShareEmi, useUnshareEmi, useUpdateSharePermission } from '@/hooks/useEmi';
 import { IEmi, IEmiShare } from '@/types/emi.types';
 
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
-import Header from '@/components/common/Header';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -40,6 +40,8 @@ const ShareEMI = () => {
     const { mutate: unshareEmi } = useUnshareEmi();
     const { mutate: updatePermission } = useUpdateSharePermission();
     const [notFound, setNotFound] = useState(false);
+
+    usePageTitle(currentData?.itemName ? `Share · ${currentData.itemName}` : 'Share EMI');
 
     const form = useForm({
         defaultValues: {
@@ -121,7 +123,6 @@ const ShareEMI = () => {
     if (!isOwner) {
         return (
             <>
-                <Header title="Share EMI" />
                 <BreadcrumbContainer className="py-4 px-8" items={breadcrumbItems} />
                 <MainContainer>
                     <Alert>
@@ -138,7 +139,6 @@ const ShareEMI = () => {
 
     return (
         <>
-            <Header title="Share EMI" />
             <BreadcrumbContainer className="pt-4 pb-0 px-8" items={breadcrumbItems} />
             <MainContainer>
                 <div className="space-y-6">
