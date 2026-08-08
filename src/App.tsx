@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'sonner';
 
 import StoreProvider from './context/StoreProvider/StoreProvider';
@@ -12,6 +13,7 @@ function App() {
             <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
                 <QueryClientProvider client={queryClient}>
                     <HomeRouter />
+                    <Analytics />
                 </QueryClientProvider>
                 <Toaster />
             </ThemeProvider>
