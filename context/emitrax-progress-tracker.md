@@ -7,7 +7,19 @@
 
 ## Current Status
 
-**Last completed:** Added idempotent migration
+**Last completed (UI fixes):**
+
+- `CreditCardGrid.tsx` — fixed the frozen "Month" column bleeding scrolled
+  columns through its translucent row stripe during horizontal scroll. The
+  sticky cell now paints an opaque `bg-background` base with the stripe tint
+  layered via a `before` pseudo-element (`before:-z-10`), so content no longer
+  shows through the overlap.
+- `SidebarUser.tsx` — removed the dead "My account" dropdown item (linked to an
+  undefined `/account` route and duplicated Settings). User dropdown now shows
+  only identity + Sign out. Dropped unused `Link`, `BadgeCheckIcon`, and
+  `setOpenMobile`.
+
+**Previously completed:** Added idempotent migration
 `supabase/migrations/supabase_emi_share_permission_enum.sql` so
 `emiShares.permission` becomes Postgres enum `emi_share_permission`
 (`read` | `write`) and CLI-generated types stop typing it as `string`.

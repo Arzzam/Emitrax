@@ -177,21 +177,29 @@ const CreditCardGrid = ({
                 <TableBody>
                     {months.map((month, index) => {
                         const isCurrent = month.periodMonth === currentPeriodMonth;
-                        const stripe = isCurrent ? 'bg-primary/5' : index % 2 === 0 ? 'bg-muted/30' : '';
+                        const isEven = index % 2 === 0;
+                        // Row tint stays translucent, but the frozen Month cell repaints it over an
+                        // opaque base so horizontally scrolled columns never bleed through the overlap.
+                        const rowStripe = isCurrent ? 'bg-primary/5' : isEven ? 'bg-muted/30' : '';
+                        const stickyStripe = isCurrent ? 'before:bg-primary/5' : isEven ? 'before:bg-muted/30' : '';
 
                         return (
                             <TableRow
                                 key={month.periodMonth}
                                 className={cn(
                                     'tabular-nums',
-                                    isCurrent ? 'bg-primary/5 hover:bg-primary/10' : stripe,
+                                    isCurrent ? 'bg-primary/5 hover:bg-primary/10' : rowStripe,
                                     month.isFuture && 'text-muted-foreground'
                                 )}
                             >
                                 <TableCell
                                     className={cn(
-                                        'sticky left-0 z-10 font-medium whitespace-nowrap',
-                                        stripe || 'bg-background'
+                                        'sticky left-0 z-10 bg-background font-medium whitespace-nowrap',
+                                        stickyStripe &&
+                                            cn(
+                                                'before:absolute before:inset-0 before:-z-10 before:content-[""]',
+                                                stickyStripe
+                                            )
                                     )}
                                 >
                                     {month.label}
