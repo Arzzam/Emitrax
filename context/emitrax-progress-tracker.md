@@ -7,22 +7,19 @@
 
 ## Current Status
 
-**Last completed:** EMI **repayment progress** — a paid/remaining ledger on
-the EMI details page, broken into principal / interest / GST / upfront
-charges, and scaled per participant for split EMIs. No schema change. See
-`context/plan/emi-repayment-progress-plan.md`.
+**Last completed:** Added idempotent migration
+`supabase/migrations/supabase_emi_share_permission_enum.sql` so
+`emiShares.permission` becomes Postgres enum `emi_share_permission`
+(`read` | `write`) and CLI-generated types stop typing it as `string`.
 
-**Also completed:** App shell rewrite (sidebar, global header, command
-palette); the credit-card **payment** tracker — a month × card grid for one
-financial year against India's SFT-006 thresholds, per issuing bank; and the
-credit-card **bill** tracker — the same grid shape for what each card billed
-per month, with a `Payments | Bills | Both` switch. See
-`context/plan/credit-card-bill-tracker-plan.md`.
+**Also completed:** Adapted app services to CLI-generated
+`src/supabase/supabase.types.ts`; EMI repayment progress ledger.
 
-**Next up:** **Run `supabase_credit_card_bill_tracker_schema.sql` in the
-Supabase SQL editor** — it is written but not yet applied, so the bills UI
-will error against the live database until it is. Then run the manual
-checks in §12 of the plan document.
+**Next up:**
+
+1. Run `supabase_emi_share_permission_enum.sql` in the Supabase SQL editor
+2. Regenerate types
+3. Run `supabase_credit_card_bill_tracker_schema.sql` if not yet applied
 
 ---
 

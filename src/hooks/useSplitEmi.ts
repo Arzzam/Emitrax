@@ -37,7 +37,7 @@ export const mapExistingToEditableSplits = (splits: IEmiSplit[]): EditableSplit[
         name: split.participantName || split.participantEmail || '',
         email: split.participantEmail || '',
         percentage: split.splitPercentage,
-        userId: split.userId,
+        userId: split.userId ?? undefined,
         isExternal: split.isExternal,
     }));
 
@@ -55,7 +55,9 @@ export const useRegisteredUsers = () => {
                     .limit(USER_FETCH_LIMIT);
 
                 if (error || !isMounted) return;
-                setUsers(registeredUsers || []);
+                setUsers(
+                    (registeredUsers || []).flatMap((user) => (user.email ? [{ id: user.id, email: user.email }] : []))
+                );
             } catch {
                 if (!isMounted) return;
                 setUsers([]);

@@ -2,8 +2,102 @@ import { format } from 'date-fns';
 
 import store from '@/store/store';
 import { supabase } from '@/supabase/supabase';
+import { TablesInsert } from '@/supabase/supabase.types';
 import { IEmi, IEmiShare, IEmiSplit, ScheduleData } from '@/types/emi.types';
 import { normalizeEmiFinancials } from '@/utils/calculation';
+
+const toScheduleNumber = (value: string | number): number => {
+    if (typeof value === 'number') {
+        return value;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toScheduleInsert = (emiId: string, schedule: ScheduleData): TablesInsert<'amortizationSchedules'> => ({
+    emiId,
+    month: schedule.month,
+    billDate: schedule.billDate,
+    emi: toScheduleNumber(schedule.emi),
+    interest: toScheduleNumber(schedule.interest),
+    principalPaid: toScheduleNumber(schedule.principalPaid),
+    balance: toScheduleNumber(schedule.balance),
+    gst: schedule.gst,
+});
+
+const toSharePermission = (permission: string): 'read' | 'write' => (permission === 'write' ? 'write' : 'read');
+
+const mapShareRow = (row: {
+    id: string;
+    emiId: string;
+    sharedWithUserId: string;
+    permission: string;
+    createdBy: string;
+    createdAt: string | null;
+    user_profiles?: { email: string | null } | null;
+}): IEmiShare => ({
+    id: row.id,
+    emiId: row.emiId,
+    sharedWithUserId: row.sharedWithUserId,
+    permission: toSharePermission(row.permission),
+    createdBy: row.createdBy,
+    createdAt: row.createdAt ?? '',
+    user_profiles: row.user_profiles
+        ? {
+              email: row.user_profiles.email ?? '',
+          }
+        : undefined,
+});
+
+const mapSplitRow = (row: {
+    id: string;
+    emiId: string;
+    userId: string | null;
+    participantName: string | null;
+    participantEmail: string | null;
+    splitPercentage: number;
+    splitAmount: number | null;
+    isExternal: boolean;
+    createdBy: string;
+    createdAt: string | null;
+    updatedAt: string | null;
+    user_profiles?: { email: string | null } | null;
+}): IEmiSplit => ({
+    id: row.id,
+    emiId: row.emiId,
+    userId: row.userId ?? undefined,
+    participantName: row.participantName ?? undefined,
+    participantEmail: row.participantEmail ?? undefined,
+    splitPercentage: row.splitPercentage,
+    splitAmount: row.splitAmount ?? 0,
+    isExternal: row.isExternal,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt ?? '',
+    updatedAt: row.updatedAt ?? '',
+    user_profiles: row.user_profiles
+        ? {
+              email: row.user_profiles.email ?? '',
+          }
+        : undefined,
+});
+
+const mapScheduleRow = (schedule: {
+    month: number;
+    billDate: string;
+    emi: number;
+    interest: number;
+    principalPaid: number;
+    balance: number;
+    gst: number | null;
+}): ScheduleData => ({
+    month: schedule.month,
+    billDate: schedule.billDate,
+    emi: String(schedule.emi),
+    interest: String(schedule.interest),
+    principalPaid: String(schedule.principalPaid),
+    balance: String(schedule.balance),
+    gst: schedule.gst ?? 0,
+});
 
 export class EmiService {
     static async createEmi(emi: Omit<IEmi, 'id'>) {
@@ -48,16 +142,7 @@ export class EmiService {
 
         // Insert amortization schedule
         if (data) {
-            const scheduleInserts = emi.amortizationSchedules.map((schedule) => ({
-                emiId: data[0].id,
-                month: schedule.month,
-                billDate: schedule.billDate,
-                emi: schedule.emi,
-                interest: schedule.interest,
-                principalPaid: schedule.principalPaid,
-                balance: schedule.balance,
-                gst: schedule.gst,
-            }));
+            const scheduleInserts = emi.amortizationSchedules.map((schedule) => toScheduleInsert(data[0].id, schedule));
 
             const { error: scheduleError } = await supabase.from('amortizationSchedules').insert(scheduleInserts);
 
@@ -95,11 +180,11 @@ export class EmiService {
         if (ownedError) throw ownedError;
 
         // Get shares for owned EMIs
-        const ownedEmiIds = (ownedEmis || []).map((emi: IEmi) => emi.id);
+        const ownedEmiIds = (ownedEmis || []).map((emi) => emi.id);
         let ownedEmiShares: IEmiShare[] = [];
         if (ownedEmiIds.length > 0) {
             const { data: shares } = await supabase.from('emiShares').select('*').in('emiId', ownedEmiIds);
-            ownedEmiShares = (shares as IEmiShare[]) || [];
+            ownedEmiShares = (shares || []).map(mapShareRow);
         }
 
         // Get shared EMIs (where user is a recipient)
@@ -124,7 +209,7 @@ export class EmiService {
                 )
                 .in('id', sharedEmiIds);
 
-            sharedEmisData = sharedEmis || [];
+            sharedEmisData = (sharedEmis || []) as unknown as IEmi[];
         }
 
         // Get split EMIs (where user is a registered participant in a split)
@@ -150,11 +235,11 @@ export class EmiService {
                 )
                 .in('id', splitEmiIds);
 
-            splitEmisData = splitEmis || [];
+            splitEmisData = (splitEmis || []) as unknown as IEmi[];
         }
 
         // Create a map of emiId -> shares for owned EMIs
-        const sharesByEmiId = ownedEmiShares.reduce((acc: Record<string, IEmiShare[]>, share: IEmiShare) => {
+        const sharesByEmiId = ownedEmiShares.reduce<Record<string, IEmiShare[]>>((acc, share) => {
             if (!acc[share.emiId]) {
                 acc[share.emiId] = [];
             }
@@ -163,16 +248,13 @@ export class EmiService {
         }, {});
 
         // Create a map of emiId -> permission for shared EMIs
-        const permissionByEmiId = (sharedShares || []).reduce(
-            (acc: Record<string, string>, share: { emiId: string; permission: 'read' | 'write' }) => {
-                acc[share.emiId] = share.permission;
-                return acc;
-            },
-            {} as Record<string, 'read' | 'write'>
-        );
+        const permissionByEmiId = (sharedShares || []).reduce<Record<string, 'read' | 'write'>>((acc, share) => {
+            acc[share.emiId] = toSharePermission(share.permission);
+            return acc;
+        }, {});
 
         // Process owned EMIs
-        const ownedEmisProcessed = (ownedEmis || []).map((emi: IEmi) => {
+        const ownedEmisProcessed = ((ownedEmis || []) as unknown as IEmi[]).map((emi) => {
             const shares = sharesByEmiId[emi.id] || [];
             return normalizeEmiFinancials({
                 ...emi,
@@ -182,15 +264,17 @@ export class EmiService {
                 isOwner: true,
                 permission: 'write' as const,
                 sharedWith: shares,
-                amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
-                    month: schedule.month,
-                    billDate: schedule.billDate,
-                    emi: schedule.emi,
-                    interest: schedule.interest,
-                    principalPaid: schedule.principalPaid,
-                    balance: schedule.balance,
-                    gst: schedule.gst,
-                })),
+                amortizationSchedules: (emi.amortizationSchedules || []).map((schedule) =>
+                    mapScheduleRow({
+                        month: schedule.month,
+                        billDate: schedule.billDate,
+                        emi: toScheduleNumber(schedule.emi),
+                        interest: toScheduleNumber(schedule.interest),
+                        principalPaid: toScheduleNumber(schedule.principalPaid),
+                        balance: toScheduleNumber(schedule.balance),
+                        gst: schedule.gst,
+                    })
+                ),
             });
         });
 
@@ -206,17 +290,19 @@ export class EmiService {
                     billDate: new Date(emi.billDate),
                     endDate: new Date(emi.endDate),
                     isOwner: false,
-                    permission: permission as 'read' | 'write',
+                    permission,
                     sharedWith: [],
-                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
-                        month: schedule.month,
-                        billDate: schedule.billDate,
-                        emi: schedule.emi,
-                        interest: schedule.interest,
-                        principalPaid: schedule.principalPaid,
-                        balance: schedule.balance,
-                        gst: schedule.gst,
-                    })),
+                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule) =>
+                        mapScheduleRow({
+                            month: schedule.month,
+                            billDate: schedule.billDate,
+                            emi: toScheduleNumber(schedule.emi),
+                            interest: toScheduleNumber(schedule.interest),
+                            principalPaid: toScheduleNumber(schedule.principalPaid),
+                            balance: toScheduleNumber(schedule.balance),
+                            gst: schedule.gst,
+                        })
+                    ),
                 })
             );
             return acc;
@@ -237,15 +323,17 @@ export class EmiService {
                     isOwner: false,
                     permission: undefined, // Split participants don't have share permissions
                     sharedWith: [],
-                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule: ScheduleData) => ({
-                        month: schedule.month,
-                        billDate: schedule.billDate,
-                        emi: schedule.emi,
-                        interest: schedule.interest,
-                        principalPaid: schedule.principalPaid,
-                        balance: schedule.balance,
-                        gst: schedule.gst,
-                    })),
+                    amortizationSchedules: (emi.amortizationSchedules || []).map((schedule) =>
+                        mapScheduleRow({
+                            month: schedule.month,
+                            billDate: schedule.billDate,
+                            emi: toScheduleNumber(schedule.emi),
+                            interest: toScheduleNumber(schedule.interest),
+                            principalPaid: toScheduleNumber(schedule.principalPaid),
+                            balance: toScheduleNumber(schedule.balance),
+                            gst: schedule.gst,
+                        })
+                    ),
                 })
             );
             return acc;
@@ -272,12 +360,13 @@ export class EmiService {
                 .in('emiId', allEmiIds);
 
             // Group splits by emiId
-            splitsByEmiId = (allSplits || []).reduce((acc: Record<string, IEmiSplit[]>, split: IEmiSplit) => {
-                if (!acc[split.emiId]) {
-                    acc[split.emiId] = [];
+            splitsByEmiId = (allSplits || []).reduce<Record<string, IEmiSplit[]>>((acc, split) => {
+                const mapped = mapSplitRow(split);
+                if (!acc[mapped.emiId]) {
+                    acc[mapped.emiId] = [];
                 }
 
-                acc[split.emiId].push(split);
+                acc[mapped.emiId].push(mapped);
                 return acc;
             }, {});
         }
@@ -391,16 +480,7 @@ export class EmiService {
         await supabase.from('amortizationSchedules').delete().eq('emiId', emi.id);
 
         // Insert updated schedule
-        const scheduleInserts = emi.amortizationSchedules.map((schedule) => ({
-            emiId: emi.id,
-            month: schedule.month,
-            billDate: schedule.billDate,
-            emi: schedule.emi,
-            interest: schedule.interest,
-            principalPaid: schedule.principalPaid,
-            balance: schedule.balance,
-            gst: schedule.gst,
-        }));
+        const scheduleInserts = emi.amortizationSchedules.map((schedule) => toScheduleInsert(emi.id, schedule));
 
         const { error: scheduleError } = await supabase.from('amortizationSchedules').insert(scheduleInserts);
 
@@ -452,16 +532,7 @@ export class EmiService {
         if (deleteError) throw deleteError;
 
         const allScheduleInserts = emiList.flatMap((emi) =>
-            emi.amortizationSchedules.map((schedule) => ({
-                emiId: emi.id,
-                month: schedule.month,
-                billDate: schedule.billDate,
-                emi: schedule.emi,
-                interest: schedule.interest,
-                principalPaid: schedule.principalPaid,
-                balance: schedule.balance,
-                gst: schedule.gst,
-            }))
+            emi.amortizationSchedules.map((schedule) => toScheduleInsert(emi.id, schedule))
         );
 
         const { error: scheduleError } = await supabase.from('amortizationSchedules').insert(allScheduleInserts);

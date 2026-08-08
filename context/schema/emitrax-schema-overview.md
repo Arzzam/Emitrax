@@ -57,6 +57,8 @@ One row per month of one EMI: `"emiId"`, `month`, `billDate`, `emi`,
 ### `emiShares` — `supabase_shared_emi_schema.sql`
 
 Access grants. `"emiId"`, `"sharedWithUserId"`, `permission`
+(`public.emi_share_permission` enum: `read` | `write` — see
+`supabase_emi_share_permission_enum.sql`).
 (`'read' | 'write'`), `"createdBy"`. Unique on
 `("emiId", "sharedWithUserId")`, with a no-self-share check.
 
