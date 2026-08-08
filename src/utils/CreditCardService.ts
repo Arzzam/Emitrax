@@ -1,5 +1,6 @@
 import store from '@/store/store';
 import { supabase } from '@/supabase/supabase';
+import { TablesUpdate } from '@/supabase/supabase.types';
 import {
     CreateCardInput,
     CreateIssuerInput,
@@ -146,7 +147,7 @@ export class CreditCardService {
     }
 
     static async updateIssuer({ id, ...changes }: UpdateIssuerInput): Promise<ICreditCardIssuer> {
-        const payload: Record<string, unknown> = {};
+        const payload: TablesUpdate<'cc_issuers'> = {};
         if (changes.name !== undefined) payload.name = changes.name.trim();
         if (changes.color !== undefined) payload.color = changes.color;
         if (changes.sortOrder !== undefined) payload.sortOrder = changes.sortOrder;
@@ -200,7 +201,7 @@ export class CreditCardService {
      * whoever owns the account, so the whole history follows the card.
      */
     static async updateCard({ id, ...changes }: UpdateCardInput): Promise<ICreditCard> {
-        const payload: Record<string, unknown> = {};
+        const payload: TablesUpdate<'cc_cards'> = {};
         if (changes.issuerId !== undefined) payload.issuerId = changes.issuerId;
         if (changes.name !== undefined) payload.name = changes.name.trim();
         if (changes.last4 !== undefined) payload.last4 = changes.last4?.trim() || null;

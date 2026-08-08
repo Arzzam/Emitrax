@@ -25,6 +25,7 @@ import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useDeleteEmi, useEmis } from '@/hooks/useEmi';
 import { calculateProcessingFeeCharges, calculateTotalLoanOutflow } from '@/utils/calculation';
+import { getRepaymentProgress, prorateRepaymentProgress } from '@/utils/emiRepayment.calc';
 import { EmiService } from '@/utils/EMIService';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
@@ -35,6 +36,7 @@ import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
 import FormModal from '@/components/emi/AddButton';
 import { ExportDropdown } from '@/components/emi/ExportDropdown';
+import RepaymentProgressCard from '@/components/emi/RepaymentProgressCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,9 +116,6 @@ const EMIDetails = () => {
         billDate,
         emi,
         totalInterest,
-        totalPaidEMIs,
-        remainingBalance,
-        remainingTenure,
         endDate,
         isCompleted,
         totalGST,
@@ -151,13 +150,20 @@ const EMIDetails = () => {
         processingFeeGst,
     });
 
+    // Instalment progress and outstanding figures are derived from the
+    // amortization schedule rather than read off the persisted totalPaidEMIs /
+    // remainingBalance columns: the former is frozen at the last write and goes
+    // stale, the latter folds the whole loan's GST into a principal figure.
+    const progress = getRepaymentProgress(currentData);
+
     // Calculate user's portion of EMI details if they have a split
     const myPrincipal = hasMySplit ? (principal * splitPercentage) / 100 : principal;
     const myTotalLoan = hasMySplit ? (effectiveTotalLoan * splitPercentage) / 100 : effectiveTotalLoan;
     const myEMI = hasMySplit ? mySplitAmount! : emi;
     const myTotalInterest = hasMySplit ? (totalInterest * splitPercentage) / 100 : totalInterest;
     const myTotalGST = hasMySplit ? (totalGST * splitPercentage) / 100 : totalGST;
-    const myRemainingBalance = hasMySplit ? (remainingBalance * splitPercentage) / 100 : remainingBalance;
+    const myProgress = hasMySplit ? prorateRepaymentProgress(progress, splitPercentage) : progress;
+    const myRemainingBalance = myProgress.remaining.total;
 
     const processingFeeValue = processingFee ?? 0;
     const processingFeeGstRate = processingFeeGst ?? 0;
@@ -219,7 +225,10 @@ const EMIDetails = () => {
         });
     };
 
-    const emiWithGST = emi + amortizationSchedules[tenure - remainingTenure]?.gst || 0;
+    // GST of the next instalment due. Parenthesised deliberately: `a + b?.c || 0`
+    // binds as `(a + b?.c) || 0`, so a completed EMI indexed past the end of the
+    // schedule collapsed to zero instead of falling back to the bare EMI.
+    const emiWithGST = emi + (amortizationSchedules[progress.paidInstallments]?.gst ?? 0);
 
     return (
         <>
@@ -415,12 +424,14 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    {totalPaidEMIs}/{tenure}
+                                    {progress.paidInstallments}/{progress.totalInstallments}
                                 </div>
                                 <div className="mt-2 h-2 w-full bg-secondary rounded-full">
                                     <div
                                         className="h-2 bg-primary rounded-full"
-                                        style={{ width: `${(totalPaidEMIs / tenure) * 100}%` }}
+                                        style={{
+                                            width: `${progress.totalInstallments > 0 ? (progress.paidInstallments / progress.totalInstallments) * 100 : 0}%`,
+                                        }}
                                     />
                                 </div>
                             </CardContent>
@@ -586,6 +597,8 @@ const EMIDetails = () => {
                         </CardContent>
                     </Card>
 
+                    <RepaymentProgressCard emi={currentData} />
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <Card>
                             <CardHeader>
@@ -673,27 +686,44 @@ const EMIDetails = () => {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Remaining Balance</span>
+                                    <span className="text-sm text-muted-foreground">Outstanding Principal</span>
                                     <div className="text-right">
                                         <span className="font-medium">
                                             {formatCurrencyAmount(
-                                                hasMySplit && !isOwner ? myRemainingBalance : remainingBalance
+                                                hasMySplit && !isOwner
+                                                    ? myProgress.remaining.principal
+                                                    : progress.remaining.principal
                                             )}
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of {formatCurrencyAmount(remainingBalance)}
+                                                of {formatCurrencyAmount(progress.remaining.principal)}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Remaining Outflow</span>
+                                    <div className="text-right">
+                                        <span className="font-medium">
+                                            {formatCurrencyAmount(
+                                                hasMySplit && !isOwner ? myRemainingBalance : progress.remaining.total
+                                            )}
+                                        </span>
+                                        {hasMySplit && !isOwner && (
+                                            <span className="text-xs text-muted-foreground block">
+                                                of {formatCurrencyAmount(progress.remaining.total)}
                                             </span>
                                         )}
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Total Paid EMIs</span>
-                                    <span className="font-medium">{totalPaidEMIs}</span>
+                                    <span className="font-medium">{progress.paidInstallments}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Remaining Tenure</span>
-                                    <span className="font-medium">{remainingTenure} months</span>
+                                    <span className="font-medium">{progress.remainingInstallments} months</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Total Tenure</span>
@@ -825,7 +855,10 @@ const EMIDetails = () => {
                                         const pct = split.splitPercentage / 100;
                                         const splitEmiAmount = split.splitAmount ?? emi * pct;
                                         const splitLoanShare = effectiveTotalLoan * pct;
-                                        const splitRemainingShare = remainingBalance * pct;
+                                        const splitRemainingShare = prorateRepaymentProgress(
+                                            progress,
+                                            split.splitPercentage
+                                        ).remaining.total;
                                         const isCurrentUser = mySplit?.id === split.id;
                                         const displayName =
                                             (split.participantName ||

@@ -265,8 +265,8 @@ const SplitEMI = () => {
                 {
                     emiId: id,
                     splitId: split.id,
-                    userId: split.userId,
-                    email: split.participantEmail,
+                    userId: split.userId ?? undefined,
+                    email: split.participantEmail ?? undefined,
                 },
                 {
                     onSuccess: () => {

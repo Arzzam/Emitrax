@@ -72,10 +72,12 @@ export class EmiShareService {
             errorToast(
                 'User not found. Please ensure the user has an account and you have a profiles table or RPC function set up. Alternatively, use shareEmiByUserId if you have the user ID.'
             );
+            return;
         }
 
         if (sharedWithUserId === userId) {
             errorToast('Cannot share EMI with yourself');
+            return;
         }
 
         // Check if share already exists
@@ -88,6 +90,7 @@ export class EmiShareService {
 
         if (existingShare) {
             errorToast('EMI is already shared with this user');
+            return;
         }
 
         // Create the share
@@ -237,7 +240,19 @@ export class EmiShareService {
 
         if (userProfilesError) errorToast('Failed to get EMI shares');
 
-        return userProfiles || [];
+        return (userProfiles || []).map((row) => ({
+            id: row.id,
+            emiId: row.emiId,
+            sharedWithUserId: row.sharedWithUserId,
+            permission: row.permission === 'write' ? 'write' : 'read',
+            createdBy: row.createdBy,
+            createdAt: row.createdAt ?? '',
+            user_profiles: row.user_profiles
+                ? {
+                      email: row.user_profiles.email ?? '',
+                  }
+                : undefined,
+        }));
     }
 
     /**
@@ -266,7 +281,14 @@ export class EmiShareService {
             errorToast('Failed to get shared EMIs');
         }
 
-        return data || [];
+        return (data || []).map((row) => ({
+            id: row.id,
+            emiId: row.emiId,
+            sharedWithUserId: row.sharedWithUserId,
+            permission: row.permission === 'write' ? 'write' : 'read',
+            createdBy: row.createdBy,
+            createdAt: row.createdAt ?? '',
+        }));
     }
 
     /**

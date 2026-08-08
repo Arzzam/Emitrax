@@ -128,7 +128,24 @@ export class EmiSplitService {
             throw error;
         }
 
-        return data || [];
+        return (data || []).map((row) => ({
+            id: row.id,
+            emiId: row.emiId,
+            userId: row.userId ?? undefined,
+            participantName: row.participantName ?? undefined,
+            participantEmail: row.participantEmail ?? undefined,
+            splitPercentage: row.splitPercentage,
+            splitAmount: row.splitAmount ?? 0,
+            isExternal: row.isExternal,
+            createdBy: row.createdBy,
+            createdAt: row.createdAt ?? '',
+            updatedAt: row.updatedAt ?? '',
+            user_profiles: row.user_profiles
+                ? {
+                      email: row.user_profiles.email ?? '',
+                  }
+                : undefined,
+        }));
     }
 
     /**
