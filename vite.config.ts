@@ -38,6 +38,17 @@ export default defineConfig(({ mode }) => {
         },
         build: {
             chunkSizeWarningLimit: 500,
+            rollupOptions: {
+                output: {
+                    manualChunks: {
+                        'vendor-react': ['react', 'react-dom', 'react-router'],
+                        'vendor-supabase': ['@supabase/supabase-js'],
+                        'vendor-tanstack': ['@tanstack/react-query', '@tanstack/react-form', 'radix-ui'],
+                        'vendor-redux': ['redux', 'react-redux', 'redux-persist', '@rematch/core'],
+                        'vendor-dates': ['date-fns', 'react-day-picker'],
+                    },
+                },
+            },
         },
         test: {
             environment: 'node',

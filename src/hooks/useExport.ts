@@ -2,8 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { IEmi } from '@/types/emi.types';
 import { DEFAULT_EXPORT_CONFIG } from '@/types/export.types';
-import { exportEmiToExcel } from '@/utils/export/excel/excelExport';
-import { exportEmiToPdf } from '@/utils/export/pdf/pdfExport';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
 import { useAccountDetails } from './useAccount';
@@ -25,6 +23,10 @@ export function useExport(emi: IEmi | null) {
         if (!emi) return;
         setIsExportingPdf(true);
         try {
+            // Dynamically imported so `@react-pdf/renderer` (large) only loads
+            // when the user actually requests a PDF, keeping it out of the
+            // EMI details page's initial chunk.
+            const { exportEmiToPdf } = await import('@/utils/export/pdf/pdfExport');
             await exportEmiToPdf({ emi, currencyPrefs, exportConfig });
             successToast('PDF exported successfully.');
         } catch (e) {
@@ -39,6 +41,9 @@ export function useExport(emi: IEmi | null) {
         if (!emi) return;
         setIsExportingExcel(true);
         try {
+            // Dynamically imported so `exceljs` (large) only loads when the
+            // user actually requests an Excel file.
+            const { exportEmiToExcel } = await import('@/utils/export/excel/excelExport');
             await exportEmiToExcel({ emi, currencyPrefs, exportConfig });
             successToast('Excel file exported successfully.');
         } catch (e) {
