@@ -1,5 +1,4 @@
-import { Link } from 'react-router';
-import { BadgeCheckIcon, ChevronsUpDown, LogInIcon, LogOutIcon } from 'lucide-react';
+import { ChevronsUpDown, LogInIcon, LogOutIcon } from 'lucide-react';
 
 import { useLogin, useLogout, useUser } from '@/hooks/useUser';
 
@@ -58,7 +57,7 @@ const getInitials = (value: string): string => {
  */
 const SidebarUser = () => {
     const { data: userData } = useUser();
-    const { isMobile, setOpenMobile } = useSidebar();
+    const { isMobile } = useSidebar();
     const loginMutation = useLogin();
     const logoutMutation = useLogout();
 
@@ -123,13 +122,6 @@ const SidebarUser = () => {
                                 <span className="truncate text-xs text-muted-foreground">{email}</span>
                             </div>
                         </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                            <Link to="/account" onClick={() => isMobile && setOpenMobile(false)}>
-                                <BadgeCheckIcon />
-                                My account
-                            </Link>
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                             variant="destructive"
