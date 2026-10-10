@@ -273,6 +273,23 @@ export class CreditCardService {
         return (data || []).map((row) => mapEntryRow(row as Record<string, unknown>));
     }
 
+    /** Every payment entry, unbounded by financial year. Used by the data export. */
+    static async getAllPaymentEntries(): Promise<ICreditCardPaymentEntry[]> {
+        const userId = await requireUserId();
+
+        const { data, error } = await supabase
+            .from('cc_payment_entries')
+            .select('*')
+            .eq('userId', userId)
+            .order('periodMonth', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data || []).map((row) => mapEntryRow(row as Record<string, unknown>));
+    }
+
     /**
      * Upserts a cell. An entry that carries no information (no amount, no cash,
      * no note) is deleted instead, so the table stays sparse and clearing a
@@ -390,6 +407,23 @@ export class CreditCardService {
         return mapTrackerYearRow(data as Record<string, unknown>);
     }
 
+    /** Every tracker year row, with its notes and threshold overrides. Used by the data export. */
+    static async getAllTrackerYears(): Promise<ICreditCardTrackerYear[]> {
+        const userId = await requireUserId();
+
+        const { data, error } = await supabase
+            .from('cc_tracker_years')
+            .select('*')
+            .eq('userId', userId)
+            .order('financialYear', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data || []).map((row) => mapTrackerYearRow(row as Record<string, unknown>));
+    }
+
     /** Financial years that already hold data, so the selector can offer them. */
     // --- Bill entries -------------------------------------------------------
 
@@ -403,6 +437,23 @@ export class CreditCardService {
             .eq('userId', userId)
             .gte('statementMonth', startDate)
             .lt('statementMonth', endDateExclusive)
+            .order('statementMonth', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data || []).map((row) => mapBillEntryRow(row as Record<string, unknown>));
+    }
+
+    /** Every bill entry, unbounded by financial year. Used by the data export. */
+    static async getAllBillEntries(): Promise<ICreditCardBillEntry[]> {
+        const userId = await requireUserId();
+
+        const { data, error } = await supabase
+            .from('cc_bill_entries')
+            .select('*')
+            .eq('userId', userId)
             .order('statementMonth', { ascending: true });
 
         if (error) {

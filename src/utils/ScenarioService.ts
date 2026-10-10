@@ -115,21 +115,39 @@ const resolveUserId = async (): Promise<string> => {
     return user.user?.id || '';
 };
 
+const SCENARIO_SELECT = `
+    *,
+    loan_scenario_breakdowns (
+        component,
+        label,
+        amount,
+        sortOrder
+    )
+`;
+
+const mapScenarioRows = (rows: unknown[] | null): ILoanScenario[] =>
+    (rows || []).map((row) => {
+        const nested = (
+            row as {
+                loan_scenario_breakdowns?: Array<{
+                    component: string;
+                    label: string;
+                    amount: number;
+                    sortOrder: number;
+                }>;
+            }
+        ).loan_scenario_breakdowns;
+
+        const breakdowns = (nested || []).map(mapBreakdownRow).sort((a, b) => a.sortOrder - b.sortOrder);
+
+        return mapScenarioRow(row as Record<string, unknown>, breakdowns);
+    });
+
 export class ScenarioService {
     static async getScenariosByEmiId(emiId: string): Promise<ILoanScenario[]> {
         const { data, error } = await supabase
             .from('loan_scenarios')
-            .select(
-                `
-                *,
-                loan_scenario_breakdowns (
-                    component,
-                    label,
-                    amount,
-                    sortOrder
-                )
-            `
-            )
+            .select(SCENARIO_SELECT)
             .eq('emiId', emiId)
             .order('createdAt', { ascending: false });
 
@@ -137,22 +155,30 @@ export class ScenarioService {
             throw error;
         }
 
-        return (data || []).map((row) => {
-            const nested = (
-                row as {
-                    loan_scenario_breakdowns?: Array<{
-                        component: string;
-                        label: string;
-                        amount: number;
-                        sortOrder: number;
-                    }>;
-                }
-            ).loan_scenario_breakdowns;
+        return mapScenarioRows(data);
+    }
 
-            const breakdowns = (nested || []).map(mapBreakdownRow).sort((a, b) => a.sortOrder - b.sortOrder);
+    /**
+     * Every scenario the user owns, in one round trip. Used by the data export,
+     * which would otherwise issue one query per EMI.
+     */
+    static async getAllScenarios(): Promise<ILoanScenario[]> {
+        const userId = await resolveUserId();
+        if (!userId) {
+            return [];
+        }
 
-            return mapScenarioRow(row as Record<string, unknown>, breakdowns);
-        });
+        const { data, error } = await supabase
+            .from('loan_scenarios')
+            .select(SCENARIO_SELECT)
+            .eq('userId', userId)
+            .order('createdAt', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        return mapScenarioRows(data);
     }
 
     static async createScenario(input: CreateLoanScenarioInput): Promise<ILoanScenario> {

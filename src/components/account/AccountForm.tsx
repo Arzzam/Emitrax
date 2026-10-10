@@ -16,6 +16,8 @@ import {
     NUMBER_FORMAT_OPTIONS,
 } from '@/validations/account.forms';
 
+import { DataExportSection } from '@/components/account/DataExportSection';
+
 import { Button } from '../ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '../ui/field';
 import { Input } from '../ui/input';
@@ -358,6 +360,8 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                             )}
                         </form.Field>
                     </section>
+
+                    <DataExportSection />
                 </div>
             </div>
         </form>
