@@ -111,6 +111,47 @@ export type Database = {
                     },
                 ];
             };
+            cc_card_limit_changes: {
+                Row: {
+                    cardId: string;
+                    createdAt: string | null;
+                    creditLimit: number;
+                    effectiveFrom: string;
+                    id: string;
+                    note: string | null;
+                    updatedAt: string | null;
+                    userId: string;
+                };
+                Insert: {
+                    cardId: string;
+                    createdAt?: string | null;
+                    creditLimit: number;
+                    effectiveFrom: string;
+                    id?: string;
+                    note?: string | null;
+                    updatedAt?: string | null;
+                    userId: string;
+                };
+                Update: {
+                    cardId?: string;
+                    createdAt?: string | null;
+                    creditLimit?: number;
+                    effectiveFrom?: string;
+                    id?: string;
+                    note?: string | null;
+                    updatedAt?: string | null;
+                    userId?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cc_card_limit_changes_cardid_fkey';
+                        columns: ['cardId'];
+                        isOneToOne: false;
+                        referencedRelation: 'cc_cards';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             cc_cards: {
                 Row: {
                     createdAt: string | null;

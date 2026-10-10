@@ -1,9 +1,12 @@
+import { format } from 'date-fns';
+
 import store from '@/store/store';
 import { supabase } from '@/supabase/supabase';
 import { TablesUpdate } from '@/supabase/supabase.types';
 import {
     CreateCardInput,
     CreateIssuerInput,
+    ICardLimitChange,
     ICreditCard,
     ICreditCardBillEntry,
     ICreditCardIssuer,
@@ -11,12 +14,14 @@ import {
     ICreditCardTrackerYear,
     IssuerColorToken,
     SaveBillEntryInput,
+    SaveLimitChangeInput,
     SavePaymentEntryInput,
     UpdateCardInput,
     UpdateIssuerInput,
 } from '@/types/creditCard.types';
 import { isEmptyBillEntry } from '@/utils/creditCardBills.calc';
 import { isEmptyPaymentEntry } from '@/utils/creditCardTracker.calc';
+import { resolveLimitOn } from '@/utils/creditCardUtilisation.calc';
 import { getFinancialYearForDate, getFinancialYearRange } from '@/utils/financialYear';
 
 const mapCardRow = (row: Record<string, unknown>): ICreditCard => ({
@@ -71,6 +76,17 @@ const mapBillEntryRow = (row: Record<string, unknown>): ICreditCardBillEntry => 
     minimumDue: row.minimumDue == null ? null : Number(row.minimumDue),
     statementDate: row.statementDate == null ? null : String(row.statementDate),
     dueDate: row.dueDate == null ? null : String(row.dueDate),
+    note: row.note == null ? null : String(row.note),
+    createdAt: String(row.createdAt),
+    updatedAt: String(row.updatedAt),
+});
+
+const mapLimitChangeRow = (row: Record<string, unknown>): ICardLimitChange => ({
+    id: String(row.id),
+    userId: String(row.userId),
+    cardId: String(row.cardId),
+    effectiveFrom: String(row.effectiveFrom),
+    creditLimit: Number(row.creditLimit),
     note: row.note == null ? null : String(row.note),
     createdAt: String(row.createdAt),
     updatedAt: String(row.updatedAt),
@@ -192,7 +208,21 @@ export class CreditCardService {
             throw error;
         }
 
-        return mapCardRow(data as Record<string, unknown>);
+        const card = mapCardRow(data as Record<string, unknown>);
+
+        // An opening limit must exist in the history as well as on the card, or
+        // the utilisation view would find nothing to measure against until the
+        // user recorded a change by hand.
+        if (input.creditLimit != null) {
+            await CreditCardService.saveLimitChange({
+                cardId: card.id,
+                effectiveFrom: format(new Date(), 'yyyy-MM-dd'),
+                creditLimit: input.creditLimit,
+                note: 'Opening limit',
+            });
+        }
+
+        return card;
     }
 
     /**
@@ -209,7 +239,7 @@ export class CreditCardService {
         if (changes.sortOrder !== undefined) payload.sortOrder = changes.sortOrder;
         if (changes.statementDay !== undefined) payload.statementDay = changes.statementDay;
         if (changes.dueDay !== undefined) payload.dueDay = changes.dueDay;
-        if (changes.creditLimit !== undefined) payload.creditLimit = changes.creditLimit;
+        // creditLimit is intentionally not settable here - see UpdateCardInput.
 
         const { data, error } = await supabase.from('cc_cards').update(payload).eq('id', id).select().single();
 
@@ -516,6 +546,143 @@ export class CreditCardService {
         if (error) {
             throw error;
         }
+    }
+
+    // --- Credit limit history -----------------------------------------------
+
+    /**
+     * Recomputes cc_cards."creditLimit" from the history.
+     *
+     * That column is a denormalised cache of "the limit as of today", and it is
+     * what every pre-existing consumer reads - aggregateBillsByIssuer, the bill
+     * summary gauge, the billing-cycle form. Every write to the history goes
+     * through here so the two can never disagree.
+     *
+     * Uses the same `resolveLimitOn` the utilisation calc uses, rather than a
+     * second "latest row" query, so the current limit is by construction the
+     * value the matrix would resolve for today.
+     */
+    private static async syncCurrentLimit(cardId: string): Promise<void> {
+        const changes = await CreditCardService.getLimitChangesForCard(cardId);
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        const { error } = await supabase
+            .from('cc_cards')
+            .update({ creditLimit: resolveLimitOn(changes, today) })
+            .eq('id', cardId);
+
+        if (error) {
+            throw error;
+        }
+    }
+
+    /** One card's limit history, ascending - the order every resolver assumes. */
+    static async getLimitChangesForCard(cardId: string): Promise<ICardLimitChange[]> {
+        const { data, error } = await supabase
+            .from('cc_card_limit_changes')
+            .select('*')
+            .eq('cardId', cardId)
+            .order('effectiveFrom', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data || []).map((row) => mapLimitChangeRow(row as Record<string, unknown>));
+    }
+
+    /**
+     * Every card's limit history in one round trip.
+     *
+     * The utilisation view needs history for all cards at once, and the table is
+     * tiny - a handful of rows per card over the life of the account - so this is
+     * cheaper than a query per card and is cached under one key.
+     */
+    static async getAllLimitChanges(): Promise<ICardLimitChange[]> {
+        const userId = await requireUserId();
+
+        const { data, error } = await supabase
+            .from('cc_card_limit_changes')
+            .select('*')
+            .eq('userId', userId)
+            .order('effectiveFrom', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data || []).map((row) => mapLimitChangeRow(row as Record<string, unknown>));
+    }
+
+    /**
+     * Upserts one dated limit change. Two changes on the same date are one
+     * change - the UNIQUE constraint is the conflict target.
+     */
+    static async saveLimitChange(input: SaveLimitChangeInput): Promise<ICardLimitChange> {
+        const userId = await requireUserId();
+
+        const { data, error } = await supabase
+            .from('cc_card_limit_changes')
+            .upsert(
+                {
+                    userId,
+                    cardId: input.cardId,
+                    effectiveFrom: input.effectiveFrom,
+                    creditLimit: input.creditLimit,
+                    note: input.note?.trim() || null,
+                },
+                { onConflict: 'cardId,effectiveFrom' }
+            )
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        await CreditCardService.syncCurrentLimit(input.cardId);
+
+        return mapLimitChangeRow(data as Record<string, unknown>);
+    }
+
+    /**
+     * Deleting the last remaining change leaves the card with no limit at all,
+     * which blanks its utilisation rather than falling back to a stale figure.
+     */
+    static async deleteLimitChange(id: string, cardId: string): Promise<void> {
+        const { error } = await supabase.from('cc_card_limit_changes').delete().eq('id', id);
+        if (error) {
+            throw error;
+        }
+
+        await CreditCardService.syncCurrentLimit(cardId);
+    }
+
+    /**
+     * One card with its issuer name, for the card detail page.
+     *
+     * A dedicated read rather than searching `getIssuersWithCards`, so landing
+     * directly on /credit-cards/cards/:id does not depend on the issuer list
+     * having been fetched first.
+     */
+    static async getCardById(id: string): Promise<{ card: ICreditCard; issuerName: string } | null> {
+        const { data, error } = await supabase
+            .from('cc_cards')
+            .select('*, cc_issuers(name)')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+        if (!data) {
+            return null;
+        }
+
+        const row = data as Record<string, unknown>;
+        const issuer = row.cc_issuers as { name?: unknown } | null;
+
+        return { card: mapCardRow(row), issuerName: issuer?.name == null ? '' : String(issuer.name) };
     }
 
     // --- Financial years ----------------------------------------------------

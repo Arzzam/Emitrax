@@ -1,16 +1,17 @@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export type TrackerView = 'payments' | 'bills' | 'both';
+export type TrackerView = 'payments' | 'bills' | 'both' | 'utilisation';
 
 const VIEWS: { value: TrackerView; label: string }[] = [
     { value: 'payments', label: 'Payments' },
     { value: 'bills', label: 'Bills' },
     { value: 'both', label: 'Both' },
+    { value: 'utilisation', label: 'Utilisation' },
 ];
 
 /** Falls back to payments on anything unrecognised - this comes off the URL. */
 export function parseTrackerView(raw: string | null): TrackerView {
-    return raw === 'bills' || raw === 'both' ? raw : 'payments';
+    return raw === 'bills' || raw === 'both' || raw === 'utilisation' ? raw : 'payments';
 }
 
 const TrackerViewSelector = ({ value, onChange }: { value: TrackerView; onChange: (next: TrackerView) => void }) => (

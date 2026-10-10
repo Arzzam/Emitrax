@@ -7,7 +7,21 @@
 
 ## Current Status
 
-**Last completed (UI fixes):**
+**Last completed (card pages + credit-limit utilisation):** Added
+`/credit-cards/cards` and `/credit-cards/cards/:id`, a dated credit-limit
+history table, and a fourth `Utilisation` view on the tracker grid —
+headlined by an overall figure computed the way a credit bureau does.
+**The migration has not been run yet** — see the entry below.
+
+**Previously completed (JSON data export):** Added a machine-readable JSON
+export — per-EMI from the details page's Export dropdown, and
+whole-account from Account Settings. Built for handing the dataset to a
+spreadsheet or an AI assistant, so it carries ownership attribution:
+an EMI split 100% to a friend or family member is classified
+`on_behalf` and contributes nothing to the user's own totals, while an
+unsplit EMI is wholly theirs. See the entry below.
+
+**Earlier (UI fixes):**
 
 - `CreditCardGrid.tsx` — fixed the frozen "Month" column bleeding scrolled
   columns through its translucent row stripe during horizontal scroll. The
@@ -19,7 +33,7 @@
   only identity + Sign out. Dropped unused `Link`, `BadgeCheckIcon`, and
   `setOpenMobile`.
 
-**Previously completed:** Added idempotent migration
+**Before that:** Added idempotent migration
 `supabase/migrations/supabase_emi_share_permission_enum.sql` so
 `emiShares.permission` becomes Postgres enum `emi_share_permission`
 (`read` | `write`) and CLI-generated types stop typing it as `string`.
@@ -71,6 +85,8 @@ the project's life, so earlier entries are a summary rather than a log.
 ### Export
 
 - PDF via `@react-pdf/renderer`, Excel via `exceljs`
+- JSON via `src/utils/export/json/` — per-EMI and whole-account, with
+  ownership attribution and a `glossary` block for external consumers
 
 ### Account preferences
 
@@ -208,6 +224,224 @@ figure derives from the stored amortization schedule.
 
 ---
 
+### JSON data export (per-EMI and whole-account)
+
+Motivation: making the dataset analysable outside the app — by a
+spreadsheet, or by an AI assistant — without exposing the database. The
+PDF and Excel exports are presentation formats and lose structure; this
+one is the structured counterpart.
+
+- **Ownership attribution is the point of the feature.**
+  `src/utils/emiOwnership.calc.ts` answers "whose loan is this?" in four
+  modes: `sole` (unsplit, wholly the user's), `shared` (the user carries
+  part), `on_behalf` (the user owns and pays the loan but split 100% of
+  it to other people — the money leaves their account, the liability is
+  not theirs), `observer` (someone else's loan, visible via a share).
+  Without this, a card used for family purchases inflates the user's own
+  debt figure by the entire amount.
+- **Two rules the attribution encodes.** An unsplit loan sits entirely
+  with its owner — absence of a split row means 100%, not 0%. And the
+  owner absorbs whatever percentage no split row claims, so splitting 40%
+  to a friend and never adding a row for yourself still leaves you the
+  other 60%. That second rule applies only to the owner: RLS lets a mere
+  participant see just their own row, so an incomplete set there means
+  "hidden", reported through `isPartialView`.
+- **Summary buckets partition every visible rupee exactly once:** `mine`,
+  `financedForOthers` (loans the user owns but others carry), `observed`
+  (loans someone else owns). `ownedGross` is the whole-loan total across
+  owned loans and deliberately overlaps the first two. A
+  `summary.participants` roll-up answers "who owes me what" across all
+  loans, keyed by the existing `getSplitParticipantKey`.
+- **The document carries a `glossary`.** The file's whole purpose is to
+  be read by something that has never seen this codebase, so the
+  non-obvious semantics — `on_behalf`, the upfront processing fee sitting
+  wholly on the paid side, statement month vs payment month — ship inside
+  the file rather than living only in these docs.
+- Amortization money arrives from Supabase as strings (`ScheduleData`);
+  the export coerces to numbers and derives `isPaid` from the calendar
+  via `getRepaymentProgress`, not from the stale stored flag.
+- Credit card entries are denormalised with `cardName` / `issuerName` /
+  `financialYear` so a row reads on its own.
+- **Reused rather than reimplemented:** `getRepaymentProgress`,
+  `prorateRepaymentProgress` and `getParticipantRepaymentBreakdown` do
+  all the ledger math. `buildParticipants` resolves `mySplit` itself
+  instead of trusting the field, so the builder does not depend on which
+  service hydrated the record.
+- **Placement:** per-EMI JSON joins PDF/Excel in `ExportDropdown`;
+  whole-account lives in Account Settings beside Export Templates, since
+  it is an account-level operation and the dashboard is already dense.
+  Its reads are imperative (`Promise.all` over the services, EMIs through
+  `queryClient.fetchQuery` on the existing `['emis']` key) so opening
+  Settings does not fetch scenarios and card data for nothing.
+- Unlike PDF and Excel, `jsonExport` is statically imported — it is plain
+  mapping code with no heavy dependency to keep out of the chunk.
+- **New service methods:** `ScenarioService.getAllScenarios()`,
+  `CreditCardService.getAllPaymentEntries()` / `getAllBillEntries()` /
+  `getAllTrackerYears()` — one round trip each instead of one per EMI or
+  per financial year. `getScenariosByEmiId` was refactored onto a shared
+  `SCENARIO_SELECT` and `mapScenarioRows`.
+- **Files added:** `src/utils/emiOwnership.calc.ts` (+ test),
+  `src/types/dataExport.types.ts`,
+  `src/utils/export/json/buildExportDocument.ts` (+ test),
+  `src/utils/export/json/jsonExport.ts`, `src/hooks/useDataExport.ts`,
+  `src/components/account/DataExportSection.tsx`.
+- **Files changed:** `src/hooks/useExport.ts`,
+  `src/components/emi/ExportDropdown.tsx`,
+  `src/components/account/AccountForm.tsx`,
+  `src/utils/ScenarioService.ts`, `src/utils/CreditCardService.ts`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (172 passing, up from 161).
+- **Next step:** the `IEmi` domain type still has no home for
+  `emiPartPayments`, which exists in the DB and in
+  `supabase.types.ts` but has no app code — the export skips it. Fold it
+  in when part payments are actually built.
+
+---
+
+### Card pages + credit-limit utilisation
+
+Two asks in one module: manage cards on a real page rather than in a side
+sheet, and show how much of each card's limit its statements actually
+used, month by month. Plan:
+`context/plan/credit-card-management-and-utilisation-plan.md`.
+
+- **BLOCKED ON A MIGRATION.**
+  `supabase/migrations/supabase_credit_card_limit_history_schema.sql`
+  has been written but **not run**. Paste it into the Supabase SQL
+  editor, check the verify query at the bottom, then the feature works
+  end to end. Until then the utilisation view renders empty, and the
+  limit history sheet errors on save — nothing else regresses, because
+  everything that existed before still reads `cc_cards."creditLimit"`.
+- **A credit limit is now dated, not a field.**
+  `cc_card_limit_changes` keys a limit by the day it took effect. Without
+  it, one limit increase silently restates every earlier month's
+  utilisation — and restates it _downward_, so a card that genuinely ran
+  at 70% last April would quietly render as 44%.
+- **The earliest recorded change extends backwards**, and the UI badges
+  it "Initial limit". A user who records only "raised to ₹4L on 1 Sep"
+  would otherwise blank Apr–Aug. The migration backfills one row per card
+  that already carried a limit, so this holds for existing data.
+- **`cc_cards."creditLimit"` is now a cache**, restated by
+  `CreditCardService.syncCurrentLimit` after every history write. To stop
+  it having two writers, `creditLimit` was **removed from
+  `UpdateCardInput`** — that turned the one existing bypass (the billing
+  cycle sheet) into a compile error rather than a value that quietly
+  stops sticking. `AddCardDialog` keeps it as the opening limit and
+  `createCard` seeds the first history row from it.
+- **Combined utilisation is a ratio of sums, never a mean of ratios.**
+  A ₹5,000 bill on a ₹50,000 limit and a ₹4,00,000 bill on a ₹5,00,000
+  limit average to 45%; the real figure is 73%. Test-covered.
+- **Every combined figure follows the credit-bureau rule**
+  (`buildBureauUtilisation`): every open card's limit sits in the
+  denominator whether or not it carried a balance — which is why closing
+  an unused card raises utilisation — and balances floor at zero, since
+  a credit balance reports as nil. This is what CIBIL computes, and it is
+  what the headline card, the grid's overall column and the per-bank
+  columns all show.
+- **An unentered card is assumed nil and the month is flagged partial.**
+  That assumption can only make utilisation look _better_ than reality,
+  which is the dangerous direction, so the card names how many were
+  assumed. A month where every card was assumed produces no figure at
+  all rather than a confident 0% drawn from absence, and future months
+  are skipped for the same reason.
+- **Any month can be inspected, not just the latest.** The overall card
+  carries a month selector held in the URL as `?month=`, its twelve-bar
+  trend doubles as the picker, and it defaults to the most recent month
+  with a figure. Changing the financial year drops the picked month, so
+  the URL can never name a month that is not on screen.
+- **`BureauMonth.contributions` breaks a month down by card** — floored
+  balance, limit, that card's own ratio, and whether the figure was
+  entered, a known nil, or assumed. Without it the partial-month warning
+  names a count but not a card to go and fix. It sums back to the
+  headline on both sides, asserted by a test.
+- **The strict matrix no longer computes combined figures at all.** It
+  survives purely as the source for per-card cells. Two combining
+  implementations on one screen would eventually disagree.
+- **A `no_statement` month now reads 0% per card, not blank.** Narrower
+  than the bill series, where "issued nothing" and "billed ₹0" are
+  genuinely different events — for utilisation both mean nothing was
+  owed, and blanking it would disagree with the bureau column that counts
+  it as a known nil.
+- **A deactivated card keeps counting while it holds data that year.**
+  Dropping it on deactivation would restate every past month upward,
+  which is the silent-history problem the dated limit table exists to
+  prevent. A real `closedAt` column is the correct fix if it matters.
+- **Absent ≠ zero.** Not entered, `no_statement`, and "no limit recorded"
+  all render as an em dash; `0%` means a real zero-balance statement. To
+  carry that through the shared grid, `CreditCardGrid` gained four
+  optional series props (`formatValue`, `formatTotal`, `getIssuerTotal`,
+  `footerLabel`), each defaulting to the existing money behaviour so
+  Payments and Bills render identically.
+- **Bills and payments still sit in separate columns** on the card page
+  and are never differenced, with the caption saying why. That page is
+  where the temptation is strongest.
+- **Files added:** `supabase/migrations/supabase_credit_card_limit_history_schema.sql`,
+  `src/utils/creditCardUtilisation.calc.ts` (+ test),
+  `src/router/pages/CreditCardList.tsx`,
+  `src/router/pages/CreditCardDetails.tsx`,
+  `src/components/creditCards/CardLimitHistorySheet.tsx`,
+  `src/components/creditCards/CardSummaryRow.tsx`,
+  `src/components/creditCards/IssuerUtilisationCard.tsx`,
+  `src/components/creditCards/BureauUtilisationCard.tsx`,
+  `src/components/creditCards/UtilisationCellValue.tsx`,
+  `src/components/creditCards/BillingCycleSheet.tsx` (extracted from
+  `IssuerCardManager` so the card page can reuse it).
+- **Files changed:** `src/types/creditCard.types.ts`,
+  `src/supabase/supabase.types.ts`, `src/utils/CreditCardService.ts`,
+  `src/hooks/useCreditCards.ts`, `src/utils/creditCardBills.calc.ts`
+  (exported `isoDayInMonth`), `src/components/creditCards/CreditCardGrid.tsx`,
+  `TrackerViewSelector.tsx`, `BillingCycleFields.tsx`,
+  `IssuerCardManager.tsx`, `src/router/pages/CreditCards.tsx`,
+  `src/router/HomeRouter.tsx`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (205 passing, up from 172). Not yet verified against the live database
+  — that needs the migration run first.
+- **Next step:** run the migration, then walk the manual assertions in
+  §12 of the plan. After that, the JSON export in
+  `buildExportDocument.ts` does not yet carry `cc_card_limit_changes`;
+  fold it in so an exported dataset can reproduce utilisation.
+
+---
+
+### Review fixes — card pages + utilisation
+
+Pre-commit review of the module above. App-code only, no schema change.
+
+- **A card opened mid-year no longer counts before it opened.**
+  `buildBureauUtilisation` now skips a card for a month that ends before
+  its earliest limit date unless a statement was entered for that month.
+  Before, adding a ₹4L card in October put ₹4L into every earlier
+  denominator — a real 80% June read as 16%. The backwards extension in
+  `resolveLimitOn` still applies to limit values on a card that existed.
+- **Per-issuer coverage counts come from the limit history**
+  (`BureauUtilisation.issuerCardsCounted` / `issuerCardsWithoutLimit`), not
+  from the busiest month — cards with limits but no statements were being
+  reported as "without a limit".
+- **"N of M months measured"** — `monthsMeasurable` excludes future months,
+  so the current year no longer always reads incomplete.
+- **Cache invalidation:** `useCreateCard` invalidates `limits()` (it seeds
+  the opening row); `useUpdateCard` invalidates `card(id)` so the details
+  page reflects deactivation and cycle edits immediately.
+- **`BillingCycleSheet` / `CardLimitHistorySheet` reset on every open**,
+  tracked against the `open` prop — Radix never fires `onOpenChange` for an
+  externally controlled open, so cancelled edits used to survive.
+- **`CreditCardGrid` series gained `zeroIsFigure`**, so a deactivated card
+  with a 0% peak stays visible while the bureau columns still count it.
+- Dropped the unused `monthLabelFor` prop from `CardSummaryRow`.
+- **Files changed:** `creditCardUtilisation.calc.ts` (+ test),
+  `creditCard.types.ts`, `useCreditCards.ts`, `BillingCycleSheet.tsx`,
+  `CardLimitHistorySheet.tsx`, `CreditCardGrid.tsx`,
+  `IssuerUtilisationCard.tsx`, `CardSummaryRow.tsx`, `CreditCards.tsx`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (208 passing).
+- **Deferred to the next iteration** (limit handling + card EMI tracking,
+  to be planned together): scheduled limits never becoming current
+  (`syncCurrentLimit` only runs on write), non-atomic `createCard`
+  (card + opening limit in two writes; retry can duplicate), and limit
+  history missing from the JSON export. See Open Questions.
+
+---
+
 ## Open Questions
 
 - **Sidebar "Settings" 404s.** `src/components/sidebar/nav.config.ts`
@@ -222,6 +456,15 @@ figure derives from the stored amortization schedule.
 - **Components are untested**, deliberately — `environment: 'node'` and
   no `@testing-library`. Revisit only if a UI regression proves
   expensive; the pure-logic tests are where the value is.
+- **Next iteration — limits + card EMIs, needs a plan.** A future-dated
+  limit never becomes `cc_cards."creditLimit"` once its date passes
+  (only rewritten on a history write). `createCard` is two non-atomic
+  writes (likely needs an RPC). Card-EMI conversions block limit and
+  should feed utilisation. Decide these together.
+- **The JSON export does not carry limit history.**
+  `buildExportDocument.ts` exports cards with their current
+  `creditLimit`, so an exported dataset cannot reproduce a past month's
+  utilisation. Add `cc_card_limit_changes` to it.
 - **Bill ↔ payment reconciliation** is designed but not built. The one
   column it will likely need is a manual `settledByPeriodMonth`
   override, for an auto-debit that slips past a weekend into the next
