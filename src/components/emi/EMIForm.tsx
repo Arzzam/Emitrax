@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from '@tanstack/react-form';
+import { useForm, useStore } from '@tanstack/react-form';
 import { format } from 'date-fns';
 import { CalendarIcon, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
 import * as z from 'zod';
@@ -11,8 +11,11 @@ import { cn } from '@/lib/utils';
 import { IComboboxOption } from '@/types/common.types';
 import { IEmi } from '@/types/emi.types';
 import { calculateEMI } from '@/utils/calculation';
+import { getCurrencyOptionLabel, getTaxLabels } from '@/utils/currencyRegistry';
 
+import CurrencyCombobox from '../account/CurrencyCombobox';
 import AmountInput from '../common/AmountInput';
+import ConfirmationModal from '../common/ConfirmationModal';
 import ToolTipWrapper from '../common/TooltipWrapper';
 import { Button } from '../ui/button';
 import { Calendar } from '../ui/calendar';
@@ -66,6 +69,7 @@ const formSchema = z
                 message: 'Processing fee tax rate must be between 0 and 100.',
             })
             .optional(),
+        currency: z.string().regex(/^[A-Z]{3}$/, { message: 'Pick a currency.' }),
         tag: z.string().optional(),
         notes: z.string().max(2000).optional(),
     })
@@ -88,12 +92,16 @@ const formSchema = z
 export type TFormValues = z.infer<typeof formSchema>;
 
 const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; data?: IEmi }) => {
-    const { currencySymbol, formatAmountInput, taxLabels } = useCurrencyPreferences();
+    const { accountCurrency } = useCurrencyPreferences();
+    // A new EMI starts in the account currency; an existing one keeps its own.
+    const initialCurrency = data?.currency || accountCurrency;
     // Tax on loan interest is an Indian norm; elsewhere the fields stay tucked
     // away unless asked for, or the EMI already carries a tax rate.
     const [showTaxFields, setShowTaxFields] = useState(
-        () => taxLabels.isCommon || (data?.gst ?? 0) > 0 || (data?.processingFeeGst ?? 0) > 0
+        () => getTaxLabels(initialCurrency).isCommon || (data?.gst ?? 0) > 0 || (data?.processingFeeGst ?? 0) > 0
     );
+    // Set while the relabel warning is open; saving waits for confirmation.
+    const [pendingValues, setPendingValues] = useState<EmiFormValues | null>(null);
     const { mutate: updateEmi, isPending: isUpdatingEmi } = useUpdateEmi();
     const { mutate: addEmi, isPending: isAddingEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
@@ -102,40 +110,60 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
 
     const isEdit = !!data;
 
+    const defaultValues = {
+        itemName: data?.itemName || '',
+        principal: data?.principal ?? undefined,
+        interestRate: data?.interestRate ?? undefined,
+        billDate: data?.billDate ? new Date(data.billDate) : undefined,
+        tenure: data?.tenure ?? undefined,
+        interestDiscount: data?.interestDiscount ?? undefined,
+        interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
+        gst: data?.gst ?? undefined,
+        processingFee: data?.processingFee ?? undefined,
+        processingFeeGst: data?.processingFeeGst ?? undefined,
+        currency: initialCurrency,
+        tag: data?.tag || '',
+        notes: data?.notes ?? '',
+    };
+
+    type EmiFormValues = typeof defaultValues;
+
     const form = useForm({
-        defaultValues: {
-            itemName: data?.itemName || '',
-            principal: data?.principal ?? undefined,
-            interestRate: data?.interestRate ?? undefined,
-            billDate: data?.billDate ? new Date(data.billDate) : undefined,
-            tenure: data?.tenure ?? undefined,
-            interestDiscount: data?.interestDiscount ?? undefined,
-            interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
-            gst: data?.gst ?? undefined,
-            processingFee: data?.processingFee ?? undefined,
-            processingFeeGst: data?.processingFeeGst ?? undefined,
-            tag: data?.tag || '',
-            notes: data?.notes ?? '',
-        },
+        defaultValues,
         validators: {
             onSubmit: formSchema as never,
         },
         onSubmit: ({ value }) => {
-            const values = { ...value };
-            if (!values.tag) {
-                values.tag = 'Personal';
+            // Changing an existing loan's currency relabels it, never converts it.
+            if (isEdit && value.currency !== data?.currency) {
+                setPendingValues(value);
+                return;
             }
-            const calculatedValues = calculateEMI(values as IEmi, data?.id);
-            if (calculatedValues) {
-                if (isEdit) {
-                    updateEmi(calculatedValues);
-                } else {
-                    addEmi(calculatedValues);
-                }
-                setIsOpen(false);
-            }
+            save(value);
         },
     });
+
+    const save = (value: EmiFormValues) => {
+        const values = { ...value };
+        if (!values.tag) {
+            values.tag = 'Personal';
+        }
+        // calculateEMI rounds at this currency's precision (3 decimals for KWD / BHD / OMR).
+        const calculatedValues = calculateEMI(values as IEmi, data?.id);
+        if (calculatedValues) {
+            if (isEdit) {
+                updateEmi(calculatedValues);
+            } else {
+                addEmi(calculatedValues);
+            }
+            setIsOpen(false);
+        }
+    };
+
+    const currencyValue = useStore(form.store, (state) => state.values.currency);
+    const { currencySymbol, formatAmountInput, formatCurrencyAmount, taxLabels } =
+        useCurrencyPreferences(currencyValue);
+    const previousCurrencyFormat = useCurrencyPreferences(data?.currency).formatCurrencyAmount;
 
     const handleTagChange = (value: string) => {
         form.setFieldValue('tag', value);
@@ -254,6 +282,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             );
                         }}
                     </form.Field>
+                    <form.Field
+                        name="currency"
+                        children={(field) => (
+                            <Field>
+                                <FieldLabel htmlFor={`${field.name}-input`}>Currency</FieldLabel>
+                                <CurrencyCombobox
+                                    id={`${field.name}-input`}
+                                    value={field.state.value}
+                                    isInvalid={!!field.state.meta.errors.length}
+                                    onChange={(next) => {
+                                        field.handleChange(next);
+                                        if (getTaxLabels(next).isCommon) setShowTaxFields(true);
+                                    }}
+                                />
+                                <FieldError errors={field.state.meta.errors} />
+                            </Field>
+                        )}
+                    />
                 </div>
             </section>
 
@@ -276,6 +322,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                         </ToolTipWrapper>
                                     </div>
                                     <AmountInput
+                                        currency={currencyValue}
                                         id={field.name}
                                         name={field.name}
                                         value={field.state.value}
@@ -429,6 +476,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                                     {interestDiscountType === 'amount' ? (
                                                         // The toggle on the right already shows the symbol.
                                                         <AmountInput
+                                                            currency={currencyValue}
                                                             id={field.name}
                                                             name={field.name}
                                                             hideSymbol
@@ -546,6 +594,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                         </ToolTipWrapper>
                                     </div>
                                     <AmountInput
+                                        currency={currencyValue}
                                         id={field.name}
                                         name={field.name}
                                         value={field.state.value}
@@ -641,6 +690,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                     {isEdit ? (isUpdatingEmi ? 'Updating...' : 'Update') : isAddingEmi ? 'Adding...' : 'Add'}
                 </Button>
             </div>
+
+            <ConfirmationModal
+                open={pendingValues !== null}
+                setOpen={(open) => {
+                    if (!open) setPendingValues(null);
+                }}
+                title={`Switch this EMI to ${getCurrencyOptionLabel(pendingValues?.currency ?? '')}?`}
+                description={`Its amounts won't be converted, only relabelled. ${previousCurrencyFormat(
+                    pendingValues?.principal ?? 0
+                )} will show as ${formatCurrencyAmount(pendingValues?.principal ?? 0)}.`}
+                confirmText="Switch currency"
+                onCancel={() => setPendingValues(null)}
+                onConfirm={() => {
+                    if (!pendingValues) return;
+                    save(pendingValues);
+                    setPendingValues(null);
+                }}
+            />
         </form>
     );
 };
