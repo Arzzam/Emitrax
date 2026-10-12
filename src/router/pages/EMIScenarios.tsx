@@ -38,9 +38,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 const EMIScenarios = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount } = useCurrencyPreferences(currentData?.currency);
     const [notFound, setNotFound] = useState(false);
 
     usePageTitle(currentData?.itemName ? `Scenarios · ${currentData.itemName}` : 'Foreclosure Scenarios');
@@ -280,6 +280,7 @@ const EMIScenarios = () => {
                             </CardHeader>
                             <CardContent>
                                 <ScenarioInputForm
+                                    currency={currentData?.currency}
                                     key={editingScenario?.id ?? 'new-scenario'}
                                     defaultName={`Foreclose ${currentData.itemName}`}
                                     minDate={dateBounds.minDate}
@@ -318,11 +319,16 @@ const EMIScenarios = () => {
                         {displayBreakdown && displayPayoff != null && displayComparison ? (
                             <>
                                 <PayoffBreakdown
+                                    currency={currentData?.currency}
                                     breakdown={displayBreakdown}
                                     totalPayoff={displayPayoff}
                                     formatCurrencyAmount={formatCurrencyAmount}
                                 />
-                                <ComparisonSummary formatCurrencyAmount={formatCurrencyAmount} {...displayComparison} />
+                                <ComparisonSummary
+                                    currency={currentData?.currency}
+                                    formatCurrencyAmount={formatCurrencyAmount}
+                                    {...displayComparison}
+                                />
                             </>
                         ) : (
                             <Card>

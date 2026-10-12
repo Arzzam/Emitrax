@@ -34,10 +34,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 const SplitEMI = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { formatCurrencyAmount, formatPercent } = useCurrencyPreferences();
     const { data: accountDetails } = useAccountDetails();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount, formatPercent } = useCurrencyPreferences(currentData?.currency);
     const [notFound, setNotFound] = useState(false);
 
     usePageTitle(currentData?.itemName ? `Split · ${currentData.itemName}` : 'Split EMI');
@@ -446,6 +446,7 @@ const SplitEMI = () => {
 
                                             return (
                                                 <SplitEmiEditRow
+                                                    currency={currentData?.currency}
                                                     key={split.id || split.tempId}
                                                     split={split}
                                                     index={index}

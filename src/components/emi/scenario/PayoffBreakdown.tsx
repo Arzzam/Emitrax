@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 
 interface PayoffBreakdownProps {
+    /** The loan's own currency; defaults to the account currency. */
+    currency?: string;
     title?: string;
     description?: string;
     breakdown: ScenarioBreakdownItem[];
@@ -13,13 +15,14 @@ interface PayoffBreakdownProps {
 }
 
 const PayoffBreakdown = ({
+    currency,
     title = 'Payoff breakdown',
     description = 'Amounts due if you foreclose on the selected date.',
     breakdown,
     totalPayoff,
     formatCurrencyAmount,
 }: PayoffBreakdownProps) => {
-    const { taxLabels } = useCurrencyPreferences();
+    const { taxLabels } = useCurrencyPreferences(currency);
     // Breakdown labels are written by the calc and stored with saved scenarios,
     // so "GST" is swapped for the account's tax label at render time.
     const labelFor = (item: ScenarioBreakdownItem) => item.label.replace(/\bGST\b/g, taxLabels.label);

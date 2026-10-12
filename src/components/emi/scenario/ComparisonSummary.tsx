@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ComparisonSummaryProps {
+    /** The loan's own currency; defaults to the account currency. */
+    currency?: string;
     formatCurrencyAmount: (amount: number) => string;
     baselineTotalOutflow: number;
     foreclosureTotalOutflow: number;
@@ -19,6 +21,7 @@ interface ComparisonSummaryProps {
 }
 
 const ComparisonSummary = ({
+    currency,
     formatCurrencyAmount,
     baselineTotalOutflow,
     foreclosureTotalOutflow,
@@ -29,7 +32,7 @@ const ComparisonSummary = ({
     confidence,
     assumptionNotes,
 }: ComparisonSummaryProps) => {
-    const { taxLabels } = useCurrencyPreferences();
+    const { taxLabels } = useCurrencyPreferences(currency);
     const isBreakeven = Math.abs(netSavings) < 0.005;
     const isSaving = netSavings > 0.005;
     const isLoss = netSavings < -0.005;

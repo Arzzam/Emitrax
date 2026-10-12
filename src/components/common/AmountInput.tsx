@@ -11,6 +11,8 @@ type AmountInputProps = Omit<ComponentProps<'input'>, 'value' | 'onChange' | 'ty
     onValueChange: (value: number | undefined) => void;
     /** Hide the currency symbol adornment, e.g. inside an already-labelled control. */
     hideSymbol?: boolean;
+    /** The loan's own currency on EMI-scoped forms; defaults to the account currency. */
+    currency?: string;
 };
 
 /**
@@ -29,13 +31,14 @@ const AmountInput = ({
     value,
     onValueChange,
     hideSymbol = false,
+    currency,
     title = SHORTHAND_HINT,
     className,
     onFocus,
     onBlur,
     ...props
 }: AmountInputProps) => {
-    const { currencySymbol, symbolPosition, parseAmountInput, formatAmountInput } = useCurrencyPreferences();
+    const { currencySymbol, symbolPosition, parseAmountInput, formatAmountInput } = useCurrencyPreferences(currency);
     const [draft, setDraft] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 

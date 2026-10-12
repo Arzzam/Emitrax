@@ -16,9 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const AmortizationSchedule = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { formatCurrencyAmount, taxLabels } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount, taxLabels } = useCurrencyPreferences(currentData?.currency);
     const { amortizationSchedules } = currentData || {};
     const [notFound, setNotFound] = useState(false);
 

@@ -18,6 +18,8 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ScenarioInputFormProps {
+    /** The loan's own currency; defaults to the account currency. */
+    currency?: string;
     defaultName: string;
     minDate: Date;
     maxDate: Date;
@@ -59,6 +61,7 @@ const buildInitialValues = (
 };
 
 const ScenarioInputForm = ({
+    currency,
     defaultName,
     minDate,
     maxDate,
@@ -69,7 +72,7 @@ const ScenarioInputForm = ({
     onSave,
     onCancelEdit,
 }: ScenarioInputFormProps) => {
-    const { taxLabels } = useCurrencyPreferences();
+    const { taxLabels } = useCurrencyPreferences(currency);
     const [calendarOpen, setCalendarOpen] = useState(false);
     const isEditing = !!editingScenario;
     const initialValues = useMemo(
@@ -194,6 +197,7 @@ const ScenarioInputForm = ({
                             <FieldLabel htmlFor="charge-amount">Flat charges</FieldLabel>
                             <AmountInput
                                 id="charge-amount"
+                                currency={currency}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
                                 // An emptied field means no flat charge, as before.

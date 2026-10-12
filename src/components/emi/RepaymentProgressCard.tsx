@@ -34,6 +34,7 @@ const LedgerPanel = ({
     format,
     showOriginationCharges,
     footnote,
+    currency,
 }: {
     title: string;
     components: RepaymentComponents;
@@ -41,8 +42,9 @@ const LedgerPanel = ({
     format: FormatCurrency;
     showOriginationCharges: boolean;
     footnote?: string;
+    currency?: string;
 }) => {
-    const { taxLabels } = useCurrencyPreferences();
+    const { taxLabels } = useCurrencyPreferences(currency);
     return (
         <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
@@ -81,8 +83,16 @@ const LedgerPanel = ({
     );
 };
 
-const ComponentSplitLine = ({ components, format }: { components: RepaymentComponents; format: FormatCurrency }) => {
-    const { taxLabels } = useCurrencyPreferences();
+const ComponentSplitLine = ({
+    components,
+    format,
+    currency,
+}: {
+    components: RepaymentComponents;
+    format: FormatCurrency;
+    currency?: string;
+}) => {
+    const { taxLabels } = useCurrencyPreferences(currency);
     return (
         <span className="block text-xs text-muted-foreground tabular-nums">
             {`P ${format(components.principal)} · I ${format(components.interest)} · ${taxLabels.label} ${format(components.gst)}`}
@@ -100,7 +110,7 @@ const ComponentSplitLine = ({ components, format }: { components: RepaymentCompo
  * stale and (in remainingBalance's case) mix GST into a principal figure.
  */
 const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
-    const { formatCurrencyAmount, formatPercent, taxLabels } = useCurrencyPreferences();
+    const { formatCurrencyAmount, formatPercent, taxLabels } = useCurrencyPreferences(emi.currency);
 
     const { progress, breakdown, scopedProgress } = useMemo(() => {
         const wholeLoan = getRepaymentProgress(emi);
@@ -172,6 +182,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     <LedgerPanel
+                        currency={emi.currency}
                         title="Paid to date"
                         components={scopedProgress.paid}
                         subtotalLabel="Total paid"
@@ -179,6 +190,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                         showOriginationCharges={hasOriginationCharges}
                     />
                     <LedgerPanel
+                        currency={emi.currency}
                         title="Remaining"
                         components={scopedProgress.remaining}
                         subtotalLabel="Total remaining"
@@ -244,6 +256,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                                                     {formatCurrencyAmount(participant.progress.paid.total)}
                                                 </span>
                                                 <ComponentSplitLine
+                                                    currency={emi.currency}
                                                     components={participant.progress.paid}
                                                     format={formatCurrencyAmount}
                                                 />
@@ -253,6 +266,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                                                     {formatCurrencyAmount(participant.progress.remaining.total)}
                                                 </span>
                                                 <ComponentSplitLine
+                                                    currency={emi.currency}
                                                     components={participant.progress.remaining}
                                                     format={formatCurrencyAmount}
                                                 />

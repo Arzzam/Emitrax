@@ -14,7 +14,7 @@ import { Card, CardContent, CardTitle } from '../ui/card';
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { formatCurrencyAmount, amountTitle, formatPercent } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle, formatPercent } = useCurrencyPreferences(props.currency);
 
     const {
         id,

@@ -46,10 +46,12 @@ const EMIDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { formatCurrencyAmount, amountTitle, formatPercent, taxLabels } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount, amountTitle, formatPercent, taxLabels } = useCurrencyPreferences(
+        currentData?.currency
+    );
     const [open, setOpen] = useState(false);
     const [notFound, setNotFound] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
