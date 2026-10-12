@@ -232,7 +232,7 @@ Each phase ships on its own and passes `yarn lint && yarn build && yarn test`.
 - 3-decimal currencies: shipped in Phase 6, forward-only.
 - Dates: not locale-driven.
 - Defaults: detected from the browser once, saved, then user-owned.
-- Shorthand input: deferred.
+- Shorthand input: shipped (k, L/lakh, cr/crore, M/mn/mio, B/bn/mrd, every number style).
 - Region-aware tax labels: in scope (Phase 5).
 - India-specific credit-card copy: stays as is; the credit-card module is India-only.
 - Per-EMI currency: a later iteration; see §9.

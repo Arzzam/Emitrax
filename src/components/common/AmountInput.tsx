@@ -23,10 +23,13 @@ type AmountInputProps = Omit<ComponentProps<'input'>, 'value' | 'onChange' | 'ty
  *
  * Grid cells do not use this - they commit on blur and own their drafts.
  */
+const SHORTHAND_HINT = 'Shortcuts: 50k, 1.5L, 2cr, 1.2M';
+
 const AmountInput = ({
     value,
     onValueChange,
     hideSymbol = false,
+    title = SHORTHAND_HINT,
     className,
     onFocus,
     onBlur,
@@ -46,6 +49,7 @@ const AmountInput = ({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
+                title={title}
                 className={cn('tabular-nums', className)}
                 value={displayValue}
                 onFocus={(event) => {

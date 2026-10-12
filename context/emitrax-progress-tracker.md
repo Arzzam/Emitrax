@@ -569,7 +569,7 @@ Pre-commit review of the module above. App-code only, no schema change.
 - **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
   (263 passing). A sample workbook was generated for a manual look in
   Excel; not opened programmatically.
-- Commit `2d6ef9e`.
+- Commit `1eaa812`.
 
 ### Currency & number formatting — phase 5 (regional wording + polish)
 
@@ -600,7 +600,7 @@ Pre-commit review of the module above. App-code only, no schema change.
 ### Currency & number formatting — phase 6 (3-decimal currencies)
 
 - **Migration** `supabase_money_three_decimals.sql`, hand-run and
-  verified 2026-10-12 (commit `1e76b0d`): 17 columns moved to
+  verified 2026-10-12 (commit `d72a52e`): 17 columns moved to
   `numeric(15,3)`. Precision 15, not 14, so the integer range isn't cut.
     - Columns: `emis.processingFee`, `emiSplits.splitAmount`, 14
       `loan_scenarios` amounts, `loan_scenario_breakdowns.amount`
@@ -629,6 +629,19 @@ Pre-commit review of the module above. App-code only, no schema change.
   money rules.
 - **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
   (279 passing).
+
+### Shorthand amount entry
+
+- `parseLocaleAmount` accepts units before the letter-stripping step (which
+  would otherwise read `1.5L` as 1.5): k / thousand, L / lac / lakh,
+  cr / crore, M / mn / mio / million, B / bn / mrd / billion. They work in
+  every number style, and the number part uses the locale's separators
+  (`1,5L` in de-DE).
+    - The base is multiplied before rounding (`1.2345k` → 1234.5)
+    - `kr` and `Rs.` are still read as currency, not units
+- `AmountInput` shows the shortcuts as its hover title. Grid cells get it
+  for free through the shared parser.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`.
 
 ---
 

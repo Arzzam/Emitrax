@@ -60,12 +60,60 @@ function roundTo(value: number, fractionDigits: number): number {
     return rounded === 0 ? 0 : rounded; // no -0
 }
 
+/**
+ * Shorthand units, checked BEFORE the letter-stripping below - otherwise `1.5L`
+ * would lose its `L` and silently read as 1.5. Every unit is accepted in every
+ * number style; none collides with a currency abbreviation the parser strips
+ * (`kr` is not `k`, `Rs` is not a suffix).
+ */
+const SHORTHAND_MULTIPLIERS: Record<string, number> = {
+    k: 1e3,
+    thousand: 1e3,
+    l: 1e5,
+    lac: 1e5,
+    lacs: 1e5,
+    lakh: 1e5,
+    lakhs: 1e5,
+    cr: 1e7,
+    crore: 1e7,
+    crores: 1e7,
+    m: 1e6,
+    mn: 1e6,
+    mio: 1e6,
+    million: 1e6,
+    b: 1e9,
+    bn: 1e9,
+    mrd: 1e9,
+    billion: 1e9,
+};
+
+const SHORTHAND_PATTERN = new RegExp(`^(.*\\d)\\s*(${Object.keys(SHORTHAND_MULTIPLIERS).join('|')})\\.?$`, 'i');
+
+/** Splits `1.5L` / `2 crore` / `₹50k` into the number text and its multiplier. */
+function matchShorthand(text: string): { numberText: string; multiplier: number } | undefined {
+    const match = text
+        .replace(/\p{Sc}/gu, '')
+        .trim()
+        .match(SHORTHAND_PATTERN);
+    if (!match) return undefined;
+    return { numberText: match[1], multiplier: SHORTHAND_MULTIPLIERS[match[2].toLowerCase()] };
+}
+
+/** Enough places that a shorthand base is multiplied before it is rounded (`1.2345k`). */
+const SHORTHAND_BASE_PRECISION = 9;
+
 export function parseLocaleAmount(
     raw: string,
     { locale, fractionDigits = 2 }: { locale: string; fractionDigits?: number }
 ): number | null | undefined {
     const trimmed = raw.trim();
     if (!trimmed) return null;
+
+    const shorthand = matchShorthand(trimmed);
+    if (shorthand) {
+        const base = parseLocaleAmount(shorthand.numberText, { locale, fractionDigits: SHORTHAND_BASE_PRECISION });
+        return base == null ? undefined : roundTo(base * shorthand.multiplier, fractionDigits);
+    }
 
     const { group, decimal } = getSeparators(locale);
     const other = decimal === '.' ? ',' : '.';

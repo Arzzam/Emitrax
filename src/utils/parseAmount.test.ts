@@ -117,3 +117,44 @@ describe('formatAmountForInput', () => {
         });
     });
 });
+
+describe('parseLocaleAmount - shorthand units', () => {
+    it('reads Indian units', () => {
+        expect(parse('1.5L', 'en-IN')).toBe(150000);
+        expect(parse('1.5 lakh', 'en-IN')).toBe(150000);
+        expect(parse('2cr', 'en-IN')).toBe(20000000);
+        expect(parse('2.25 Crore', 'en-IN')).toBe(22500000);
+    });
+
+    it('reads Western units in any number style', () => {
+        expect(parse('50k', 'en-US')).toBe(50000);
+        expect(parse('1.2M', 'en-US')).toBe(1200000);
+        expect(parse('3bn', 'en-GB')).toBe(3000000000);
+        expect(parse('1.5L', 'en-US')).toBe(150000);
+    });
+
+    it("parses the number with the locale's own separators", () => {
+        expect(parse('1,5L', 'de-DE')).toBe(150000);
+        expect(parse('1,5 Mio.', 'de-DE')).toBe(1500000);
+    });
+
+    it('keeps the sign and tolerates a currency symbol', () => {
+        expect(parse('-2k', 'en-IN')).toBe(-2000);
+        expect(parse('₹1.5L', 'en-IN')).toBe(150000);
+        expect(parse('$50k', 'en-US')).toBe(50000);
+    });
+
+    it('multiplies before rounding', () => {
+        expect(parse('1.2345k', 'en-US')).toBe(1234.5);
+    });
+
+    it('does not mistake currency abbreviations for units', () => {
+        expect(parse('50 kr', 'sv-SE')).toBe(50);
+        expect(parse('Rs. 500', 'en-IN')).toBe(500);
+    });
+
+    it('rejects a unit with no number', () => {
+        expect(parse('k', 'en-US')).toBeUndefined();
+        expect(parse('lakh', 'en-IN')).toBeUndefined();
+    });
+});
