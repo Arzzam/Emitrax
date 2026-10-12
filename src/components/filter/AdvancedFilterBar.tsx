@@ -18,6 +18,8 @@ import AdvancedFilterPanel from './AdvancedFilterPanel';
 
 interface AdvancedFilterBarProps {
     emiData: IEmi[];
+    /** Currency the amount-range bounds are entered in (the dashboard's selected currency). */
+    amountCurrency?: string;
     setOpenConfirmationModal: (value: boolean) => void;
 }
 
@@ -34,7 +36,7 @@ const SORT_OPTIONS: { value: AdvancedFilterSortBy; label: string }[] = [
     { value: 'billDate', label: 'Bill Date' },
 ];
 
-const AdvancedFilterBar = ({ emiData, setOpenConfirmationModal }: AdvancedFilterBarProps) => {
+const AdvancedFilterBar = ({ emiData, amountCurrency, setOpenConfirmationModal }: AdvancedFilterBarProps) => {
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [availableTags, setAvailableTags] = useState<string[]>(['All']);
 
@@ -186,7 +188,12 @@ const AdvancedFilterBar = ({ emiData, setOpenConfirmationModal }: AdvancedFilter
                 </CardContent>
             </Card>
 
-            <AdvancedFilterPanel emiData={emiData} open={advancedOpen} onOpenChange={setAdvancedOpen} />
+            <AdvancedFilterPanel
+                emiData={emiData}
+                amountCurrency={amountCurrency}
+                open={advancedOpen}
+                onOpenChange={setAdvancedOpen}
+            />
         </>
     );
 };

@@ -20,6 +20,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 
 interface AdvancedFilterPanelProps {
     emiData: IEmi[];
+    /** Bounds apply to EMIs in this currency only; amounts don't compare across currencies. */
+    amountCurrency?: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
@@ -78,7 +80,7 @@ function MultiSelectPerson({
     );
 }
 
-const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPanelProps) => {
+const AdvancedFilterPanel = ({ emiData, amountCurrency, open, onOpenChange }: AdvancedFilterPanelProps) => {
     const state = useSelector((s: IRootState) => s.advancedFilterModel);
     const dispatch = useRematchDispatch((d: IDispatch) => d.advancedFilterModel);
     const { user, displayName } = useDisplayUser();
@@ -127,13 +129,16 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                 <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-2">
                     {/* Amounts */}
                     <section className="space-y-3">
-                        <h3 className="text-sm font-medium text-foreground">Amounts</h3>
+                        <h3 className="text-sm font-medium text-foreground">
+                            Amounts{amountCurrency ? ` (${amountCurrency})` : ''}
+                        </h3>
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
                                 <Label htmlFor="principal-min" className="text-xs">
                                     Principal min
                                 </Label>
                                 <AmountInput
+                                    currency={amountCurrency}
                                     id="principal-min"
                                     placeholder="Min"
                                     value={state.principalMin}
@@ -145,6 +150,7 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                                     Principal max
                                 </Label>
                                 <AmountInput
+                                    currency={amountCurrency}
                                     id="principal-max"
                                     placeholder="Max"
                                     value={state.principalMax}
@@ -158,6 +164,7 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                                     Total loan min
                                 </Label>
                                 <AmountInput
+                                    currency={amountCurrency}
                                     id="loan-min"
                                     placeholder="Min"
                                     value={state.totalLoanMin}
@@ -169,6 +176,7 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                                     Total loan max
                                 </Label>
                                 <AmountInput
+                                    currency={amountCurrency}
                                     id="loan-max"
                                     placeholder="Max"
                                     value={state.totalLoanMax}

@@ -40,8 +40,18 @@ const Home = () => {
     const emiData = useMemo(() => (data || []) as IEmi[], [data]);
 
     const advancedFilter = useAdvancedFilter(emiData);
-    const { filteredEmiData, filterTag, statistics, filteredStatistics, tagStatistics, uniqueTags, splitContext } =
-        advancedFilter;
+    const {
+        filteredEmiData,
+        filterTag,
+        statistics,
+        filteredStatistics,
+        tagStatistics,
+        uniqueTags,
+        splitContext,
+        statsCurrency,
+        currencyTabs,
+        setStatsCurrency,
+    } = advancedFilter;
 
     const searchQuery = useSelector((state: IRootState) => state.advancedFilterModel.searchQuery);
     const setAdvancedTag = useRematchDispatch((d: IDispatch) => d.advancedFilterModel.setTag);
@@ -57,8 +67,22 @@ const Home = () => {
             filterTag,
             onSetTag: setAdvancedTag,
             splitContext,
+            statsCurrency,
+            currencyTabs,
+            onSetStatsCurrency: setStatsCurrency,
         }),
-        [statistics, filteredStatistics, tagStatistics, uniqueTags, filterTag, setAdvancedTag, splitContext]
+        [
+            statistics,
+            filteredStatistics,
+            tagStatistics,
+            uniqueTags,
+            filterTag,
+            setAdvancedTag,
+            splitContext,
+            statsCurrency,
+            currencyTabs,
+            setStatsCurrency,
+        ]
     );
 
     return (
@@ -75,6 +99,7 @@ const Home = () => {
                                 <StatsSection emiData={emiData} statsOverride={statsOverride} />
                                 <AdvancedFilterBar
                                     emiData={emiData}
+                                    amountCurrency={statsCurrency}
                                     setOpenConfirmationModal={setOpenConfirmationModal}
                                 />
 
