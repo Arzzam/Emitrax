@@ -10,7 +10,7 @@ import {
     ScenarioScheduleRow,
 } from '@/types/scenario.types';
 import { calculateProcessingFeeCharges, calculateRemainingTenure, coerceOptionalNumber } from '@/utils/calculation';
-import { roundMoney } from '@/utils/money';
+import { roundMoney, withMoneyPrecision } from '@/utils/money';
 
 const clampNonNegative = (value: number): number => (value < 0 ? 0 : value);
 
@@ -210,7 +210,14 @@ const validateAssumptions = (
  * Interest can be either prorated accrual or full next-installment interest + GST.
  * Percent foreclosure charges and flat charges are kept separate.
  */
+/** Rounds at the precision of the EMI's own currency. */
 export const calculateForeclosureScenario = (
+    emi: IEmi,
+    assumptions: ForeclosureAssumptions
+): ForeclosureScenarioResult =>
+    withMoneyPrecision(emi.currency, () => calculateForeclosureScenarioAtPrecision(emi, assumptions));
+
+const calculateForeclosureScenarioAtPrecision = (
     emi: IEmi,
     assumptions: ForeclosureAssumptions
 ): ForeclosureScenarioResult => {

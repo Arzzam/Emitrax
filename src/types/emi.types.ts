@@ -52,6 +52,8 @@ export interface IEmi {
     processingFee?: number;
     processingFeeGst?: number;
     totalLoan: number;
+    /** ISO 4217 code the loan is denominated in. Fixed per EMI; see per-emi-currency-plan.md. */
+    currency: string;
     totalPaidEMIs: number;
     totalInterest: number;
     remainingBalance: number;

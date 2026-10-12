@@ -44,6 +44,7 @@ const makeSplit = (overrides: Partial<IEmiSplit>): IEmiSplit => ({
 const makeEmi = (overrides: Partial<IEmi>): IEmi => ({
     id: 'emi-1',
     itemName: 'Laptop',
+    currency: 'INR',
     principal: PRINCIPAL,
     interestRate: 0,
     billDate: BILL_DATE,

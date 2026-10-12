@@ -2,7 +2,7 @@ import { startOfDay } from 'date-fns';
 
 import { IEmi, IEmiSplit, ScheduleData } from '@/types/emi.types';
 import { calculateProcessingFeeCharges, calculateRemainingTenure, coerceOptionalNumber } from '@/utils/calculation';
-import { roundMoney } from '@/utils/money';
+import { roundMoney, withMoneyPrecision } from '@/utils/money';
 
 const clampNonNegative = (value: number): number => (value < 0 ? 0 : value);
 
@@ -55,6 +55,8 @@ export interface RepaymentProgress {
     interestDiscountApplied: number;
     /** False when the amortization schedule was missing and aggregates were used instead. */
     isScheduleDerived: boolean;
+    /** The loan's currency, so prorating a share rounds at the same precision. */
+    currency?: string;
 }
 
 export interface ParticipantRepayment {
@@ -141,7 +143,17 @@ const scaleComponents = (components: RepaymentComponents, factor: number): Repay
  *    interest, and `emi.totalGST` — rendered in the cost breakdown — is that
  *    gross figure. Netting it here would make this card disagree with that one.
  */
-export function getRepaymentProgress(
+type RepaymentProgressInput = Parameters<typeof computeRepaymentProgress>[0] & { currency?: string };
+
+/** Rounds at the precision of the EMI's own currency. */
+export function getRepaymentProgress(emi: RepaymentProgressInput, asOfDate: Date = new Date()): RepaymentProgress {
+    return withMoneyPrecision(emi.currency, () => ({
+        ...computeRepaymentProgress(emi, asOfDate),
+        currency: emi.currency,
+    }));
+}
+
+function computeRepaymentProgress(
     emi: Pick<
         IEmi,
         | 'principal'
@@ -272,6 +284,10 @@ export function getRepaymentProgress(
  * whole-loan figure is available for that, which keeps the residual invisible.
  */
 export function prorateRepaymentProgress(progress: RepaymentProgress, splitPercentage: number): RepaymentProgress {
+    return withMoneyPrecision(progress.currency, () => prorateAtPrecision(progress, splitPercentage));
+}
+
+function prorateAtPrecision(progress: RepaymentProgress, splitPercentage: number): RepaymentProgress {
     const factor = clamp(coerceOptionalNumber(splitPercentage), 0, 100) / 100;
 
     const paid = scaleComponents(progress.paid, factor);
@@ -299,6 +315,13 @@ export function prorateRepaymentProgress(progress: RepaymentProgress, splitPerce
  * degrades the same way instead of rendering a table that does not add up.
  */
 export function getParticipantRepaymentBreakdown(
+    emi: Pick<IEmi, 'emi' | 'splits' | 'mySplit'> & { currency?: string },
+    progress: RepaymentProgress
+): ParticipantRepaymentBreakdown {
+    return withMoneyPrecision(emi.currency ?? progress.currency, () => participantBreakdownAtPrecision(emi, progress));
+}
+
+function participantBreakdownAtPrecision(
     emi: Pick<IEmi, 'emi' | 'splits' | 'mySplit'>,
     progress: RepaymentProgress
 ): ParticipantRepaymentBreakdown {

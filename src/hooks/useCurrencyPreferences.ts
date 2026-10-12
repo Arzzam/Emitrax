@@ -15,8 +15,15 @@ import { formatAmountForInput, parseLocaleAmount } from '@/utils/parseAmount';
  * Use this instead of passing prefs through props; preferences are hydrated on app load
  * and updated when account settings are saved.
  */
-export function useCurrencyPreferences() {
-    const { locale, currency, numberFormat } = useSelector((state: IRootState) => state.currencyPreferencesModel);
+export function useCurrencyPreferences(currencyOverride?: string | null) {
+    const {
+        locale,
+        currency: accountCurrency,
+        numberFormat,
+    } = useSelector((state: IRootState) => state.currencyPreferencesModel);
+    // An EMI-scoped screen passes the loan's own currency: it decides the
+    // symbol, decimals and tax label. The number style stays the account's.
+    const currency = currencyOverride || accountCurrency;
 
     const {
         symbol: currencySymbol,
@@ -64,6 +71,8 @@ export function useCurrencyPreferences() {
     return {
         locale,
         currency,
+        /** The account default, even when `currency` is an EMI override. */
+        accountCurrency,
         numberFormat,
         currencySymbol,
         fractionDigits,

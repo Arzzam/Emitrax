@@ -362,6 +362,7 @@ export type Database = {
             emis: {
                 Row: {
                     billDate: string;
+                    currency: string;
                     createdAt: string | null;
                     emi: number;
                     endDate: string;
@@ -390,6 +391,7 @@ export type Database = {
                 };
                 Insert: {
                     billDate: string;
+                    currency?: string;
                     createdAt?: string | null;
                     emi: number;
                     endDate: string;
@@ -418,6 +420,7 @@ export type Database = {
                 };
                 Update: {
                     billDate?: string;
+                    currency?: string;
                     createdAt?: string | null;
                     emi?: number;
                     endDate?: string;

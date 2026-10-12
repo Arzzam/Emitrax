@@ -40,7 +40,7 @@ import {
     type RepaymentProgress,
 } from '@/utils/emiRepayment.calc';
 import { getFinancialYearForDate } from '@/utils/financialYear';
-import { roundMoney } from '@/utils/money';
+import { roundMoney, withMoneyPrecision } from '@/utils/money';
 
 const APP_URL = 'https://emitrax.arzzam.in';
 
@@ -139,11 +139,21 @@ const buildParticipants = (emi: IEmi, progress: RepaymentProgress, currentUserId
 };
 
 /** Shapes one EMI into its export node. `asOfDate` is injected so callers stay deterministic. */
+/** Rounds at the precision of the EMI's own currency. */
 export function buildExportedEmi(
     emi: IEmi,
     currentUserId: string,
     scenarios: ILoanScenario[] = [],
     asOfDate: Date = new Date()
+): ExportedEmi {
+    return withMoneyPrecision(emi.currency, () => buildExportedEmiAtPrecision(emi, currentUserId, scenarios, asOfDate));
+}
+
+function buildExportedEmiAtPrecision(
+    emi: IEmi,
+    currentUserId: string,
+    scenarios: ILoanScenario[],
+    asOfDate: Date
 ): ExportedEmi {
     const progress = getRepaymentProgress(emi, asOfDate);
     const ownership = resolveEmiOwnership(emi, currentUserId);

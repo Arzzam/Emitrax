@@ -62,3 +62,20 @@ export function roundMoney(value: number, fractionDigits: number = moneyFraction
 export function toMoneyString(value: number): string {
     return value.toFixed(moneyFractionDigits);
 }
+
+/**
+ * Runs `fn` at the precision of one loan's currency, then restores the
+ * previous precision. Calc entry points that take an EMI wrap themselves in
+ * this, so a KWD loan calculates at 3 decimals inside an INR account. Safe
+ * because every calc is synchronous. No currency -> the store-synced default.
+ */
+export function withMoneyPrecision<T>(currency: string | null | undefined, fn: () => T): T {
+    if (!currency) return fn();
+    const previous = moneyFractionDigits;
+    setMoneyFractionDigits(getCurrencyMeta(currency, 'en').fractionDigits);
+    try {
+        return fn();
+    } finally {
+        moneyFractionDigits = previous;
+    }
+}
