@@ -90,11 +90,22 @@ same row land out of order.
 
 ## 6. Money
 
-- A `number` in rupees with 2 decimals, matching `numeric(14,2)`
+- A `number` in the account currency. EMI and scenario math rounds through
+  `roundMoney` / `toMoneyString` (`src/utils/money.ts`): 2 decimals, 3 for
+  KWD / BHD / OMR. Never a hand-written `toFixed(2)` in calc code.
+- The precision is one module-level setting synced from the store on every
+  dispatch (`store.ts`), because some calc callers (the EMI service) have no
+  access to preferences. Calc modules read it; they do not take it as a
+  parameter.
+- `roundMoney` rounds via `toFixed`, never `Math.round(v * 100) / 100` —
+  the two disagree on some floats, and INR results must not move.
+- Percentages are not money: round them with an explicit 2
+  (`roundMoney(pct, 2)`).
 - Never integer-paise, never a float-as-paise convention
 - Display **only** through `useCurrencyPreferences().formatCurrencyAmount`
-- Round through integer cents (`Math.round(v * 100) / 100`) when summing
-  toward a threshold comparison — repeated float addition drifts
+- Credit-card code (India-only, `numeric(14,2)`) rounds through integer
+  cents (`Math.round(v * 100) / 100`) when summing toward a threshold
+  comparison — repeated float addition drifts
 
 ## 7. Dates
 

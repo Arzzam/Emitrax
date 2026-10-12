@@ -40,10 +40,9 @@ import {
     type RepaymentProgress,
 } from '@/utils/emiRepayment.calc';
 import { getFinancialYearForDate } from '@/utils/financialYear';
+import { roundMoney } from '@/utils/money';
 
 const APP_URL = 'https://emitrax.arzzam.in';
-
-const roundMoney = (value: number): number => Number(value.toFixed(2));
 
 const toIsoDate = (value: Date | string): string => format(new Date(value), 'yyyy-MM-dd');
 
@@ -58,7 +57,7 @@ const OWNERSHIP_SUMMARIES: Record<EmiOwnershipMode, string> = {
 };
 
 const EXPORT_GLOSSARY: Record<string, string> = {
-    money: 'Every amount is in the account currency at 2 decimal places. Every percentage is 0-100.',
+    money: 'Every amount is in the account currency, at 2 decimal places (3 for KWD, BHD and OMR). Every percentage is 0-100.',
     'ownership.mode':
         'sole = wholly the account owner’s. shared = they carry part of it. on_behalf = they own and pay the loan but split 100% of it to other people, so none of it is their liability. observer = someone else’s loan, visible through a share.',
     'ownership.myPercentage':

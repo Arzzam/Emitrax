@@ -2,8 +2,7 @@ import { startOfDay } from 'date-fns';
 
 import { IEmi, IEmiSplit, ScheduleData } from '@/types/emi.types';
 import { calculateProcessingFeeCharges, calculateRemainingTenure, coerceOptionalNumber } from '@/utils/calculation';
-
-const roundMoney = (value: number): number => Number(value.toFixed(2));
+import { roundMoney } from '@/utils/money';
 
 const clampNonNegative = (value: number): number => (value < 0 ? 0 : value);
 
@@ -337,7 +336,8 @@ export function getParticipantRepaymentBreakdown(
 
     return {
         participants,
-        coveredPercentage: roundMoney(coveredPercentage),
+        // A percentage, not money: always 2 places.
+        coveredPercentage: roundMoney(coveredPercentage, 2),
         isPartialView,
         unaccounted,
     };

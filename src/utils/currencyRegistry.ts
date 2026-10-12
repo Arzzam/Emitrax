@@ -60,6 +60,10 @@ export const CURRENCIES: readonly CurrencyDefinition[] = [
     { code: 'AED', label: 'UAE Dirham', group: 'middle_east', isPopular: true, defaultLocale: 'en-AE', regions: ['AE'], taxLabel: 'VAT' },
     { code: 'SAR', label: 'Saudi Riyal', group: 'middle_east', isPopular: false, defaultLocale: 'en-SA', regions: ['SA'], taxLabel: 'VAT' },
     { code: 'QAR', label: 'Qatari Riyal', group: 'middle_east', isPopular: false, defaultLocale: 'en-QA', regions: ['QA'], taxLabel: 'Tax' },
+    // 3-decimal currencies (1000 fils). Needs the numeric(15,3) money columns.
+    { code: 'KWD', label: 'Kuwaiti Dinar', group: 'middle_east', isPopular: false, defaultLocale: 'en-KW', regions: ['KW'], taxLabel: 'Tax' },
+    { code: 'BHD', label: 'Bahraini Dinar', group: 'middle_east', isPopular: false, defaultLocale: 'en-BH', regions: ['BH'], taxLabel: 'VAT' },
+    { code: 'OMR', label: 'Omani Rial', group: 'middle_east', isPopular: false, defaultLocale: 'en-OM', regions: ['OM'], taxLabel: 'VAT' },
 
     { code: 'USD', label: 'US Dollar', group: 'americas', isPopular: true, defaultLocale: 'en-US', regions: ['US'], taxLabel: 'Tax' },
     { code: 'CAD', label: 'Canadian Dollar', group: 'americas', isPopular: false, defaultLocale: 'en-CA', regions: ['CA'], taxLabel: 'GST' },
@@ -123,6 +127,7 @@ const TIME_ZONE_REGIONS: Record<string, string> = {
     'Asia/Karachi': 'PK', 'Asia/Dhaka': 'BD', 'Asia/Colombo': 'LK',
     'Asia/Kathmandu': 'NP', 'Asia/Katmandu': 'NP',
     'Asia/Dubai': 'AE', 'Asia/Riyadh': 'SA', 'Asia/Qatar': 'QA',
+    'Asia/Kuwait': 'KW', 'Asia/Bahrain': 'BH', 'Asia/Muscat': 'OM',
     'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Phoenix': 'US',
     'America/Los_Angeles': 'US', 'America/Anchorage': 'US', 'America/Detroit': 'US', 'Pacific/Honolulu': 'US',
     'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Edmonton': 'CA', 'America/Winnipeg': 'CA',

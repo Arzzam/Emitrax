@@ -7,13 +7,10 @@
 
 ## Current Status
 
-**Last completed (currency formatting, phase 5):** Tax wording follows the
-currency (GST / VAT / IVA / tax) across screens and exports, percentages
-are localised, and compact headline figures show the exact amount on
-hover. Phases 1-5 of the plan are done; phase 6 (3-decimal currencies) is
-deferred.
-Plan: `context/plan/currency-and-number-formatting-plan.md`. See the
-entries below.
+**Last completed (currency formatting, phase 6):** KWD, BHD and OMR are
+offered with full 3-decimal support: money columns widened, calc rounding
+follows the account currency. All six phases of the currency plan are
+done.
 
 **Previously (card pages + credit-limit utilisation):** Added
 `/credit-cards/cards` and `/credit-cards/cards/:id`, a dated credit-limit
@@ -599,6 +596,39 @@ Pre-commit review of the module above. App-code only, no schema change.
   details, EMI card, issuer summaries); not to table cells.
 - **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
   (272 passing).
+
+### Currency & number formatting — phase 6 (3-decimal currencies)
+
+- **Migration** `supabase_money_three_decimals.sql`, hand-run and
+  verified 2026-10-12 (commit `1e76b0d`): 17 columns moved to
+  `numeric(15,3)`. Precision 15, not 14, so the integer range isn't cut.
+    - Columns: `emis.processingFee`, `emiSplits.splitAmount`, 14
+      `loan_scenarios` amounts, `loan_scenario_breakdowns.amount`
+    - Core `emis` and `amortizationSchedules` amounts were already
+      unconstrained `numeric`; `cc_*` left at 2 decimals (India-only)
+    - The live `calculate_split_amount` trigger doesn't round, so split
+      amounts now keep 3 decimals too
+- **`src/utils/money.ts`** (+ test): `roundMoney`, `toMoneyString` and a
+  module-level precision clamped to 2..3, synced from the store on every
+  dispatch. 0-decimal currencies keep 2-decimal math; only KWD / BHD / OMR
+  use 3.
+- Every `toFixed(2)` / local `roundMoney` in `calculation.ts`,
+  `emiRepayment.calc.ts`, `scenarioCalculation.ts` and
+  `buildExportDocument.ts` now goes through it. Rounding still uses
+  `toFixed` semantics, so INR results are unchanged (all 272 earlier tests
+  pass untouched). `coveredPercentage` is pinned to 2 (a percentage).
+- **`useAutoRecalculateEmis` waits for `currencyPreferencesModel.isHydrated`**
+  before its daily recompute-and-write, so it never stores figures at the
+  default precision.
+    - Consequence: when an account switches to KWD / BHD / OMR, its stored
+      EMI figures are refreshed at 3 decimals on the next daily run (changes
+      under 0.001 per row). No existing account is affected today.
+- Registry: KWD, BHD, OMR (Gulf group, `en-KW` / `en-BH` / `en-OM`), plus
+  their time zones for first-run detection.
+- Docs: code standards §6 and the schema overview updated for the new
+  money rules.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (279 passing).
 
 ---
 

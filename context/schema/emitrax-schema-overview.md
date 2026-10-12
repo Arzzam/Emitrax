@@ -20,8 +20,10 @@ idempotent. **Never edit one that has already been run; add a new one.**
   migrating.
 - `uuid_generate_v4()` for primary keys (this repo has zero
   `gen_random_uuid()`).
-- Money `numeric(14,2)`; rates `numeric(10,4)`. Older `emis` columns use
-  `numeric(15,2)`.
+- Money: EMI and scenario columns are `numeric(15,3)` so 3-decimal
+  currencies fit (`supabase_money_three_decimals.sql`); the core `emis` and
+  `amortizationSchedules` amounts are unconstrained `numeric`. The `cc_*`
+  family stays `numeric(14,2)` (India-only). Rates `numeric(10,4)`.
 - Month buckets are a `date` **pinned to the 1st**, enforced by
   `CHECK (EXTRACT(DAY FROM col) = 1)`.
 - Financial year is **never stored** — it is derived from the month, so

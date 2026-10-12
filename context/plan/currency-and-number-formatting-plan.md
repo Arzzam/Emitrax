@@ -2,7 +2,7 @@
 
 **Project:** Emitrax
 **Scope:** A wider currency list, number formatting driven by currency + locale, and the input/export paths that bypass the formatter today
-**Status:** Phases 1-5 shipped; phase 6 deferred
+**Status:** All six phases shipped
 **Target:** `src/utils/numberFormat.ts`, account settings (`/account`), amount inputs, Excel/PDF export
 
 ---
@@ -218,18 +218,18 @@ Ranked by value for effort.
 
 Each phase ships on its own and passes `yarn lint && yarn build && yarn test`.
 
-| Phase                              | Contents                                                                                                                                                                                              | Fixes          |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 1. Formatter core ✅               | Registry, cached formatter, Intl-derived decimals, hand-built `compact_long`, `getCurrencyMeta`, tests across the §4 matrix, delete `formatAmount`                                                    | B1, B2, B6, B7 |
-| 2. Settings UI + defaults ✅       | Searchable currency combobox, number-style picker with samples, currency→locale auto-link, live preview, relabel warning, corrected option labels, browser-detected defaults saved on first bootstrap | —              |
-| 3. Inputs ✅                       | `parseLocaleAmount`, swap it into the five editors, input adornment, format-on-blur, remove hard-coded `₹`                                                                                            | B3, B5         |
-| 4. Exports ✅                      | `buildExcelCurrencyNumFmt`, sample PDF export for every §4 currency to verify glyphs, JSON export unchanged (already carries the code)                                                                | B4             |
-| 5. Regional wording + polish ✅    | `taxLabel` in the registry, the GST field under "Additional charges" for non-INR, region-aware labels in the EMI form, details and exports; `formatPercent` across ~15 sites; compact hover titles    | B8             |
-| 6. 3-decimal currencies (deferred) | Hand-run migration widening money columns to `numeric(14,3)` (forward-only, existing values unchanged), currency-aware `roundMoney` in the calc modules, then add KWD / BHD / OMR to the registry     | —              |
+| Phase                           | Contents                                                                                                                                                                                                                                                                                                                                                                                                            | Fixes          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 1. Formatter core ✅            | Registry, cached formatter, Intl-derived decimals, hand-built `compact_long`, `getCurrencyMeta`, tests across the §4 matrix, delete `formatAmount`                                                                                                                                                                                                                                                                  | B1, B2, B6, B7 |
+| 2. Settings UI + defaults ✅    | Searchable currency combobox, number-style picker with samples, currency→locale auto-link, live preview, relabel warning, corrected option labels, browser-detected defaults saved on first bootstrap                                                                                                                                                                                                               | —              |
+| 3. Inputs ✅                    | `parseLocaleAmount`, swap it into the five editors, input adornment, format-on-blur, remove hard-coded `₹`                                                                                                                                                                                                                                                                                                          | B3, B5         |
+| 4. Exports ✅                   | `buildExcelCurrencyNumFmt`, sample PDF export for every §4 currency to verify glyphs, JSON export unchanged (already carries the code)                                                                                                                                                                                                                                                                              | B4             |
+| 5. Regional wording + polish ✅ | `taxLabel` in the registry, the GST field under "Additional charges" for non-INR, region-aware labels in the EMI form, details and exports; `formatPercent` across ~15 sites; compact hover titles                                                                                                                                                                                                                  | B8             |
+| 6. 3-decimal currencies ✅      | Hand-run migration widening 17 EMI / split / scenario money columns to `numeric(15,3)` (forward-only, values unchanged; core `emis` and `amortizationSchedules` amounts were already unconstrained `numeric`); `src/utils/money.ts` precision (2, or 3 for KWD / BHD / OMR, synced from the store) replacing every `toFixed(2)` in the calc modules; daily auto-recalc waits for preferences; KWD / BHD / OMR added | —              |
 
 ## 8. Resolved
 
-- 3-decimal currencies: deferred to Phase 6, forward-only.
+- 3-decimal currencies: shipped in Phase 6, forward-only.
 - Dates: not locale-driven.
 - Defaults: detected from the browser once, saved, then user-owned.
 - Shorthand input: deferred.

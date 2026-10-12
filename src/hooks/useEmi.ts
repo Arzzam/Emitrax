@@ -96,10 +96,14 @@ export const useAutoRecalculateEmis = () => {
     const { data: emiData, isLoading } = useEmis();
     const { mutate } = useUpdateEmiList();
     const lastCheckDate = useSelector((state: IRootState) => state.lastUpdateAt);
+    // Rounding precision follows the account currency, which is only known once
+    // the account has loaded. Recalculating (and writing back) before that would
+    // store figures at the default precision.
+    const isPrecisionReady = useSelector((state: IRootState) => state.currencyPreferencesModel.isHydrated);
     const { setLastUpdateAt } = useRematchDispatch((state: IDispatch) => state.lastUpdateAt);
 
     useEffect(() => {
-        if (isLoading || !emiData || !emiData.length) return;
+        if (isLoading || !isPrecisionReady || !emiData || !emiData.length) return;
 
         const today = new Date().toDateString();
 
@@ -112,7 +116,7 @@ export const useAutoRecalculateEmis = () => {
         if (!isEqual(emiData.map(stripComparisonFields), recalculatedEmis.map(stripComparisonFields))) {
             mutate(recalculatedEmis);
         }
-    }, [emiData, isLoading, lastCheckDate, mutate, setLastUpdateAt]);
+    }, [emiData, isLoading, isPrecisionReady, lastCheckDate, mutate, setLastUpdateAt]);
 
     const recalculateNow = () => {
         if (!emiData || !emiData.length) return;

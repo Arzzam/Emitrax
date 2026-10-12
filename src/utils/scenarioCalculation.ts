@@ -10,8 +10,7 @@ import {
     ScenarioScheduleRow,
 } from '@/types/scenario.types';
 import { calculateProcessingFeeCharges, calculateRemainingTenure, coerceOptionalNumber } from '@/utils/calculation';
-
-const roundMoney = (value: number): number => Number(value.toFixed(2));
+import { roundMoney } from '@/utils/money';
 
 const clampNonNegative = (value: number): number => (value < 0 ? 0 : value);
 
