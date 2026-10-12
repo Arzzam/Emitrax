@@ -1,9 +1,10 @@
 import ExcelJS from 'exceljs';
 
 import { IEmi } from '@/types/emi.types';
+import { buildExcelCurrencyNumFmt } from '@/utils/export/excel/excelNumFmt';
 import { CurrencyFormatPreferences } from '@/utils/numberFormat';
 
-import { applyHeaderStyle, applyLabelCell, applyValueCell, fmtDate, fmtPct, getCurrencyNumFmt } from './shared';
+import { applyHeaderStyle, applyLabelCell, applyValueCell, fmtDate, fmtPct } from './shared';
 
 const BLUE = '1E40AF';
 const BLUE_MID = '3B82F6';
@@ -214,7 +215,7 @@ function addAmortizationSheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: stri
 
 export function buildDetailedTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPrefs: CurrencyFormatPreferences) {
     wb.creator = 'Emitrax';
-    const currencyFmt = getCurrencyNumFmt(currencyPrefs.currency);
+    const currencyFmt = buildExcelCurrencyNumFmt(currencyPrefs);
     addSummarySheet(wb, emi, currencyFmt);
     addAmortizationSheet(wb, emi, currencyFmt);
 }

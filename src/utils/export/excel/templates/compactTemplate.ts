@@ -1,9 +1,10 @@
 import ExcelJS from 'exceljs';
 
 import { IEmi } from '@/types/emi.types';
+import { buildExcelCurrencyNumFmt } from '@/utils/export/excel/excelNumFmt';
 import { CurrencyFormatPreferences } from '@/utils/numberFormat';
 
-import { applyHeaderStyle, fmtDate, fmtPct, getCurrencyNumFmt } from './shared';
+import { applyHeaderStyle, fmtDate, fmtPct } from './shared';
 
 const DARK = '1E3A5F';
 const LIGHT_BLUE = 'EFF6FF';
@@ -11,7 +12,7 @@ const RULE_COLOR = 'BFDBFE';
 
 export function buildCompactTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPrefs: CurrencyFormatPreferences) {
     const ws = wb.addWorksheet('EMI Summary');
-    const currencyFmt = getCurrencyNumFmt(currencyPrefs.currency);
+    const currencyFmt = buildExcelCurrencyNumFmt(currencyPrefs);
     const hasGst = emi.gst > 0;
 
     ws.getColumn(1).width = 28;

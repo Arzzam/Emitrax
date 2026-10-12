@@ -9,8 +9,24 @@ export interface PdfTemplateProps {
     currencyPrefs: CurrencyFormatPreferences;
 }
 
+/**
+ * Characters the PDF font (NotoSans) has no glyph for, found by checking every
+ * registry currency x number style against the font's cmap: the Thai baht
+ * sign, plus the scripts excluded from the registry as a backstop.
+ */
+const PDF_UNRENDERABLE = /[\u0e00-\u0e7f\u0600-\u06ff\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/;
+
+/**
+ * Amounts for PDF output. Same as the app formatter, except: U+2212 (the
+ * minus sv-SE / nb-NO use) becomes a hyphen, and a symbol the font cannot draw
+ * falls back to the ISO code (`THB 1.234,00` rather than a blank box).
+ */
 export function fmt(value: number, prefs: CurrencyFormatPreferences): string {
-    return formatCurrencyAmount(value, prefs);
+    const text = formatCurrencyAmount(value, prefs);
+    const printable = PDF_UNRENDERABLE.test(text)
+        ? formatCurrencyAmount(value, { ...prefs, currencyDisplay: 'code' })
+        : text;
+    return printable.replace(/\u2212/g, '-');
 }
 
 export function fmtDate(date: Date | string | null | undefined): string {

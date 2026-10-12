@@ -4,7 +4,11 @@ export type CurrencyFormatPreferences = {
     locale: string;
     currency: string;
     numberFormat: NumberFormatMode;
+    /** `code` prints `THB 1,234` instead of `฿1,234`; used where a symbol cannot be drawn (PDF). */
+    currencyDisplay?: CurrencyDisplay;
 };
+
+type CurrencyDisplay = 'symbol' | 'code';
 
 export type CurrencyMeta = {
     symbol: string;
@@ -37,14 +41,19 @@ function getCachedFormatter(key: string, locale: string, options: Intl.NumberFor
 }
 
 /** No fraction overrides: Intl applies the currency's own minor units (INR 2, JPY 0). */
-function getExactFormatter(locale: string, currency: string): Intl.NumberFormat {
-    return getCachedFormatter(`exact|${locale}|${currency}`, locale, { style: 'currency', currency });
-}
-
-function getCompactShortFormatter(locale: string, currency: string): Intl.NumberFormat {
-    return getCachedFormatter(`compact_short|${locale}|${currency}`, locale, {
+function getExactFormatter(locale: string, currency: string, display: CurrencyDisplay = 'symbol'): Intl.NumberFormat {
+    return getCachedFormatter(`exact|${locale}|${currency}|${display}`, locale, {
         style: 'currency',
         currency,
+        currencyDisplay: display,
+    });
+}
+
+function getCompactShortFormatter(locale: string, currency: string, display: CurrencyDisplay): Intl.NumberFormat {
+    return getCachedFormatter(`compact_short|${locale}|${currency}|${display}`, locale, {
+        style: 'currency',
+        currency,
+        currencyDisplay: display,
         notation: 'compact',
         compactDisplay: 'short',
         minimumFractionDigits: 0,
@@ -71,8 +80,8 @@ const NUMBER_PART_TYPES = new Set<Intl.NumberFormatPartTypes>(['integer', 'group
  * from the exact currency format, which keeps the locale's symbol position
  * and spacing (`-₹12.35 lakh`, `1,23 Millionen €`).
  */
-function formatCompactLong(value: number, locale: string, currency: string): string {
-    const parts = getExactFormatter(locale, currency).formatToParts(value);
+function formatCompactLong(value: number, locale: string, currency: string, display: CurrencyDisplay): string {
+    const parts = getExactFormatter(locale, currency, display).formatToParts(value);
     const firstNumberIndex = parts.findIndex((part) => NUMBER_PART_TYPES.has(part.type));
     let lastNumberIndex = parts.length - 1;
     while (lastNumberIndex > 0 && !NUMBER_PART_TYPES.has(parts[lastNumberIndex].type)) {
@@ -100,15 +109,16 @@ export function formatCurrencyAmount(value: number, prefs: CurrencyFormatPrefere
     if (isInvalidNumber(value)) {
         return EMPTY_FALLBACK;
     }
+    const display = prefs.currencyDisplay ?? 'symbol';
     try {
         switch (prefs.numberFormat) {
             case 'compact_short':
-                return getCompactShortFormatter(prefs.locale, prefs.currency).format(value);
+                return getCompactShortFormatter(prefs.locale, prefs.currency, display).format(value);
             case 'compact_long':
-                return formatCompactLong(value, prefs.locale, prefs.currency);
+                return formatCompactLong(value, prefs.locale, prefs.currency, display);
             case 'exact':
             default:
-                return getExactFormatter(prefs.locale, prefs.currency).format(value);
+                return getExactFormatter(prefs.locale, prefs.currency, display).format(value);
         }
     } catch {
         return EMPTY_FALLBACK;
