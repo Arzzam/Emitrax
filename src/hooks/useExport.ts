@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { IEmi } from '@/types/emi.types';
 import { DEFAULT_EXPORT_CONFIG } from '@/types/export.types';
+import { exportDataToJson } from '@/utils/export/json/jsonExport';
+import { ScenarioService } from '@/utils/ScenarioService';
 import { errorToast, successToast } from '@/utils/toast.utils';
 
 import { useAccountDetails } from './useAccount';
@@ -11,10 +13,12 @@ import { useUser } from './useUser';
 export function useExport(emi: IEmi | null) {
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [isExportingJson, setIsExportingJson] = useState(false);
 
     const { data: userData } = useUser();
     const { data: account } = useAccountDetails({ enabled: !!userData?.user });
-    const { locale, currency, numberFormat } = useCurrencyPreferences();
+    // A single-EMI export is in that loan's currency, not the account's.
+    const { locale, currency, numberFormat } = useCurrencyPreferences(emi?.currency);
 
     const exportConfig = account?.preferences?.exportConfig ?? DEFAULT_EXPORT_CONFIG;
     const currencyPrefs = useMemo(() => ({ locale, currency, numberFormat }), [locale, currency, numberFormat]);
@@ -54,5 +58,34 @@ export function useExport(emi: IEmi | null) {
         }
     }, [emi, currencyPrefs, exportConfig]);
 
-    return { handlePdfExport, handleExcelExport, isExportingPdf, isExportingExcel };
+    // Not dynamically imported like the PDF and Excel paths: the JSON builder is
+    // plain mapping code with no heavy dependency to keep out of the chunk.
+    const handleJsonExport = useCallback(async () => {
+        if (!emi || !account) return;
+        setIsExportingJson(true);
+        try {
+            const scenarios = await ScenarioService.getScenariosByEmiId(emi.id);
+            exportDataToJson({
+                scope: 'emi',
+                account,
+                emis: [emi],
+                scenariosByEmiId: { [emi.id]: scenarios },
+            });
+            successToast('JSON exported successfully.');
+        } catch (e) {
+            console.error(e);
+            errorToast('Failed to export JSON. Please try again.');
+        } finally {
+            setIsExportingJson(false);
+        }
+    }, [emi, account]);
+
+    return {
+        handlePdfExport,
+        handleExcelExport,
+        handleJsonExport,
+        isExportingPdf,
+        isExportingExcel,
+        isExportingJson,
+    };
 }

@@ -111,6 +111,26 @@ The same grid shape for what each card **billed** per month. Bills and
 payments are tracked separately and are deliberately never combined —
 see `context/plan/credit-card-bill-tracker-plan.md`.
 
+### 4.10 Credit card — cards and limit utilisation
+
+A dedicated cards surface at `/credit-cards/cards`, with a page per card
+at `/credit-cards/cards/:id` carrying its limit history, billing cycle,
+and a month-by-month view of what it billed, what was paid, and how much
+of its limit that used.
+
+Credit limits are **dated**: `cc_card_limit_changes` records each change
+with the day it took effect, so raising a limit does not restate earlier
+months' utilisation.
+
+A per-card figure is that card's statement balance over the limit in
+force when it was printed. The **overall** figure follows the credit
+bureau rule that CIBIL and its peers use — total outstanding over total
+limit across every open card, whether or not a card carried a balance,
+which is why closing an unused card raises it. It is an estimate of what
+a bureau would see, never the reported number, and carries the same
+disclaimer as the SFT tracker. Both live on a fourth `Utilisation` view
+on the tracker grid.
+
 ## 5. Scope
 
 ### In scope
@@ -133,4 +153,6 @@ see `context/plan/credit-card-bill-tracker-plan.md`.
 ### Deferred
 
 - Bill ↔ payment reconciliation (variance) — designed, not built
+- Point-in-time utilisation and "available credit" — both need a dated
+  running balance, and the app stores monthly buckets
 - Linking a card-EMI conversion to an Emitrax EMI record

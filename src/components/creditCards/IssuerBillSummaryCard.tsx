@@ -18,7 +18,7 @@ const IssuerBillSummaryCard = ({
     /** Renders a periodMonth as a human label, e.g. '2026-05-01' -> 'May 2026'. */
     monthLabelFor: (periodMonth: string) => string;
 }) => {
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle } = useCurrencyPreferences();
 
     const coverage = [
         `${aggregate.monthsWithStatement} of 12 months entered`,
@@ -38,7 +38,9 @@ const IssuerBillSummaryCard = ({
                     </p>
                 </div>
 
-                <p className="text-xl font-semibold tabular-nums">{formatCurrencyAmount(aggregate.totalBilled)}</p>
+                <p className="text-xl font-semibold tabular-nums" title={amountTitle(aggregate.totalBilled)}>
+                    {formatCurrencyAmount(aggregate.totalBilled)}
+                </p>
 
                 <p className="text-xs text-muted-foreground">
                     {aggregate.monthsWithStatement > 0

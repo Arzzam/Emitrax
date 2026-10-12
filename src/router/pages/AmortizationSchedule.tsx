@@ -16,9 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const AmortizationSchedule = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount, taxLabels } = useCurrencyPreferences(currentData?.currency);
     const { amortizationSchedules } = currentData || {};
     const [notFound, setNotFound] = useState(false);
 
@@ -91,8 +91,8 @@ const AmortizationSchedule = () => {
                                 <TableHead>Interest</TableHead>
                                 <TableHead>Principal Paid</TableHead>
                                 <TableHead>Balance</TableHead>
-                                <TableHead>GST</TableHead>
-                                <TableHead>Total with GST</TableHead>
+                                <TableHead>{taxLabels.label}</TableHead>
+                                <TableHead>Total with {taxLabels.inline}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

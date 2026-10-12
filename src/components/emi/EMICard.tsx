@@ -14,7 +14,7 @@ import { Card, CardContent, CardTitle } from '../ui/card';
 const EMICard = (props: IEmi) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle, formatPercent } = useCurrencyPreferences(props.currency);
 
     const {
         id,
@@ -134,11 +134,13 @@ const EMICard = (props: IEmi) => {
                             )}
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                            <span className="flex items-center text-base">{formatCurrencyAmount(emiWithGST)}</span>
+                            <span className="flex items-center text-base" title={amountTitle(emiWithGST)}>
+                                {formatCurrencyAmount(emiWithGST)}
+                            </span>
                             {mySplit && mySplitAmount && (
                                 <span className="text-xs text-muted-foreground">
                                     Your share: {formatCurrencyAmount(mySplitAmount)} (
-                                    {mySplit.splitPercentage.toFixed(1)}%)
+                                    {formatPercent(mySplit.splitPercentage, 1)})
                                 </span>
                             )}
                         </div>

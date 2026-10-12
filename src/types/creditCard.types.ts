@@ -58,6 +58,27 @@ export interface ICreditCardPaymentEntry {
     updatedAt: string;
 }
 
+/**
+ * One dated credit-limit change for a card.
+ *
+ * A limit is a property of a card AT A TIME - banks raise them routinely, and
+ * `ICreditCard.creditLimit` holds only the latest. Utilisation for a past month
+ * must resolve the limit that was actually in force, or a limit increase
+ * silently restates history downward.
+ */
+export interface ICardLimitChange {
+    id: string;
+    userId: string;
+    cardId: string;
+    /** 'yyyy-MM-dd'. A real date, NOT a first-of-month bucket. */
+    effectiveFrom: string;
+    /** Always > 0, enforced by a DB CHECK. */
+    creditLimit: number;
+    note: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface ICreditCardTrackerYear {
     id: string;
     userId: string;
@@ -92,9 +113,20 @@ export interface CreateCardInput {
     sortOrder?: number;
     statementDay?: number | null;
     dueDay?: number | null;
+    /** Opening limit. Seeds the first `cc_card_limit_changes` row, effective today. */
     creditLimit?: number | null;
 }
 
+/**
+ * `creditLimit` is deliberately ABSENT.
+ *
+ * The current limit on `cc_cards` is a cache of the latest row in
+ * `cc_card_limit_changes`, restated by the service after every history write.
+ * A direct update here would be silently overwritten by the next one, and would
+ * skip the dated record that keeps past months from being restated. Limits are
+ * changed through `SaveLimitChangeInput`; leaving the field off makes any other
+ * route a compile error.
+ */
 export interface UpdateCardInput {
     id: string;
     issuerId?: string;
@@ -104,7 +136,6 @@ export interface UpdateCardInput {
     sortOrder?: number;
     statementDay?: number | null;
     dueDay?: number | null;
-    creditLimit?: number | null;
 }
 
 export interface SavePaymentEntryInput {
@@ -147,6 +178,14 @@ export interface SaveBillEntryInput {
     minimumDue?: number | null;
     statementDate?: string | null;
     dueDate?: string | null;
+    note?: string | null;
+}
+
+export interface SaveLimitChangeInput {
+    cardId: string;
+    /** 'yyyy-MM-dd'. Upsert conflict target together with `cardId`. */
+    effectiveFrom: string;
+    creditLimit: number;
     note?: string | null;
 }
 
@@ -208,4 +247,141 @@ export interface IssuerBillAggregate {
     combinedLimit: number | null;
     /** Band of peakBill against combinedLimit; null when combinedLimit is null. */
     peakStatus: ThresholdStatus | null;
+}
+
+// --- Credit-limit utilisation ----------------------------------------------
+
+/** How a card's balance for one month became known. */
+export type BalanceBasis = 'issued' | 'no_statement' | 'assumed_nil';
+
+/**
+ * One card's share of a month's bureau figure.
+ *
+ * Carried so a month can be inspected rather than merely read: the headline
+ * ratio is meaningless for checking unless you can see which card put the
+ * balance there, and which cards were assumed nil rather than entered.
+ */
+export interface BureauCardContribution {
+    cardId: string;
+    cardName: string;
+    last4: string | null;
+    /** Floored at 0, as it enters the sum. */
+    balance: number;
+    limit: number;
+    /** This card's own ratio, for context beside the aggregate. */
+    ratio: number;
+    basis: BalanceBasis;
+}
+
+export interface BureauMonth {
+    statementMonth: string;
+    /** Sum of per-card balances, each floored at 0. */
+    balance: number;
+    /** Sum of the limits in force across every counted card. */
+    limit: number;
+    ratio: number;
+    overLimit: boolean;
+    /** Cards in the denominator. */
+    cardCount: number;
+    /** Of those, how many had nothing entered and were assumed nil. */
+    assumedCount: number;
+    /** True when anything was assumed - the ratio can then only be understated. */
+    isPartial: boolean;
+    /** The cards behind the figure, largest balance first. */
+    contributions: BureauCardContribution[];
+}
+
+export interface BureauUtilisation {
+    /** statementMonth -> overall figure. Months with nothing known are absent. */
+    months: Map<string, BureauMonth>;
+    /** statementMonth -> issuerId -> the same rule, scoped to one issuer. */
+    issuerMonths: Map<string, Map<string, BureauMonth>>;
+    /** Most recent month carrying a figure. */
+    latest: BureauMonth | null;
+    peak: BureauMonth | null;
+    issuerPeak: Map<string, BureauMonth>;
+    /** Mean of the monthly ratios over months that produced one. */
+    averageRatio: number | null;
+    monthsWithData: number;
+    /** Cards contributing a limit to the denominator. */
+    cardsCounted: number;
+    /** Cards excluded because no limit has ever been recorded for them. */
+    cardsWithoutLimit: number;
+    /** issuerId -> `cardsCounted`, scoped to that issuer. */
+    issuerCardsCounted: Map<string, number>;
+    /** issuerId -> `cardsWithoutLimit`, scoped to that issuer. */
+    issuerCardsWithoutLimit: Map<string, number>;
+}
+
+/**
+ * One defensible utilisation figure: a statement balance against the limit that
+ * was in force when it was printed.
+ *
+ * A cell EXISTS only when both halves are real. Not entered, 'no_statement',
+ * and "this card has no limit" all produce no cell at all - never a zero, which
+ * would be indistinguishable from a genuine zero-balance statement.
+ */
+export interface UtilisationCell {
+    /** Sum of statement totals. Signed - a credit balance is negative. */
+    billed: number;
+    /** Sum of the limits in force. Always > 0. */
+    limit: number;
+    /** `billed / limit`, signed and uncapped. */
+    ratio: number;
+    /** At or above the full limit. Rendered distinctly; never silently capped. */
+    overLimit: boolean;
+    /** Cards behind this figure. Always 1 for a per-card cell. */
+    cardCount: number;
+}
+
+export interface UtilisationPeak {
+    cell: UtilisationCell;
+    statementMonth: string;
+}
+
+/**
+ * Per-card utilisation across one financial year - the strict reading.
+ *
+ * Deliberately carries NO combined figures. Every combined percentage in the
+ * app comes from `buildBureauUtilisation`, which uses a different and larger
+ * denominator; a second combining implementation living here would be one that
+ * quietly drifts from it.
+ */
+export interface UtilisationMatrix {
+    /** cardId -> statementMonth -> cell. */
+    cells: Map<string, Map<string, UtilisationCell>>;
+    cardPeak: Map<string, UtilisationPeak>;
+    /** Ids of cards contributing at least one cell this year. */
+    cardsWithLimit: string[];
+    /** Ids of cards that billed but had no limit to measure against. */
+    cardsWithoutLimit: string[];
+}
+
+export interface IssuerUtilisationAggregate {
+    issuerId: string;
+    name: string;
+    color: IssuerColorToken | null;
+    cardCount: number;
+    /** Cards contributing a limit to the denominator. */
+    cardsCountedCount: number;
+    /** Cards excluded because no limit has ever been recorded for them. */
+    cardsWithoutLimitCount: number;
+    /** Highest monthly ratio, on the bureau rule. */
+    peak: BureauMonth | null;
+    /**
+     * Mean of the monthly ratios over months that produced one.
+     *
+     * Averaging across MONTHS is legitimate - each month is already a properly
+     * weighted ratio of sums, and they are comparable point-in-time snapshots.
+     * Averaging across CARDS within a month is not, and never happens.
+     */
+    averageRatio: number | null;
+    monthsWithData: number;
+    /** Months of the year that have happened, so could carry a figure. */
+    monthsMeasurable: number;
+    /** Most recent month holding a figure, for the "as of" line. */
+    latest: BureauMonth | null;
+    /** True when any month behind these figures assumed a card was nil. */
+    hasPartialMonths: boolean;
+    status: ThresholdStatus | null;
 }

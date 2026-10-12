@@ -24,13 +24,14 @@ const parseDay = (raw: string): number | null => {
     return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : NaN;
 };
 
-const parseLimit = (raw: string): number | null => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
+export type AmountParser = (raw: string) => number | null | undefined;
+
+const parseLimit = (raw: string, parseAmountInput: AmountParser): number | null => {
+    const parsed = parseAmountInput(raw);
+    if (parsed === null) {
         return null;
     }
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : NaN;
+    return parsed !== undefined && parsed > 0 ? parsed : NaN;
 };
 
 /**
@@ -38,13 +39,14 @@ const parseLimit = (raw: string): number | null => {
  * every one is valid, mirroring the DB CHECK constraints on `cc_cards`.
  */
 export function validateBillingCycle(
-    values: BillingCycleValues
+    values: BillingCycleValues,
+    parseAmountInput: AmountParser
 ):
     | { ok: true; parsed: { statementDay: number | null; dueDay: number | null; creditLimit: number | null } }
     | { ok: false; errors: BillingCycleErrors } {
     const statementDay = parseDay(values.statementDay);
     const dueDay = parseDay(values.dueDay);
-    const creditLimit = parseLimit(values.creditLimit);
+    const creditLimit = parseLimit(values.creditLimit, parseAmountInput);
     const errors: BillingCycleErrors = {};
 
     if (Number.isNaN(statementDay)) {
@@ -77,11 +79,19 @@ const BillingCycleFields = ({
     values,
     errors,
     onChange,
+    showCreditLimit = true,
 }: {
     idPrefix: string;
     values: BillingCycleValues;
     errors: BillingCycleErrors;
     onChange: (next: BillingCycleValues) => void;
+    /**
+     * Only the add-card flow may set a limit here, and only as the OPENING one.
+     * Afterwards a limit is a dated timeline rather than a field - editing it
+     * inline would restate every past month's utilisation - so the edit
+     * affordance hides it and sends the user to the limit history instead.
+     */
+    showCreditLimit?: boolean;
 }) => {
     const set = (key: keyof BillingCycleValues) => (event: React.ChangeEvent<HTMLInputElement>) =>
         onChange({ ...values, [key]: event.target.value });
@@ -122,18 +132,24 @@ const BillingCycleFields = ({
                 A statement generated on the 15th, due on the 5th, is filed under its own month and paid the next.
             </p>
 
-            <div className="space-y-1.5">
-                <Label htmlFor={`${idPrefix}-credit-limit`}>Credit limit</Label>
-                <Input
-                    id={`${idPrefix}-credit-limit`}
-                    inputMode="decimal"
-                    placeholder="Optional"
-                    className="tabular-nums"
-                    value={values.creditLimit}
-                    onChange={set('creditLimit')}
-                />
-                {errors.creditLimit && <p className="text-xs text-destructive">{errors.creditLimit}</p>}
-            </div>
+            {showCreditLimit && (
+                <div className="space-y-1.5">
+                    <Label htmlFor={`${idPrefix}-credit-limit`}>Opening credit limit</Label>
+                    <Input
+                        id={`${idPrefix}-credit-limit`}
+                        inputMode="decimal"
+                        placeholder="Optional"
+                        className="tabular-nums"
+                        value={values.creditLimit}
+                        onChange={set('creditLimit')}
+                    />
+                    {errors.creditLimit && <p className="text-xs text-destructive">{errors.creditLimit}</p>}
+                    <p className="text-xs text-muted-foreground">
+                        Later increases are recorded with the date they took effect, so earlier months keep the limit
+                        that was actually in force.
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

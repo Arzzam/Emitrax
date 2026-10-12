@@ -10,9 +10,9 @@ import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import type { IEmi } from '@/types/emi.types';
 
+import AmountInput from '@/components/common/AmountInput';
 import FilterDatePicker from '@/components/filter/FilterDatePicker';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 
 interface AdvancedFilterPanelProps {
     emiData: IEmi[];
+    /** Bounds apply to EMIs in this currency only; amounts don't compare across currencies. */
+    amountCurrency?: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
@@ -78,33 +80,23 @@ function MultiSelectPerson({
     );
 }
 
-const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPanelProps) => {
+const AdvancedFilterPanel = ({ emiData, amountCurrency, open, onOpenChange }: AdvancedFilterPanelProps) => {
     const state = useSelector((s: IRootState) => s.advancedFilterModel);
     const dispatch = useRematchDispatch((d: IDispatch) => d.advancedFilterModel);
     const { user, displayName } = useDisplayUser();
     const currentUserId = user?.id;
     const currentUserLabel = displayName ?? 'Me';
 
-    const setPrincipalMin = (v: string) =>
-        dispatch.setPrincipalRange({
-            min: v === '' ? null : Number(v),
-            max: state.principalMax,
-        });
-    const setPrincipalMax = (v: string) =>
-        dispatch.setPrincipalRange({
-            min: state.principalMin,
-            max: v === '' ? null : Number(v),
-        });
-    const setTotalLoanMin = (v: string) =>
-        dispatch.setTotalLoanRange({
-            min: v === '' ? null : Number(v),
-            max: state.totalLoanMax,
-        });
-    const setTotalLoanMax = (v: string) =>
-        dispatch.setTotalLoanRange({
-            min: state.totalLoanMin,
-            max: v === '' ? null : Number(v),
-        });
+    // Empty or unparseable text clears the bound rather than filtering on NaN.
+    const toBound = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? null : v);
+    const setPrincipalMin = (v: number | undefined) =>
+        dispatch.setPrincipalRange({ min: toBound(v), max: state.principalMax });
+    const setPrincipalMax = (v: number | undefined) =>
+        dispatch.setPrincipalRange({ min: state.principalMin, max: toBound(v) });
+    const setTotalLoanMin = (v: number | undefined) =>
+        dispatch.setTotalLoanRange({ min: toBound(v), max: state.totalLoanMax });
+    const setTotalLoanMax = (v: number | undefined) =>
+        dispatch.setTotalLoanRange({ min: state.totalLoanMin, max: toBound(v) });
 
     const setBillDateFrom = (iso: string | null) => dispatch.setBillDateRange({ from: iso, to: state.billDateTo });
     const setBillDateTo = (iso: string | null) => dispatch.setBillDateRange({ from: state.billDateFrom, to: iso });
@@ -137,34 +129,32 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                 <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-2">
                     {/* Amounts */}
                     <section className="space-y-3">
-                        <h3 className="text-sm font-medium text-foreground">Amounts</h3>
+                        <h3 className="text-sm font-medium text-foreground">
+                            Amounts{amountCurrency ? ` (${amountCurrency})` : ''}
+                        </h3>
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
                                 <Label htmlFor="principal-min" className="text-xs">
                                     Principal min
                                 </Label>
-                                <Input
+                                <AmountInput
+                                    currency={amountCurrency}
                                     id="principal-min"
-                                    type="number"
-                                    min={0}
                                     placeholder="Min"
-                                    value={state.principalMin ?? ''}
-                                    onChange={(e) => setPrincipalMin(e.target.value)}
-                                    className="h-9"
+                                    value={state.principalMin}
+                                    onValueChange={setPrincipalMin}
                                 />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="principal-max" className="text-xs">
                                     Principal max
                                 </Label>
-                                <Input
+                                <AmountInput
+                                    currency={amountCurrency}
                                     id="principal-max"
-                                    type="number"
-                                    min={0}
                                     placeholder="Max"
-                                    value={state.principalMax ?? ''}
-                                    onChange={(e) => setPrincipalMax(e.target.value)}
-                                    className="h-9"
+                                    value={state.principalMax}
+                                    onValueChange={setPrincipalMax}
                                 />
                             </div>
                         </div>
@@ -173,28 +163,24 @@ const AdvancedFilterPanel = ({ emiData, open, onOpenChange }: AdvancedFilterPane
                                 <Label htmlFor="loan-min" className="text-xs">
                                     Total loan min
                                 </Label>
-                                <Input
+                                <AmountInput
+                                    currency={amountCurrency}
                                     id="loan-min"
-                                    type="number"
-                                    min={0}
                                     placeholder="Min"
-                                    value={state.totalLoanMin ?? ''}
-                                    onChange={(e) => setTotalLoanMin(e.target.value)}
-                                    className="h-9"
+                                    value={state.totalLoanMin}
+                                    onValueChange={setTotalLoanMin}
                                 />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="loan-max" className="text-xs">
                                     Total loan max
                                 </Label>
-                                <Input
+                                <AmountInput
+                                    currency={amountCurrency}
                                     id="loan-max"
-                                    type="number"
-                                    min={0}
                                     placeholder="Max"
-                                    value={state.totalLoanMax ?? ''}
-                                    onChange={(e) => setTotalLoanMax(e.target.value)}
-                                    className="h-9"
+                                    value={state.totalLoanMax}
+                                    onValueChange={setTotalLoanMax}
                                 />
                             </div>
                         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import {
     ArrowLeftRight,
     CalendarClock,
@@ -8,6 +9,7 @@ import {
     Pencil,
     Power,
     Settings2,
+    SquareArrowOutUpRight,
     Trash2,
     X,
 } from 'lucide-react';
@@ -19,11 +21,7 @@ import { CreditCardService } from '@/utils/CreditCardService';
 
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import AddCardDialog from '@/components/creditCards/AddCardDialog';
-import BillingCycleFields, {
-    BillingCycleErrors,
-    BillingCycleValues,
-    validateBillingCycle,
-} from '@/components/creditCards/BillingCycleFields';
+import BillingCycleSheet from '@/components/creditCards/BillingCycleSheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,15 +35,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 type EntryCounts = { payments: number; bills: number };
 type PendingDelete = { kind: 'issuer' | 'card'; id: string; name: string; counts: EntryCounts };
@@ -98,83 +88,6 @@ const InlineRename = ({
                 <X />
             </Button>
         </div>
-    );
-};
-
-const toCycleValues = (card: ICreditCard): BillingCycleValues => ({
-    statementDay: card.statementDay == null ? '' : String(card.statementDay),
-    dueDay: card.dueDay == null ? '' : String(card.dueDay),
-    creditLimit: card.creditLimit == null ? '' : String(card.creditLimit),
-});
-
-/**
- * Editing the cycle after creation matters: a user who skipped the fields in
- * the add sheet would otherwise have no way to set them, and a bank changing
- * its cycle date mid-year would have no path at all.
- */
-const BillingCycleSheet = ({
-    card,
-    open,
-    onOpenChange,
-}: {
-    card: ICreditCard;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-}) => {
-    const [values, setValues] = useState<BillingCycleValues>(() => toCycleValues(card));
-    const [errors, setErrors] = useState<BillingCycleErrors>({});
-    const { mutate: updateCard, isPending } = useUpdateCard();
-
-    const handleOpenChange = (next: boolean) => {
-        if (next) {
-            setValues(toCycleValues(card));
-            setErrors({});
-        }
-        onOpenChange(next);
-    };
-
-    const save = () => {
-        const result = validateBillingCycle(values);
-        if (!result.ok) {
-            setErrors(result.errors);
-            return;
-        }
-
-        updateCard({ id: card.id, ...result.parsed }, { onSuccess: () => onOpenChange(false) });
-    };
-
-    return (
-        <Sheet open={open} onOpenChange={handleOpenChange}>
-            <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-sm">
-                <SheetHeader className="shrink-0 border-b px-6 py-5">
-                    <SheetTitle>Billing cycle</SheetTitle>
-                    <SheetDescription>
-                        {card.name} — these pre-fill a bill's dates. Each bill keeps its own dates once entered.
-                    </SheetDescription>
-                </SheetHeader>
-
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
-                    <BillingCycleFields
-                        idPrefix={`cycle-${card.id}`}
-                        values={values}
-                        errors={errors}
-                        onChange={(next) => {
-                            setValues(next);
-                            setErrors({});
-                        }}
-                    />
-                </div>
-
-                <SheetFooter className="flex-row justify-end border-t">
-                    <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
-                    </Button>
-                    <Button type="button" disabled={isPending} onClick={save}>
-                        {isPending ? 'Saving...' : 'Save'}
-                    </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
     );
 };
 
@@ -239,6 +152,11 @@ const CardRow = ({
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setCycleOpen(true)}>
                         <CalendarClock /> Billing cycle
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link to={`/credit-cards/cards/${card.id}`}>
+                            <SquareArrowOutUpRight /> Open card
+                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => updateCard({ id: card.id, isActive: !card.isActive })}>
                         <Power /> {card.isActive ? 'Deactivate' : 'Reactivate'}

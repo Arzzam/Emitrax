@@ -34,10 +34,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 const SplitEMI = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { formatCurrencyAmount } = useCurrencyPreferences();
     const { data: accountDetails } = useAccountDetails();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
+    const { formatCurrencyAmount, formatPercent } = useCurrencyPreferences(currentData?.currency);
     const [notFound, setNotFound] = useState(false);
 
     usePageTitle(currentData?.itemName ? `Split · ${currentData.itemName}` : 'Split EMI');
@@ -198,7 +198,7 @@ const SplitEMI = () => {
         }
 
         if (!isTotalValid) {
-            errorToast(`Splits must sum to 100%. Current total: ${totalPercentage.toFixed(2)}%`);
+            errorToast(`Splits must sum to 100%. Current total: ${formatPercent(totalPercentage, 2)}`);
             return;
         }
 
@@ -255,7 +255,7 @@ const SplitEMI = () => {
             errorToast((error as Error).message || 'Failed to save splits');
             setIsSubmitting(false);
         }
-    }, [editedSplits, id, isTotalValid, ownerId, setSplits, totalPercentage]);
+    }, [editedSplits, formatPercent, id, isTotalValid, ownerId, setSplits, totalPercentage]);
 
     const handleRemoveSplit = useCallback(
         (split: IEmiSplit) => {
@@ -416,7 +416,7 @@ const SplitEMI = () => {
                                                         {split.participantEmail}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground mt-1">
-                                                        {split.splitPercentage.toFixed(3)}% •{' '}
+                                                        {formatPercent(split.splitPercentage, 3)} •{' '}
                                                         {formatCurrencyAmount(getSplitAmount(split.splitPercentage))}
                                                         /month
                                                     </div>
@@ -446,6 +446,7 @@ const SplitEMI = () => {
 
                                             return (
                                                 <SplitEmiEditRow
+                                                    currency={currentData?.currency}
                                                     key={split.id || split.tempId}
                                                     split={split}
                                                     index={index}
@@ -462,7 +463,7 @@ const SplitEMI = () => {
                                         <div className="flex items-center gap-2">
                                             <span className="font-medium">Total:</span>
                                             <Badge variant={isTotalValid ? 'default' : 'secondary'}>
-                                                {totalPercentage.toFixed(2)}%
+                                                {formatPercent(totalPercentage, 2)}
                                             </Badge>
                                         </div>
                                         {!isTotalValid && (
@@ -470,8 +471,8 @@ const SplitEMI = () => {
                                                 <AlertCircle className="h-4 w-4" />
                                                 <AlertDescription className="text-xs">
                                                     {totalPercentage < 100 - PERCENTAGE_TOLERANCE
-                                                        ? `${(100 - totalPercentage).toFixed(2)}% remaining`
-                                                        : `${(totalPercentage - 100).toFixed(2)}% over-allocated`}
+                                                        ? `${formatPercent(100 - totalPercentage, 2)} remaining`
+                                                        : `${formatPercent(totalPercentage - 100, 2)} over-allocated`}
                                                 </AlertDescription>
                                             </Alert>
                                         )}
@@ -509,7 +510,7 @@ const SplitEMI = () => {
                                             className="flex-1"
                                         >
                                             {hasCurrentUserSplit ? 'Set My Share' : 'Add Me'} (
-                                            {remainingForCurrentUser.toFixed(2)}%)
+                                            {formatPercent(remainingForCurrentUser, 2)})
                                         </Button>
                                         <Button
                                             onClick={handleSaveSplits}

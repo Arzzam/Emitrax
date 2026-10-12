@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { useSearchParams } from 'react-router';
-import { CreditCard, Info } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router';
+import { CreditCard, Info, WalletCards } from 'lucide-react';
 
 import {
+    useAllLimitChanges,
     useAvailableFinancialYears,
     useCreditCardBillEntries,
     useCreditCardEntries,
@@ -18,6 +19,12 @@ import { SFT_CASH_THRESHOLD, SFT_TOTAL_THRESHOLD } from '@/types/creditCard.type
 import { aggregateBillsByIssuer, BILL_SERIES } from '@/utils/creditCardBills.calc';
 import { aggregateByIssuer, buildTrackerMatrix, PAYMENT_SERIES } from '@/utils/creditCardTracker.calc';
 import {
+    aggregateUtilisationByIssuer,
+    buildBureauUtilisation,
+    buildUtilisationMatrix,
+    formatUtilisationPercent,
+} from '@/utils/creditCardUtilisation.calc';
+import {
     getCurrentFinancialYear,
     getElapsedMonthCount,
     getFinancialYearMonths,
@@ -28,14 +35,17 @@ import LoginCard from '@/components/cards/LoginCard';
 import MainContainer from '@/components/common/Container';
 import AddCardDialog from '@/components/creditCards/AddCardDialog';
 import BillCellEditor from '@/components/creditCards/BillCellEditor';
+import BureauUtilisationCard from '@/components/creditCards/BureauUtilisationCard';
 import CreditCardGrid, { TrackerGridSeries } from '@/components/creditCards/CreditCardGrid';
 import FinancialYearSelector from '@/components/creditCards/FinancialYearSelector';
 import IssuerBillSummaryCard from '@/components/creditCards/IssuerBillSummaryCard';
 import IssuerCardManager from '@/components/creditCards/IssuerCardManager';
 import IssuerThresholdCard from '@/components/creditCards/IssuerThresholdCard';
+import IssuerUtilisationCard from '@/components/creditCards/IssuerUtilisationCard';
 import PaymentCellEditor from '@/components/creditCards/PaymentCellEditor';
 import TrackerViewSelector, { parseTrackerView, TrackerView } from '@/components/creditCards/TrackerViewSelector';
 import TrackerYearNotes from '@/components/creditCards/TrackerYearNotes';
+import UtilisationCellValue from '@/components/creditCards/UtilisationCellValue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -69,6 +79,10 @@ const HEADINGS: Record<TrackerView, { title: string; description: string }> = {
         title: 'Bills and payments',
         description: 'What each card billed, next to what you paid.',
     },
+    utilisation: {
+        title: 'Credit limit utilisation',
+        description: 'Each statement balance against the limit that was in force when it was printed.',
+    },
 };
 
 const CreditCards = () => {
@@ -92,8 +106,16 @@ const CreditCards = () => {
         setSearchParams(params, { replace: false });
     };
 
-    const setFinancialYear = (next: string) => setParam('fy', next, false);
+    // Changing the year drops the picked month with it - carrying it over would
+    // leave a stale key in the URL that no longer names a month on screen.
+    const setFinancialYear = (next: string) => {
+        const params = new URLSearchParams(searchParams);
+        params.set('fy', next);
+        params.delete('month');
+        setSearchParams(params, { replace: false });
+    };
     const setView = (next: TrackerView) => setParam('view', next, next === 'payments');
+    const setUtilisationMonth = (next: string) => setParam('month', next, false);
 
     const {
         data: issuers = [],
@@ -113,6 +135,12 @@ const CreditCards = () => {
         isError: billsError,
         refetch: refetchBills,
     } = useCreditCardBillEntries(financialYear);
+    const {
+        data: limitChanges = [],
+        isLoading: limitsLoading,
+        isError: limitsError,
+        refetch: refetchLimits,
+    } = useAllLimitChanges();
     const { data: trackerYear } = useCreditCardTrackerYear(financialYear);
     const { data: yearsWithData = [] } = useAvailableFinancialYears();
     const { mutate: savePaymentEntry } = useSavePaymentEntry(financialYear);
@@ -135,6 +163,17 @@ const CreditCards = () => {
         () => buildTrackerMatrix(allCards, bills, months, BILL_SERIES),
         [allCards, bills, months]
     );
+    const utilisationMatrix = useMemo(
+        () => buildUtilisationMatrix(issuers, bills, limitChanges, months),
+        [issuers, bills, limitChanges, months]
+    );
+    // The bureau reading drives every COMBINED figure - the grid's issuer
+    // subtotals, its overall column and the summary cards. The matrix above
+    // stays the source for per-card cells only.
+    const bureau = useMemo(
+        () => buildBureauUtilisation(issuers, bills, limitChanges, months),
+        [issuers, bills, limitChanges, months]
+    );
 
     const threshold = trackerYear?.thresholdAmount ?? SFT_TOTAL_THRESHOLD;
     const cashThreshold = trackerYear?.cashThresholdAmount ?? SFT_CASH_THRESHOLD;
@@ -147,8 +186,22 @@ const CreditCards = () => {
         () => aggregateBillsByIssuer(issuers, bills, months, elapsedMonths),
         [issuers, bills, months, elapsedMonths]
     );
+    const utilisationAggregates = useMemo(
+        () => aggregateUtilisationByIssuer(issuers, bureau, months),
+        [issuers, bureau, months]
+    );
 
     const cardById = useMemo(() => new Map(allCards.map((card) => [card.id, card])), [allCards]);
+
+    // A month explicitly picked wins, but only while it belongs to the year being
+    // viewed - otherwise changing the financial year would leave the card
+    // pointing at a month that is no longer on screen. Falling back to the most
+    // recent month with a figure keeps the default a bureau would recognise.
+    const requestedMonth = searchParams.get('month');
+    const utilisationMonth =
+        (requestedMonth && months.some((month) => month.periodMonth === requestedMonth) ? requestedMonth : null) ??
+        bureau.latest?.statementMonth ??
+        null;
 
     const paymentSeries: TrackerGridSeries = {
         id: 'payments',
@@ -184,8 +237,48 @@ const CreditCards = () => {
         ),
     };
 
+    // Ratios, not money: a subtotal is a peak rather than a sum, and an absent
+    // reading must stay absent rather than collapsing into a zero.
+    const ratioOrDash = (value: number | undefined) => (value == null ? '—' : formatUtilisationPercent(value));
+
+    const utilisationSeries: TrackerGridSeries = {
+        id: 'utilisation',
+        label: 'Utilisation',
+        monthTotals: new Map(Array.from(bureau.months, ([month, figure]) => [month, figure.ratio])),
+        monthIssuerTotals: new Map(
+            Array.from(bureau.issuerMonths, ([month, byIssuer]) => [
+                month,
+                new Map(Array.from(byIssuer, ([issuerId, figure]) => [issuerId, figure.ratio])),
+            ])
+        ),
+        // Per-card footer stays the card's own peak; the combined columns are
+        // the bureau rule, which counts every open limit whether used or not.
+        cardTotals: new Map(Array.from(utilisationMatrix.cardPeak, ([cardId, peak]) => [cardId, peak.cell.ratio])),
+        grandTotal: bureau.peak?.ratio,
+        formatValue: ratioOrDash,
+        formatTotal: ratioOrDash,
+        getIssuerTotal: (issuerId) => bureau.issuerPeak.get(issuerId)?.ratio,
+        footerLabel: 'Peak',
+        zeroIsFigure: true,
+        renderCell: (card, month) => (
+            <UtilisationCellValue
+                cell={utilisationMatrix.cells.get(card.id)?.get(month.periodMonth)}
+                cardId={card.id}
+                cardName={card.name}
+                monthLabel={month.label}
+                financialYear={financialYear}
+            />
+        ),
+    };
+
     const gridSeries =
-        view === 'payments' ? [paymentSeries] : view === 'bills' ? [billSeries] : [billSeries, paymentSeries];
+        view === 'payments'
+            ? [paymentSeries]
+            : view === 'bills'
+              ? [billSeries]
+              : view === 'utilisation'
+                ? [utilisationSeries]
+                : [billSeries, paymentSeries];
 
     if (!userId) {
         return (
@@ -195,13 +288,13 @@ const CreditCards = () => {
         );
     }
 
-    if (issuersError || entriesError || billsError) {
+    if (issuersError || entriesError || billsError || limitsError) {
         return (
             <MainContainer>
                 <Alert variant="destructive">
                     <AlertTitle>Could not load your credit card tracker</AlertTitle>
                     <AlertDescription className="flex flex-col items-start gap-3">
-                        <span>Something went wrong fetching your issuers, payments or bills.</span>
+                        <span>Something went wrong fetching your issuers, payments, bills or credit limits.</span>
                         <Button
                             type="button"
                             variant="outline"
@@ -210,6 +303,7 @@ const CreditCards = () => {
                                 refetchIssuers();
                                 refetchEntries();
                                 refetchBills();
+                                refetchLimits();
                             }}
                         >
                             Retry
@@ -220,15 +314,22 @@ const CreditCards = () => {
         );
     }
 
-    // Both queries mount unconditionally so switching views is instant, but the
+    // Every query mounts unconditionally so switching views is instant, but the
     // skeleton only waits on the series actually on screen.
     const seriesLoading =
-        view === 'payments' ? entriesLoading : view === 'bills' ? billsLoading : entriesLoading || billsLoading;
+        view === 'payments'
+            ? entriesLoading
+            : view === 'bills'
+              ? billsLoading
+              : view === 'utilisation'
+                ? billsLoading || limitsLoading
+                : entriesLoading || billsLoading;
     const isLoading = issuersLoading || seriesLoading;
 
     const heading = HEADINGS[view];
-    const showsPayments = view !== 'bills';
-    const showsBills = view !== 'payments';
+    const showsUtilisation = view === 'utilisation';
+    const showsPayments = view === 'payments' || view === 'both';
+    const showsBills = view === 'bills' || view === 'both';
 
     return (
         <MainContainer className="space-y-6 pb-10">
@@ -244,6 +345,11 @@ const CreditCards = () => {
                         onChange={setFinancialYear}
                         yearsWithData={yearsWithData}
                     />
+                    <Button type="button" variant="outline" size="sm" asChild>
+                        <Link to={`/credit-cards/cards?fy=${financialYear}`}>
+                            <WalletCards /> Cards
+                        </Link>
+                    </Button>
                     {issuers.length > 0 && <IssuerCardManager issuers={issuers} />}
                     <AddCardDialog issuers={issuers} />
                 </div>
@@ -270,6 +376,20 @@ const CreditCards = () => {
                         A statement generated 15 Aug covering 16 Jul – 15 Aug belongs to Aug, and is normally paid in
                         Sep. Bills and payments are not directly comparable: a revolved balance is billed again the next
                         month with interest, so twelve bills do not sum to a year's spending.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {showsUtilisation && (
+                <Alert>
+                    <Info className="size-4" aria-hidden />
+                    <AlertTitle>Combined figures follow the credit-bureau rule</AlertTitle>
+                    <AlertDescription>
+                        A card column is that card's own statement balance against the limit in force when it was
+                        printed, so raising a limit never restates earlier months. The overall and per-bank columns
+                        instead work the way CIBIL does: every card's limit counts toward the total whether or not it
+                        carried a balance, balances floor at zero, and a card you have not entered is assumed nil and
+                        flagged — which means a partial month can only ever read lower than the truth.
                     </AlertDescription>
                 </Alert>
             )}
@@ -329,21 +449,59 @@ const CreditCards = () => {
                         </div>
                     )}
 
+                    {showsUtilisation && (
+                        <BureauUtilisationCard
+                            bureau={bureau}
+                            months={months}
+                            selectedMonth={utilisationMonth}
+                            onSelectMonth={setUtilisationMonth}
+                            financialYear={financialYear}
+                        />
+                    )}
+
+                    {showsUtilisation && (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {utilisationAggregates.map((aggregate) => (
+                                <IssuerUtilisationCard
+                                    key={aggregate.issuerId}
+                                    aggregate={aggregate}
+                                    monthLabelFor={monthLabelFor}
+                                />
+                            ))}
+                        </div>
+                    )}
+
                     {allCards.length === 0 ? (
                         <Card className="border-border/80 shadow-sm">
                             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                                Add a card to start logging {showsBills && !showsPayments ? 'bills' : 'payments'}.
+                                Add a card to start logging{' '}
+                                {showsUtilisation
+                                    ? 'bills and credit limits'
+                                    : showsBills && !showsPayments
+                                      ? 'bills'
+                                      : 'payments'}
+                                .
                             </CardContent>
                         </Card>
                     ) : (
                         <div className="space-y-2">
                             <CreditCardGrid issuers={issuers} months={months} series={gridSeries} />
-                            <p className="text-xs text-muted-foreground">
-                                Enter saves, Escape reverts.{' '}
-                                {showsBills
-                                    ? 'Use the note icon in a bill cell for the minimum due, dates, or to mark a month as having no statement.'
-                                    : 'Use the note icon in a cell to record a cash portion.'}
-                            </p>
+                            {showsUtilisation ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Every cell here is derived — select one to open the card, where its limit history
+                                    and statements are edited. Combined columns are a ratio of sums, never an average of
+                                    per-card percentages, and the footer is each column's peak rather than a total. A
+                                    card cell is blank when nothing was entered; a month the bank issued no statement
+                                    reads 0%, because nothing was owed.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    Enter saves, Escape reverts.{' '}
+                                    {showsBills
+                                        ? 'Use the note icon in a bill cell for the minimum due, dates, or to mark a month as having no statement.'
+                                        : 'Use the note icon in a cell to record a cash portion.'}
+                                </p>
+                            )}
                         </div>
                     )}
 

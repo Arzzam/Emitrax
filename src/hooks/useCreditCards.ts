@@ -5,11 +5,14 @@ import { IRootState } from '@/store/types/store.types';
 import {
     CreateCardInput,
     CreateIssuerInput,
+    ICardLimitChange,
+    ICreditCard,
     ICreditCardBillEntry,
     ICreditCardIssuer,
     ICreditCardPaymentEntry,
     ICreditCardTrackerYear,
     SaveBillEntryInput,
+    SaveLimitChangeInput,
     SavePaymentEntryInput,
     UpdateCardInput,
     UpdateIssuerInput,
@@ -26,6 +29,9 @@ export const creditCardKeys = {
     year: (financialYear: string) => [...creditCardKeys.all, 'year', financialYear] as const,
     bills: (financialYear: string) => [...creditCardKeys.all, 'bills', financialYear] as const,
     years: () => [...creditCardKeys.all, 'years'] as const,
+    limits: () => [...creditCardKeys.all, 'limits'] as const,
+    cardLimits: (cardId: string) => [...creditCardKeys.limits(), cardId] as const,
+    card: (cardId: string) => [...creditCardKeys.all, 'card', cardId] as const,
 };
 
 const useUserId = (): string | undefined => useSelector((state: IRootState) => state.userModel).id;
@@ -128,6 +134,8 @@ export const useCreateCard = () => {
         mutationFn: (input: CreateCardInput) => CreditCardService.createCard(input),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: creditCardKeys.issuers() });
+            // createCard also seeds the opening row of the limit history.
+            queryClient.invalidateQueries({ queryKey: creditCardKeys.limits() });
             successToast('Card added');
         },
         onError: (error: Error) => errorToast(error.message || 'Failed to add card'),
@@ -139,8 +147,9 @@ export const useUpdateCard = () => {
 
     return useMutation({
         mutationFn: (input: UpdateCardInput) => CreditCardService.updateCard(input),
-        onSuccess: () => {
+        onSuccess: (_data, input) => {
             queryClient.invalidateQueries({ queryKey: creditCardKeys.issuers() });
+            queryClient.invalidateQueries({ queryKey: creditCardKeys.card(input.id) });
             successToast('Card updated');
         },
         onError: (error: Error) => errorToast(error.message || 'Failed to update card'),
@@ -344,5 +353,81 @@ export const useSaveBillEntry = (financialYear: string) => {
             // A first bill in a previously empty year makes that year selectable.
             queryClient.invalidateQueries({ queryKey: creditCardKeys.years() });
         },
+    });
+};
+
+// --- Credit limit history ---------------------------------------------------
+
+/** Every card's limit history. One round trip feeds the whole utilisation view. */
+export const useAllLimitChanges = (): UseQueryResult<ICardLimitChange[], Error> => {
+    const userId = useUserId();
+
+    return useQuery({
+        queryKey: creditCardKeys.limits(),
+        queryFn: () => CreditCardService.getAllLimitChanges(),
+        enabled: !!userId,
+        staleTime: 1000 * 60 * 5,
+    });
+};
+
+export const useCardLimitChanges = (cardId: string | undefined): UseQueryResult<ICardLimitChange[], Error> => {
+    const userId = useUserId();
+
+    return useQuery({
+        queryKey: creditCardKeys.cardLimits(cardId ?? ''),
+        queryFn: () => CreditCardService.getLimitChangesForCard(cardId!),
+        enabled: !!userId && !!cardId,
+        staleTime: 1000 * 60 * 5,
+    });
+};
+
+export const useCard = (
+    cardId: string | undefined
+): UseQueryResult<{ card: ICreditCard; issuerName: string } | null, Error> => {
+    const userId = useUserId();
+
+    return useQuery({
+        queryKey: creditCardKeys.card(cardId ?? ''),
+        queryFn: () => CreditCardService.getCardById(cardId!),
+        enabled: !!userId && !!cardId,
+        staleTime: 1000 * 60 * 5,
+    });
+};
+
+/**
+ * Every limit write also restates `cc_cards."creditLimit"` in the service, so
+ * the issuer list and the single-card read are invalidated alongside the
+ * history - otherwise the card page would show a new limit while the tracker's
+ * summary cards kept the old one.
+ */
+const invalidateAfterLimitWrite = (queryClient: QueryClient, cardId: string) => {
+    queryClient.invalidateQueries({ queryKey: creditCardKeys.limits() });
+    queryClient.invalidateQueries({ queryKey: creditCardKeys.card(cardId) });
+    queryClient.invalidateQueries({ queryKey: creditCardKeys.issuers() });
+};
+
+export const useSaveLimitChange = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (input: SaveLimitChangeInput) => CreditCardService.saveLimitChange(input),
+        onSuccess: (_data, input) => {
+            invalidateAfterLimitWrite(queryClient, input.cardId);
+            successToast('Credit limit saved');
+        },
+        onError: (error: Error) => errorToast(error.message || 'Failed to save the credit limit'),
+    });
+};
+
+export const useDeleteLimitChange = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, cardId }: { id: string; cardId: string }) => CreditCardService.deleteLimitChange(id, cardId),
+        onSuccess: (_data, { cardId }) => {
+            invalidateAfterLimitWrite(queryClient, cardId);
+            successToast('Limit change removed');
+        },
+        onError: (error: Error) => errorToast(error.message || 'Failed to remove the limit change'),
     });
 };

@@ -26,7 +26,7 @@ const IssuerThresholdCard = ({
     cashThreshold: number;
     elapsedMonths: number;
 }) => {
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle } = useCurrencyPreferences();
     const badge = STATUS_BADGE[aggregate.status];
 
     const percent = threshold > 0 ? (aggregate.totalPaid / threshold) * 100 : 0;
@@ -51,7 +51,9 @@ const IssuerThresholdCard = ({
             </CardHeader>
 
             <CardContent className="pb-4">
-                <p className="text-xl font-semibold tabular-nums">{formatCurrencyAmount(aggregate.totalPaid)}</p>
+                <p className="text-xl font-semibold tabular-nums" title={amountTitle(aggregate.totalPaid)}>
+                    {formatCurrencyAmount(aggregate.totalPaid)}
+                </p>
 
                 <div className="mt-2">
                     <ThresholdGauge

@@ -20,8 +20,10 @@ idempotent. **Never edit one that has already been run; add a new one.**
   migrating.
 - `uuid_generate_v4()` for primary keys (this repo has zero
   `gen_random_uuid()`).
-- Money `numeric(14,2)`; rates `numeric(10,4)`. Older `emis` columns use
-  `numeric(15,2)`.
+- Money: EMI and scenario columns are `numeric(15,3)` so 3-decimal
+  currencies fit (`supabase_money_three_decimals.sql`); the core `emis` and
+  `amortizationSchedules` amounts are unconstrained `numeric`. The `cc_*`
+  family stays `numeric(14,2)` (India-only). Rates `numeric(10,4)`.
 - Month buckets are a `date` **pinned to the 1st**, enforced by
   `CHECK (EXTRACT(DAY FROM col) = 1)`.
 - Financial year is **never stored** — it is derived from the month, so
@@ -133,6 +135,35 @@ billing-cycle defaults: `"statementDay"`, `"dueDay"` (both 1–31),
 `"creditLimit"`. All nullable — these pre-fill a bill row's dates and are
 never authoritative over the row's own dates.
 
+**`"creditLimit"` is a cache, not the record.** Since
+`supabase_credit_card_limit_history_schema.sql` the record is
+`cc_card_limit_changes`, and this column holds only the limit as of
+today, restated by `CreditCardService.syncCurrentLimit` after every
+history write. Nothing else may write it — `creditLimit` was removed from
+`UpdateCardInput` so any other route is a compile error. `createCard`
+seeds both together.
+
+### `cc_card_limit_changes` — `supabase_credit_card_limit_history_schema.sql`
+
+Dated credit-limit history. `"cardId"` → `cc_cards` CASCADE,
+`"effectiveFrom"` (date), `"creditLimit"` (`CHECK > 0`), `note`.
+
+`"effectiveFrom"` is a **real date, not a month bucket** — the only date
+column in the `cc_*` family without a day-1 CHECK. A limit changes on the
+day the bank changed it.
+
+The **earliest row extends backwards**: it is the limit in force for
+every date before it too, not only from its own date. Without that, a
+user who records just "raised to ₹4L on 1 Sep" would blank Apr–Aug. The
+migration backfills one row per card that already carried a limit, dated
+from the card's `"createdAt"`, so this holds for pre-existing data. The
+UI badges that row "Initial limit".
+
+A future-dated row is allowed and badged "Scheduled".
+
+`UNIQUE ("cardId", "effectiveFrom")` is the upsert conflict target — two
+changes on one date are one change.
+
 ### `cc_payment_entries`
 
 What was **paid** toward a card in a calendar month.
@@ -192,7 +223,7 @@ New tables in the family reuse it.
 ### RLS — the parent-ownership rule
 
 `cc_cards` asserts ownership of its `cc_issuers` row; both entry tables
-assert ownership of their `cc_cards` row:
+and `cc_card_limit_changes` assert ownership of their `cc_cards` row:
 
 ```sql
 AND EXISTS (

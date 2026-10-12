@@ -2,6 +2,7 @@ import { addMonths, format, isBefore } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 import { IEmi, ScheduleData } from '@/types/emi.types';
+import { roundMoney, toMoneyString, withMoneyPrecision } from '@/utils/money';
 
 export function coerceOptionalNumber(value: unknown): number {
     if (value === undefined || value === null || value === '') {
@@ -24,7 +25,7 @@ export const calculateProcessingFeeCharges = (
     }
 
     return {
-        processingFeeGstAmount: Number(((fee * gstRate) / 100).toFixed(2)),
+        processingFeeGstAmount: roundMoney((fee * gstRate) / 100),
     };
 };
 
@@ -43,11 +44,14 @@ export const calculateTotalLoanOutflow = (params: {
     const { processingFeeGstAmount } = calculateProcessingFeeCharges(processingFee, processingFeeGst);
     const oneTimeCharges = processingFee + processingFeeGstAmount;
 
-    return Number((principal + totalInterest + totalGST + oneTimeCharges).toFixed(2));
+    return roundMoney(principal + totalInterest + totalGST + oneTimeCharges);
 };
 
 /** Reconcile stored loan totals with processing-fee charges (handles stale DB rows and string numerics). */
-export const normalizeEmiFinancials = (emi: IEmi): IEmi => {
+export const normalizeEmiFinancials = (emi: IEmi): IEmi =>
+    withMoneyPrecision(emi.currency, () => normalizeEmiFinancialsAtPrecision(emi));
+
+const normalizeEmiFinancialsAtPrecision = (emi: IEmi): IEmi => {
     const processingFee = coerceOptionalNumber(emi.processingFee);
     const processingFeeGst = coerceOptionalNumber(emi.processingFeeGst);
     const totalLoan = calculateTotalLoanOutflow({
@@ -66,7 +70,11 @@ export const normalizeEmiFinancials = (emi: IEmi): IEmi => {
     };
 };
 
-export const calculateEMI = (
+/** Rounds at the precision of the EMI's own currency (3 decimals for KWD / BHD / OMR). */
+export const calculateEMI = (emiData: IEmi, id?: string): IEmi =>
+    withMoneyPrecision(emiData.currency, () => calculateEMIAtPrecision(emiData, id));
+
+const calculateEMIAtPrecision = (
     // {
     //     principal,
     //     interestRate,
@@ -94,7 +102,7 @@ export const calculateEMI = (
         emiValue = P / n;
     } else {
         emiValue = (P * r * (1 + r) ** n) / ((1 + r) ** n - 1);
-        emiValue = Number(emiValue.toFixed(2));
+        emiValue = roundMoney(emiValue);
     }
 
     const { scheduleData, totalInterest, totalGST } = calculateAmortizationSchedule({
@@ -137,13 +145,13 @@ export const calculateEMI = (
         }),
         totalPaidEMIs: completedMonths,
         totalInterest,
-        remainingBalance: Number((P + totalGST - totalPrincipalPaid).toFixed(2)),
+        remainingBalance: roundMoney(P + totalGST - totalPrincipalPaid),
         remainingTenure: remainingMonths,
         endDate: addMonths(billDate, n - 1),
         amortizationSchedules: scheduleData,
         isCompleted: remainingMonths === 0,
         gst: gst || 0,
-        totalGST: Number(totalGST.toFixed(2)),
+        totalGST: roundMoney(totalGST),
         processingFee: processingFee > 0 ? processingFee : undefined,
         processingFeeGst: processingFeeGst > 0 ? processingFeeGst : undefined,
         tag: tag || 'Personal',
@@ -183,16 +191,16 @@ export const calculateAmortizationSchedule = ({
         const principalPaid = emiValue - interest;
         remaining -= principalPaid;
         totalInterest += interest;
-        const gstAmount = Number(((interest * gst) / 100).toFixed(2));
+        const gstAmount = roundMoney((interest * gst) / 100);
         totalGST += gstAmount;
 
         scheduleData.push({
             month: i,
             billDate: format(lastPaymentDate, 'yyyy-MM-dd'),
-            emi: emiValue.toFixed(2),
-            interest: interest.toFixed(2),
-            principalPaid: principalPaid.toFixed(2),
-            balance: remaining.toFixed(2),
+            emi: toMoneyString(emiValue),
+            interest: toMoneyString(interest),
+            principalPaid: toMoneyString(principalPaid),
+            balance: toMoneyString(remaining),
             gst: gstAmount,
         });
 
@@ -239,5 +247,5 @@ function applyDiscount(totalInterest: number, discountValue: number, discountTyp
     } else {
         value = Math.max(totalInterest - discountValue, 0);
     }
-    return Number(value.toFixed(2));
+    return roundMoney(value);
 }

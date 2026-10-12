@@ -44,7 +44,7 @@ function daysInMonth(periodMonth: string): number {
 }
 
 /** First-of-month key, with the day clamped to the month's length. */
-function isoDayInMonth(periodMonth: string, day: number): string {
+export function isoDayInMonth(periodMonth: string, day: number): string {
     const anchor = parseISO(periodMonth);
     const clamped = Math.min(Math.max(day, 1), daysInMonth(periodMonth));
     return format(new Date(anchor.getFullYear(), anchor.getMonth(), clamped), DATE_FORMAT);

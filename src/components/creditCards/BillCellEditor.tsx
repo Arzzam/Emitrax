@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, StickyNote } from 'lucide-react';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
 import { ICreditCard, ICreditCardBillEntry, SaveBillEntryInput } from '@/types/creditCard.types';
 import { getBillDefaultDates } from '@/utils/creditCardBills.calc';
@@ -13,25 +14,6 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 const TICK_DURATION_MS = 1200;
-
-const toInputValue = (amount: number | null | undefined) => (amount == null ? '' : String(amount));
-
-/**
- * Signed parser - a bill may be negative when a refund or overpayment leaves a
- * credit balance. Deliberately local rather than loosening the payment editor's
- * parser, which correctly rejects negatives.
- */
-const parseSignedAmount = (raw: string): number | null | undefined => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-        return null;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-        return undefined;
-    }
-    return Math.round(parsed * 100) / 100;
-};
 
 /**
  * A single bill cell.
@@ -56,6 +38,9 @@ const BillCellEditor = ({
     disabled?: boolean;
     onSave: (input: SaveBillEntryInput) => void;
 }) => {
+    // The parser keeps the sign - a bill may be negative when a refund or
+    // overpayment leaves a credit balance. The payment editor rejects negatives.
+    const { parseAmountInput, formatAmountInput, formatCurrencyAmount } = useCurrencyPreferences();
     const serverStatus = entry?.status ?? 'issued';
     const serverTotal = entry?.status === 'issued' ? (entry.totalDue ?? null) : null;
     const serverMinimum = entry?.minimumDue ?? null;
@@ -63,10 +48,10 @@ const BillCellEditor = ({
     const serverDueDate = entry?.dueDate ?? null;
     const serverNote = entry?.note ?? '';
 
-    const [draft, setDraft] = useState(() => toInputValue(serverTotal));
+    const [draft, setDraft] = useState(() => formatAmountInput(serverTotal));
     const [showTick, setShowTick] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [minimumDraft, setMinimumDraft] = useState(() => toInputValue(serverMinimum));
+    const [minimumDraft, setMinimumDraft] = useState(() => formatAmountInput(serverMinimum));
     const [statementDateDraft, setStatementDateDraft] = useState(serverStatementDate ?? '');
     const [dueDateDraft, setDueDateDraft] = useState(serverDueDate ?? '');
     const [noteDraft, setNoteDraft] = useState(serverNote);
@@ -79,19 +64,19 @@ const BillCellEditor = ({
     const suggested = getBillDefaultDates(statementMonth, card);
 
     useEffect(() => {
-        setDraft(toInputValue(serverTotal));
-    }, [serverTotal]);
+        setDraft(formatAmountInput(serverTotal));
+    }, [serverTotal, formatAmountInput]);
 
     useEffect(() => {
         if (!detailOpen) {
-            setMinimumDraft(toInputValue(serverMinimum));
+            setMinimumDraft(formatAmountInput(serverMinimum));
             setStatementDateDraft(serverStatementDate ?? '');
             setDueDateDraft(serverDueDate ?? '');
             setNoteDraft(serverNote);
             setNoStatement(serverStatus === 'no_statement');
             setDetailError(null);
         }
-    }, [detailOpen, serverMinimum, serverStatementDate, serverDueDate, serverNote, serverStatus]);
+    }, [detailOpen, serverMinimum, serverStatementDate, serverDueDate, serverNote, serverStatus, formatAmountInput]);
 
     useEffect(() => () => (tickTimer.current ? clearTimeout(tickTimer.current) : undefined), []);
 
@@ -114,9 +99,9 @@ const BillCellEditor = ({
             return;
         }
 
-        const parsed = parseSignedAmount(draft);
+        const parsed = parseAmountInput(draft);
         if (parsed === undefined) {
-            setDraft(toInputValue(serverTotal));
+            setDraft(formatAmountInput(serverTotal));
             return;
         }
         if (parsed === serverTotal) {
@@ -149,8 +134,8 @@ const BillCellEditor = ({
             return;
         }
 
-        const total = parseSignedAmount(draft);
-        const minimum = parseSignedAmount(minimumDraft);
+        const total = parseAmountInput(draft);
+        const minimum = parseAmountInput(minimumDraft);
 
         if (total === undefined) {
             setDetailError('Enter a valid total.');
@@ -231,7 +216,7 @@ const BillCellEditor = ({
                         }
                         if (event.key === 'Escape') {
                             event.preventDefault();
-                            setDraft(toInputValue(serverTotal));
+                            setDraft(formatAmountInput(serverTotal));
                             event.currentTarget.blur();
                         }
                     }}
@@ -271,7 +256,9 @@ const BillCellEditor = ({
                             <Label htmlFor={`no-stmt-${card.id}-${statementMonth}`} className="text-xs">
                                 No statement generated
                             </Label>
-                            <p className="text-[11px] text-muted-foreground">Different from a ₹0 bill.</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Different from a {formatCurrencyAmount(0)} bill.
+                            </p>
                         </div>
                         <Switch
                             id={`no-stmt-${card.id}-${statementMonth}`}

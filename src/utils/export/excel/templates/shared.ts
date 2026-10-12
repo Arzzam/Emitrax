@@ -3,12 +3,6 @@ import ExcelJS from 'exceljs';
 
 import { CurrencyFormatPreferences } from '@/utils/numberFormat';
 
-export function getCurrencyNumFmt(currency: string): string {
-    const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£' };
-    const sym = symbols[currency] ?? currency;
-    return `"${sym}"#,##0.00`;
-}
-
 export function applyHeaderStyle(cell: ExcelJS.Cell, bgColor: string, fontColor = 'FFFFFF') {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
     cell.font = { bold: true, color: { argb: fontColor }, size: 10 };

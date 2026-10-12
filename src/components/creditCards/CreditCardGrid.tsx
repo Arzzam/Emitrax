@@ -12,14 +12,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
  * The page decides which editor a cell renders; the grid only lays out.
  */
 export interface TrackerGridSeries {
-    id: 'payments' | 'bills';
+    id: 'payments' | 'bills' | 'utilisation';
     /** Sub-column header shown only when two series are displayed together. */
     label: string;
+    /**
+     * Absent keys mean "no figure", which is NOT the same as zero. Money series
+     * render both as an em dash; a ratio series must not, because 0% against a
+     * real limit is a genuine reading.
+     */
     monthTotals: Map<string, number>;
     monthIssuerTotals: Map<string, Map<string, number>>;
     cardTotals: Map<string, number>;
-    grandTotal: number;
+    grandTotal: number | undefined;
     renderCell: (card: ICreditCard, month: FinancialYearMonth) => ReactNode;
+    /** Subtotal and grand-total cells inside the month rows. */
+    formatValue?: (value: number | undefined) => string;
+    /** The footer row. Money shows a real zero here where the body shows a dash. */
+    formatTotal?: (value: number | undefined) => string;
+    /** Defaults to summing the issuer's cards - wrong for a ratio, which peaks instead. */
+    getIssuerTotal?: (issuerId: string, cardIds: string[]) => number | undefined;
+    /** Footer row label. Defaults to the financial-year sum. */
+    footerLabel?: string;
+    /**
+     * A card total of 0 is a real figure (0% utilisation), so any key in
+     * `cardTotals` counts as holding data. Money series leave this off, since a
+     * zero total there means nothing was entered.
+     */
+    zeroIsFigure?: boolean;
 }
 
 /**
@@ -32,6 +51,11 @@ export interface TrackerGridSeries {
  * Totals are always per series and are NEVER summed across series: a bill and a
  * payment are different things, and a revolved balance is billed again next
  * month, so adding them produces a number that means nothing.
+ *
+ * A series may override how its figures are formatted and rolled up, which is
+ * what lets the derived utilisation view - percentages, peaks rather than sums -
+ * reuse this layout rather than fork it. Every override defaults to the money
+ * behaviour, so the payments and bills views are unaffected by their existence.
  */
 const CreditCardGrid = ({
     issuers,
@@ -47,24 +71,40 @@ const CreditCardGrid = ({
 
     const isCombined = series.length > 1;
     const showIssuerSubtotals = !isCombined;
+    // With two series the label has to hold for both, so only a single series
+    // may rename it.
+    const footerLabel = (series.length === 1 && series[0].footerLabel) || 'FY total';
 
     // Deactivated cards stay visible when they hold data for this year in any
     // series, so history never silently disappears from the grid.
+    const holdsData = (entry: TrackerGridSeries, cardId: string) =>
+        entry.zeroIsFigure ? entry.cardTotals.has(cardId) : (entry.cardTotals.get(cardId) ?? 0) !== 0;
+
     const visibleCards = new Map<string, ICreditCard[]>(
         issuers.map((issuer) => [
             issuer.id,
-            issuer.cards.filter(
-                (card) => card.isActive || series.some((entry) => (entry.cardTotals.get(card.id) ?? 0) !== 0)
-            ),
+            issuer.cards.filter((card) => card.isActive || series.some((entry) => holdsData(entry, card.id))),
         ])
     );
 
     const cardsOf = (issuerId: string) => visibleCards.get(issuerId) ?? [];
 
-    const issuerTotal = (issuerId: string, entry: TrackerGridSeries) =>
-        cardsOf(issuerId).reduce((sum, card) => sum + (entry.cardTotals.get(card.id) ?? 0), 0);
+    const amountOrDash = (value: number | undefined) =>
+        value == null || value === 0 ? '—' : formatCurrencyAmount(value);
 
-    const amountOrDash = (value: number) => (value === 0 ? '—' : formatCurrencyAmount(value));
+    const formatValue = (entry: TrackerGridSeries, value: number | undefined) =>
+        (entry.formatValue ?? amountOrDash)(value);
+
+    const formatTotal = (entry: TrackerGridSeries, value: number | undefined) =>
+        (entry.formatTotal ?? ((amount) => formatCurrencyAmount(amount ?? 0)))(value);
+
+    const issuerTotal = (issuerId: string, entry: TrackerGridSeries) => {
+        const cardIds = cardsOf(issuerId).map((card) => card.id);
+        if (entry.getIssuerTotal) {
+            return entry.getIssuerTotal(issuerId, cardIds);
+        }
+        return cardIds.reduce((sum, cardId) => sum + (entry.cardTotals.get(cardId) ?? 0), 0);
+    };
 
     /** Columns an issuer spans: one per card per series, plus its subtotals. */
     const issuerSpan = (issuerId: string) =>
@@ -232,10 +272,9 @@ const CreditCardGrid = ({
                                                           cards.length === 0 && 'border-l'
                                                       )}
                                                   >
-                                                      {amountOrDash(
-                                                          entry.monthIssuerTotals
-                                                              .get(month.periodMonth)
-                                                              ?.get(issuer.id) ?? 0
+                                                      {formatValue(
+                                                          entry,
+                                                          entry.monthIssuerTotals.get(month.periodMonth)?.get(issuer.id)
                                                       )}
                                                   </TableCell>
                                               ))
@@ -251,7 +290,7 @@ const CreditCardGrid = ({
                                             isCombined && entry.id === 'bills' && 'bg-muted/20'
                                         )}
                                     >
-                                        {amountOrDash(entry.monthTotals.get(month.periodMonth) ?? 0)}
+                                        {formatValue(entry, entry.monthTotals.get(month.periodMonth))}
                                     </TableCell>
                                 ))}
                             </TableRow>
@@ -259,7 +298,9 @@ const CreditCardGrid = ({
                     })}
 
                     <TableRow className="font-semibold tabular-nums hover:bg-transparent">
-                        <TableCell className="sticky left-0 z-10 bg-background whitespace-nowrap">FY total</TableCell>
+                        <TableCell className="sticky left-0 z-10 bg-background whitespace-nowrap">
+                            {footerLabel}
+                        </TableCell>
 
                         {issuers.flatMap((issuer) => {
                             const cards = cardsOf(issuer.id);
@@ -275,7 +316,7 @@ const CreditCardGrid = ({
                                                 isCombined && entry.id === 'bills' && 'bg-muted/20'
                                             )}
                                         >
-                                            {formatCurrencyAmount(entry.cardTotals.get(card.id) ?? 0)}
+                                            {formatTotal(entry, entry.cardTotals.get(card.id))}
                                         </TableCell>
                                     ))
                                 ),
@@ -285,7 +326,7 @@ const CreditCardGrid = ({
                                               key={`${issuer.id}-fy-${entry.id}`}
                                               className={cn('text-right', cards.length === 0 && 'border-l')}
                                           >
-                                              {formatCurrencyAmount(issuerTotal(issuer.id, entry))}
+                                              {formatTotal(entry, issuerTotal(issuer.id, entry))}
                                           </TableCell>
                                       ))
                                     : []),
@@ -300,7 +341,7 @@ const CreditCardGrid = ({
                                     isCombined && entry.id === 'bills' && 'bg-muted/20'
                                 )}
                             >
-                                {formatCurrencyAmount(entry.grandTotal)}
+                                {formatTotal(entry, entry.grandTotal)}
                             </TableCell>
                         ))}
                     </TableRow>

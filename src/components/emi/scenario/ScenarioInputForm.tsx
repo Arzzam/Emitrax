@@ -3,10 +3,12 @@ import { useForm } from '@tanstack/react-form';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
 import { ILoanScenario } from '@/types/scenario.types';
 import { foreclosureScenarioFormSchema, ForeclosureScenarioFormValues } from '@/validations/scenario.forms';
 
+import AmountInput from '@/components/common/AmountInput';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
@@ -16,6 +18,8 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ScenarioInputFormProps {
+    /** The loan's own currency; defaults to the account currency. */
+    currency?: string;
     defaultName: string;
     minDate: Date;
     maxDate: Date;
@@ -29,6 +33,7 @@ interface ScenarioInputFormProps {
 
 const buildInitialValues = (
     defaultName: string,
+    defaultTaxRate: number,
     editingScenario?: ILoanScenario | null
 ): ForeclosureScenarioFormValues => {
     if (editingScenario) {
@@ -48,13 +53,15 @@ const buildInitialValues = (
         simulationDate: new Date(),
         foreclosureChargeRate: 0,
         foreclosureChargeAmount: 0,
-        foreclosureChargeGstRate: 18,
+        // 18% GST in India; 0 where tax on foreclosure charges is not the norm.
+        foreclosureChargeGstRate: defaultTaxRate,
         includeNextInstallmentInterest: false,
         notes: '',
     };
 };
 
 const ScenarioInputForm = ({
+    currency,
     defaultName,
     minDate,
     maxDate,
@@ -65,11 +72,12 @@ const ScenarioInputForm = ({
     onSave,
     onCancelEdit,
 }: ScenarioInputFormProps) => {
+    const { taxLabels } = useCurrencyPreferences(currency);
     const [calendarOpen, setCalendarOpen] = useState(false);
     const isEditing = !!editingScenario;
     const initialValues = useMemo(
-        () => buildInitialValues(defaultName, editingScenario),
-        [defaultName, editingScenario]
+        () => buildInitialValues(defaultName, taxLabels.defaultRate, editingScenario),
+        [defaultName, taxLabels.defaultRate, editingScenario]
     );
 
     const form = useForm({
@@ -187,14 +195,13 @@ const ScenarioInputForm = ({
                     {(field) => (
                         <Field data-invalid={field.state.meta.errors.length > 0}>
                             <FieldLabel htmlFor="charge-amount">Flat charges</FieldLabel>
-                            <Input
+                            <AmountInput
                                 id="charge-amount"
-                                type="number"
-                                min={0}
-                                step="0.01"
+                                currency={currency}
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(Number(event.target.value))}
+                                // An emptied field means no flat charge, as before.
+                                onValueChange={(value) => field.handleChange(value ?? 0)}
                             />
                             <p className="text-xs text-muted-foreground">Kept separate from % charges</p>
                             <FieldError errors={field.state.meta.errors} />
@@ -205,7 +212,7 @@ const ScenarioInputForm = ({
                 <form.Field name="foreclosureChargeGstRate">
                     {(field) => (
                         <Field data-invalid={field.state.meta.errors.length > 0}>
-                            <FieldLabel htmlFor="charge-gst">GST on % charges</FieldLabel>
+                            <FieldLabel htmlFor="charge-gst">{taxLabels.label} on % charges</FieldLabel>
                             <Input
                                 id="charge-gst"
                                 type="number"
@@ -232,8 +239,8 @@ const ScenarioInputForm = ({
                                     Include next installment interest
                                 </FieldLabel>
                                 <p className="text-xs text-muted-foreground">
-                                    When enabled, payoff includes the full next month interest and its GST instead of
-                                    prorated accrued interest.
+                                    When enabled, payoff includes the full next month interest and its{' '}
+                                    {taxLabels.inline} instead of prorated accrued interest.
                                 </p>
                             </div>
                             <Switch

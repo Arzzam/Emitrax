@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 
 import { useCreateCard, useCreateIssuer } from '@/hooks/useCreditCards';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
 import { ICreditCardIssuer } from '@/types/creditCard.types';
 import { errorToast } from '@/utils/toast.utils';
@@ -34,6 +35,7 @@ import {
  * for the Add EMI and Advanced Filter panels.
  */
 const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; trigger?: React.ReactNode }) => {
+    const { parseAmountInput } = useCurrencyPreferences();
     const [open, setOpen] = useState(false);
     const [issuer, setIssuer] = useState<IssuerSelection | null>(null);
     const [name, setName] = useState('');
@@ -67,7 +69,7 @@ const AddCardDialog = ({ issuers, trigger }: { issuers: ICreditCardIssuer[]; tri
             next.last4 = 'Must be exactly four digits.';
         }
 
-        const cycleResult = validateBillingCycle(cycle);
+        const cycleResult = validateBillingCycle(cycle, parseAmountInput);
         if (!cycleResult.ok) {
             Object.assign(next, cycleResult.errors);
             // A cycle error is otherwise invisible while the block is collapsed.

@@ -2,15 +2,31 @@ import { format } from 'date-fns';
 
 import { IEmi, IEmiSplit } from '@/types/emi.types';
 import { calculateTotalLoanOutflow } from '@/utils/calculation';
-import { CurrencyFormatPreferences, formatCurrencyAmount } from '@/utils/numberFormat';
+import { CurrencyFormatPreferences, formatCurrencyAmount, formatPercent } from '@/utils/numberFormat';
 
 export interface PdfTemplateProps {
     emi: IEmi;
     currencyPrefs: CurrencyFormatPreferences;
 }
 
+/**
+ * Characters the PDF font (NotoSans) has no glyph for, found by checking every
+ * registry currency x number style against the font's cmap: the Thai baht
+ * sign, plus the scripts excluded from the registry as a backstop.
+ */
+const PDF_UNRENDERABLE = /[\u0e00-\u0e7f\u0600-\u06ff\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/;
+
+/**
+ * Amounts for PDF output. Same as the app formatter, except: U+2212 (the
+ * minus sv-SE / nb-NO use) becomes a hyphen, and a symbol the font cannot draw
+ * falls back to the ISO code (`THB 1.234,00` rather than a blank box).
+ */
 export function fmt(value: number, prefs: CurrencyFormatPreferences): string {
-    return formatCurrencyAmount(value, prefs);
+    const text = formatCurrencyAmount(value, prefs);
+    const printable = PDF_UNRENDERABLE.test(text)
+        ? formatCurrencyAmount(value, { ...prefs, currencyDisplay: 'code' })
+        : text;
+    return printable.replace(/\u2212/g, '-');
 }
 
 export function fmtDate(date: Date | string | null | undefined): string {
@@ -22,8 +38,8 @@ export function fmtDate(date: Date | string | null | undefined): string {
     }
 }
 
-export function fmtPct(value: number): string {
-    return `${value}%`;
+export function fmtPct(value: number, prefs: CurrencyFormatPreferences, decimals?: number): string {
+    return formatPercent(value, prefs.locale, decimals).replace(/\u2212/g, '-');
 }
 
 export interface SplitParticipantRow {
@@ -77,7 +93,7 @@ export function buildSplitParticipantRows(emi: IEmi, prefs: CurrencyFormatPrefer
             id: split.id,
             name: getSplitParticipantName(split),
             email: getSplitParticipantEmail(split),
-            share: `${split.splitPercentage.toFixed(1)}%`,
+            share: fmtPct(split.splitPercentage, prefs, 1),
             monthly: fmt(monthlyAmount, prefs),
             loanShare: fmt(loanShare, prefs),
             outstanding: outstanding != null ? fmt(outstanding, prefs) : null,
@@ -101,7 +117,7 @@ export function buildMySplitSummary(emi: IEmi, prefs: CurrencyFormatPreferences)
     const outstanding = emi.isCompleted ? null : emi.remainingBalance * pct;
 
     return {
-        share: `${emi.mySplit.splitPercentage.toFixed(1)}%`,
+        share: fmtPct(emi.mySplit.splitPercentage, prefs, 1),
         monthly: fmt(emi.mySplitAmount, prefs),
         loanShare: fmt(effectiveTotalLoan * pct, prefs),
         outstanding: outstanding != null ? fmt(outstanding, prefs) : null,

@@ -26,6 +26,8 @@ Auth is **Google OAuth only**. The hash-fragment token is exchanged at
 /                           Dashboard
 /account                    Account preferences
 /credit-cards               Credit card trackers
+/credit-cards/cards         All cards, grouped by issuer
+/credit-cards/cards/:id     One card — limits, cycle, monthly history
 /emi/:id                    EMI details
 /emi/:id/amortization
 /emi/:id/share
@@ -135,6 +137,7 @@ every schema change must be mirrored there by hand.
 | `user_account_preferences`                    | Currency, number format, filter + export config |
 | `cc_issuers`                                  | Card-issuing banks, user-defined                |
 | `cc_cards`                                    | Cards, each under one issuer                    |
+| `cc_card_limit_changes`                       | (card, effective date) → credit limit           |
 | `cc_payment_entries`                          | (card, month) → amount paid, cash portion       |
 | `cc_bill_entries`                             | (card, statement month) → amount billed         |
 | `cc_tracker_years`                            | Per-FY notes and threshold overrides            |
@@ -162,8 +165,8 @@ Every table has RLS enabled and four policies named
 `WITH CHECK`.
 
 **Child tables additionally assert ownership of the parent row.**
-`cc_cards` checks its `cc_issuers` row; `cc_payment_entries` and
-`cc_bill_entries` check their `cc_cards` row:
+`cc_cards` checks its `cc_issuers` row; `cc_payment_entries`,
+`cc_bill_entries` and `cc_card_limit_changes` check their `cc_cards` row:
 
 ```sql
 AND EXISTS (
@@ -229,3 +232,9 @@ months structurally irrelevant.
 5. Credit card **bills and payments are never combined into one figure.**
    A revolved balance is billed again next month with interest, so twelve
    bills do not sum to annual spend. Per-series totals only.
+6. **Credit-limit utilisation is measured against the limit in force at
+   the time**, never today's limit. Combined figures follow the credit
+   bureau rule — every open card's limit in the denominator whether or
+   not it carried a balance, balances floored at zero, a ratio of sums
+   and never a mean of per-card ratios. A month resting on an assumption
+   says so.

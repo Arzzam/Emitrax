@@ -1,5 +1,5 @@
 import { useSelector } from 'react-redux';
-import { AlertCircle, ArrowUpDown, Banknote, Clock, IndianRupee, Tag } from 'lucide-react';
+import { AlertCircle, ArrowUpDown, Banknote, Clock, Coins, Tag } from 'lucide-react';
 
 import type { ISplitStatsContext } from '@/hooks/useAdvancedFilter';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
@@ -7,9 +7,11 @@ import useStats from '@/hooks/useStats';
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { IEmi } from '@/types/emi.types';
+import { getCurrencyMeta } from '@/utils/numberFormat';
 
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 
 interface IStatsOverride {
     statistics: ReturnType<typeof useStats>['statistics'];
@@ -19,6 +21,10 @@ interface IStatsOverride {
     filterTag: string;
     onSetTag: (tag: string) => void;
     splitContext?: ISplitStatsContext;
+    /** The currency every stat is in. */
+    statsCurrency?: string;
+    currencyTabs?: { currency: string; count: number }[];
+    onSetStatsCurrency?: (currency: string) => void;
 }
 
 interface StatsSectionProps {
@@ -28,7 +34,8 @@ interface StatsSectionProps {
 
 const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
     const legacyTag = useSelector((state: IRootState) => state.filterModel.tag);
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle, locale } = useCurrencyPreferences(statsOverride?.statsCurrency);
+    const currencyTabs = statsOverride?.currencyTabs ?? [];
     const legacyStats = useStats(emiData);
     const legacyDispatch = useRematchDispatch((state: IDispatch) => state.filterModel);
 
@@ -44,6 +51,35 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
     return (
         <>
             <section className="mb-8" aria-label="EMI statistics">
+                {currencyTabs.length > 1 && statsOverride?.onSetStatsCurrency && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Showing stats in</span>
+                        <ToggleGroup
+                            type="single"
+                            variant="outline"
+                            size="sm"
+                            value={statsOverride.statsCurrency}
+                            onValueChange={(next) => next && statsOverride.onSetStatsCurrency?.(next)}
+                            aria-label="Currency for statistics"
+                        >
+                            {currencyTabs.map(({ currency, count }) => {
+                                const { symbol } = getCurrencyMeta(currency, locale);
+                                return (
+                                    <ToggleGroupItem
+                                        key={currency}
+                                        value={currency}
+                                        className="cursor-pointer gap-1.5 px-3 tabular-nums"
+                                        aria-label={`${currency}, ${count} EMIs`}
+                                    >
+                                        {symbol !== currency && <span aria-hidden>{symbol}</span>}
+                                        <span>{currency}</span>
+                                        <span className="text-muted-foreground">· {count}</span>
+                                    </ToggleGroupItem>
+                                );
+                            })}
+                        </ToggleGroup>
+                    </div>
+                )}
                 {splitContext?.isActive && (
                     <p className="mb-3 text-xs text-muted-foreground">Based on selected split participants.</p>
                 )}
@@ -67,10 +103,13 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <CardTitle className="text-xs font-medium tracking-tight text-muted-foreground">
                                 {splitContext?.isActive ? 'Monthly share' : 'Monthly payment'}
                             </CardTitle>
-                            <IndianRupee className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
+                            <Coins className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p
+                                className="text-xl font-semibold tabular-nums"
+                                title={amountTitle(filteredStatistics.totalMonthlyPayment)}
+                            >
                                 {formatCurrencyAmount(filteredStatistics.totalMonthlyPayment)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -108,7 +147,10 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <AlertCircle className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p
+                                className="text-xl font-semibold tabular-nums"
+                                title={amountTitle(filteredStatistics.totalRemainingBalance)}
+                            >
                                 {formatCurrencyAmount(filteredStatistics.totalRemainingBalance)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -124,7 +166,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <Banknote className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p className="text-xl font-semibold tabular-nums" title={amountTitle(totalLoanAmount)}>
                                 {formatCurrencyAmount(totalLoanAmount)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">

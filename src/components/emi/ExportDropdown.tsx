@@ -1,4 +1,4 @@
-import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { Braces, Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 
 import { useExport } from '@/hooks/useExport';
 import { IEmi } from '@/types/emi.types';
@@ -18,8 +18,9 @@ interface ExportDropdownProps {
 }
 
 export function ExportDropdown({ emi }: ExportDropdownProps) {
-    const { handlePdfExport, handleExcelExport, isExportingPdf, isExportingExcel } = useExport(emi);
-    const isExporting = isExportingPdf || isExportingExcel;
+    const { handlePdfExport, handleExcelExport, handleJsonExport, isExportingPdf, isExportingExcel, isExportingJson } =
+        useExport(emi);
+    const isExporting = isExportingPdf || isExportingExcel || isExportingJson;
 
     return (
         <DropdownMenu>
@@ -47,6 +48,14 @@ export function ExportDropdown({ emi }: ExportDropdownProps) {
                         <FileSpreadsheet className="h-4 w-4 text-green-600" />
                     )}
                     {isExportingExcel ? 'Generating Excel...' : 'Export as Excel'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleJsonExport} disabled={isExportingJson} className="gap-2">
+                    {isExportingJson ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Braces className="h-4 w-4 text-blue-500" />
+                    )}
+                    {isExportingJson ? 'Generating JSON...' : 'Export as JSON'}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

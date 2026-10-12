@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 type SplitEmiEditRowProps = {
+    /** The loan's own currency; defaults to the account currency. */
+    currency?: string;
     split: EditableSplit;
     index: number;
     isRegistered: boolean;
@@ -17,6 +19,7 @@ type SplitEmiEditRowProps = {
 };
 
 const SplitEmiEditRow = ({
+    currency,
     split,
     index,
     isRegistered,
@@ -24,7 +27,7 @@ const SplitEmiEditRow = ({
     onRemoveSplitRow,
     getSplitAmount,
 }: SplitEmiEditRowProps) => {
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount } = useCurrencyPreferences(currency);
 
     return (
         <div className="grid grid-cols-1 gap-4 rounded-lg border bg-card p-4 md:grid-cols-12 md:items-end">

@@ -1,16 +1,18 @@
 import ExcelJS from 'exceljs';
 
 import { IEmi } from '@/types/emi.types';
+import { getTaxLabels } from '@/utils/currencyRegistry';
+import { buildExcelCurrencyNumFmt } from '@/utils/export/excel/excelNumFmt';
 import { CurrencyFormatPreferences } from '@/utils/numberFormat';
 
-import { applyHeaderStyle, applyLabelCell, applyValueCell, fmtDate, fmtPct, getCurrencyNumFmt } from './shared';
+import { applyHeaderStyle, applyLabelCell, applyValueCell, fmtDate, fmtPct } from './shared';
 
 const BLUE = '1E40AF';
 const BLUE_MID = '3B82F6';
 const EVEN_ROW = 'EFF6FF';
 const TOTALS_BG = '1E3A5F';
 
-function addSummarySheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string) {
+function addSummarySheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string, taxLabel: string) {
     const ws = wb.addWorksheet('Summary');
     ws.properties.defaultColWidth = 22;
     ws.getColumn(1).width = 30;
@@ -64,7 +66,7 @@ function addSummarySheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string) {
         ['Interest Rate', fmtPct(emi.interestRate)],
         ['Tenure', `${emi.tenure} months`],
         ['Monthly EMI', emi.emi, currencyFmt],
-        ...(emi.gst > 0 ? [['GST Rate', fmtPct(emi.gst)] as [string, string]] : []),
+        ...(emi.gst > 0 ? [[`${taxLabel} Rate`, fmtPct(emi.gst)] as [string, string]] : []),
         ...(emi.interestDiscount && emi.interestDiscount > 0
             ? [
                   [
@@ -81,7 +83,7 @@ function addSummarySheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string) {
     addSection('FINANCIAL TOTALS', row, [
         ['Total Loan Amount', emi.totalLoan, currencyFmt],
         ['Total Interest', emi.totalInterest, currencyFmt],
-        ...(emi.gst > 0 ? [['Total GST', emi.totalGST ?? 0, currencyFmt] as [string, number, string]] : []),
+        ...(emi.gst > 0 ? [[`Total ${taxLabel}`, emi.totalGST ?? 0, currencyFmt] as [string, number, string]] : []),
         ['EMIs Paid', `${emi.totalPaidEMIs} of ${emi.tenure}`],
         ['Remaining Tenure', `${emi.remainingTenure} months`],
         ['Remaining Balance', emi.remainingBalance, currencyFmt],
@@ -117,14 +119,14 @@ function addSummarySheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string) {
     fc.font = { size: 7, italic: true, color: { argb: '9CA3AF' } };
 }
 
-function addAmortizationSheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string) {
+function addAmortizationSheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: string, taxLabel: string) {
     const ws = wb.addWorksheet('Amortization Schedule');
     const hasGst = emi.gst > 0;
 
     const headers = ['#', 'Bill Date', 'EMI', 'Interest', 'Principal Paid', 'Balance'];
     const colWidths = [6, 18, 18, 18, 18, 18];
     if (hasGst) {
-        headers.push('GST', 'Total w/ GST');
+        headers.push(taxLabel, `Total w/ ${taxLabel}`);
         colWidths.push(10, 20);
     }
 
@@ -214,7 +216,8 @@ function addAmortizationSheet(wb: ExcelJS.Workbook, emi: IEmi, currencyFmt: stri
 
 export function buildDetailedTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPrefs: CurrencyFormatPreferences) {
     wb.creator = 'Emitrax';
-    const currencyFmt = getCurrencyNumFmt(currencyPrefs.currency);
-    addSummarySheet(wb, emi, currencyFmt);
-    addAmortizationSheet(wb, emi, currencyFmt);
+    const currencyFmt = buildExcelCurrencyNumFmt(currencyPrefs);
+    const { label: taxLabel } = getTaxLabels(currencyPrefs.currency);
+    addSummarySheet(wb, emi, currencyFmt, taxLabel);
+    addAmortizationSheet(wb, emi, currencyFmt, taxLabel);
 }

@@ -80,6 +80,14 @@ adding a primitive.
 
 ### Grid tables
 
+`CreditCardGrid` serves every tracker view through four optional series
+props — `formatValue`, `formatTotal`, `getIssuerTotal`, `footerLabel` —
+each defaulting to the money behaviour. That is how the derived
+utilisation view renders percentages, and peaks instead of sums, without
+forking the layout. An **absent** map key renders an em dash while a real
+`0` renders as `0%`; the two must stay distinguishable in any ratio
+series.
+
 The credit-card trackers use months as **rows** and cards as **columns**,
 grouped under issuer headers. This is a deliberate transpose: the month
 count is fixed at 12, while cards are few and variable, so cards make

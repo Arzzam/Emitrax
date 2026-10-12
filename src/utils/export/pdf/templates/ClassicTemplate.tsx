@@ -1,5 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
+import { getTaxLabels } from '@/utils/currencyRegistry';
+
 import { PDF_FONT_FAMILY } from '../pdfFonts';
 
 import { buildAmortizationRows, fmt, fmtDate, fmtPct, PdfTemplateProps } from './shared';
@@ -60,6 +62,7 @@ const s = StyleSheet.create({
 
 export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
     const rows = buildAmortizationRows(emi, currencyPrefs);
+    const { label: taxLabel } = getTaxLabels(currencyPrefs.currency);
     const hasGst = emi.gst > 0;
 
     const totals = {
@@ -99,7 +102,7 @@ export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                             </View>
                             <View style={s.row}>
                                 <Text style={s.rowLabel}>Interest Rate</Text>
-                                <Text style={s.rowValue}>{fmtPct(emi.interestRate)}</Text>
+                                <Text style={s.rowValue}>{fmtPct(emi.interestRate, currencyPrefs)}</Text>
                             </View>
                             <View style={s.row}>
                                 <Text style={s.rowLabel}>Tenure</Text>
@@ -111,8 +114,8 @@ export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                             </View>
                             {hasGst && (
                                 <View style={s.row}>
-                                    <Text style={s.rowLabel}>GST Rate</Text>
-                                    <Text style={s.rowValue}>{fmtPct(emi.gst)}</Text>
+                                    <Text style={s.rowLabel}>{taxLabel} Rate</Text>
+                                    <Text style={s.rowValue}>{fmtPct(emi.gst, currencyPrefs)}</Text>
                                 </View>
                             )}
                             {emi.interestDiscount && emi.interestDiscount > 0 ? (
@@ -120,7 +123,7 @@ export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                                     <Text style={s.rowLabel}>Interest Discount</Text>
                                     <Text style={s.rowValue}>
                                         {emi.interestDiscountType === 'percent'
-                                            ? fmtPct(emi.interestDiscount)
+                                            ? fmtPct(emi.interestDiscount, currencyPrefs)
                                             : fmt(emi.interestDiscount, currencyPrefs)}
                                     </Text>
                                 </View>
@@ -140,7 +143,7 @@ export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                             </View>
                             {hasGst && (
                                 <View style={s.row}>
-                                    <Text style={s.rowLabel}>Total GST</Text>
+                                    <Text style={s.rowLabel}>Total {taxLabel}</Text>
                                     <Text style={s.rowValue}>{fmt(emi.totalGST ?? 0, currencyPrefs)}</Text>
                                 </View>
                             )}
@@ -193,7 +196,7 @@ export function ClassicTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                             <Text style={s.tableHeaderCell}>Interest</Text>
                             <Text style={s.tableHeaderCell}>Principal</Text>
                             <Text style={s.tableHeaderCell}>Balance</Text>
-                            {hasGst && <Text style={s.tableHeaderCell}>Total w/ GST</Text>}
+                            {hasGst && <Text style={s.tableHeaderCell}>Total w/ {taxLabel}</Text>}
                         </View>
                         {rows.map((row, i) => (
                             <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowEven : {}]}>

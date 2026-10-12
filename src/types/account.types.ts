@@ -23,6 +23,18 @@ export type AccountProfile = {
 
 export type AccountDetails = AccountProfile & {
     preferences: AccountPreferences;
+    /**
+     * False until a user_account_preferences row exists. No row is created at
+     * sign-up, so false means the preferences above are in-memory defaults and
+     * first-run regional detection has not run yet.
+     */
+    hasSavedPreferences: boolean;
+};
+
+export type RegionalPreferences = {
+    locale: string;
+    currency: string;
+    numberFormat: NumberFormatMode;
 };
 
 export type AccountUpdatePayload = {

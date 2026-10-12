@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm, useStore } from '@tanstack/react-form';
 import * as z from 'zod';
 
@@ -6,22 +7,30 @@ import { useRematchDispatch } from '@/store/store';
 import { IDispatch } from '@/store/types/store.types';
 import { AccountDetails, NumberFormatMode } from '@/types/account.types';
 import { ExcelTemplate, PdfTemplate } from '@/types/export.types';
+import { getCurrencyOptionLabel, getLinkedLocale } from '@/utils/currencyRegistry';
+import { formatCurrencyAmount } from '@/utils/numberFormat';
 import { errorToast, successToast } from '@/utils/toast.utils';
 import {
     AccountFormValues,
     accountSchema,
-    CURRENCY_OPTIONS,
     getAccountFormDefaults,
-    LOCALE_OPTIONS,
     NUMBER_FORMAT_OPTIONS,
 } from '@/validations/account.forms';
+
+import { DataExportSection } from '@/components/account/DataExportSection';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 
 import { Button } from '../ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '../ui/field';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
+import CurrencyCombobox from './CurrencyCombobox';
 import { ExportTemplateSelector } from './ExportTemplateSelector';
+import FormattingPreview from './FormattingPreview';
+import NumberStyleSelect from './NumberStyleSelect';
+
+const NUMBER_FORMAT_SAMPLE = 1234567.89;
 
 function validateField<T>(schema: z.ZodType<T>, value: T): string | undefined {
     const result = schema.safeParse(value);
@@ -34,6 +43,8 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
     const defaultValues = getAccountFormDefaults(account);
     const { setPreferences } = useRematchDispatch((d: IDispatch) => d.currencyPreferencesModel);
     const { mutateAsync: upsertAccount, isPending: isSaving } = useUpsertAccountDetails();
+    // Set while the relabel warning is open; saving waits for confirmation.
+    const [pendingValues, setPendingValues] = useState<AccountFormValues | null>(null);
 
     const avatarUrlValue = account.preferences.avatarUrl;
     const initials =
@@ -60,11 +71,19 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
             },
         },
         onSubmit: async ({ value }) => {
+            // The account currency is now only the default for new EMIs; confirm so that is clear.
+            if (value.currency !== defaultValues.currency) {
+                setPendingValues(value);
+                return;
+            }
             await onSubmit(value);
         },
     });
 
     const nameField = useStore(form.store, (state) => state.values.displayName);
+    const localeValue = useStore(form.store, (state) => state.values.locale);
+    const currencyValue = useStore(form.store, (state) => state.values.currency);
+    const numberFormatValue = useStore(form.store, (state) => state.values.numberFormat as NumberFormatMode);
 
     const isNameDirty = useStore(form.store, (state) => state.values.displayName !== defaultValues.displayName);
 
@@ -251,49 +270,40 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                         <div>
                             <h2 className="font-semibold">Regional Settings</h2>
                             <p className="text-sm text-muted-foreground">
-                                Configure defaults used for locale and currency formatting.
+                                Choose how amounts are shown across the app and in exports.
                             </p>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
-                            <form.Field name="locale">
+                            <form.Field name="currency">
                                 {(field) => (
                                     <FieldGroup className="gap-2">
-                                        <FieldLabel>Locale</FieldLabel>
-                                        <Select
-                                            value={(field.state.value as string) ?? ''}
-                                            onValueChange={field.handleChange}
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select Locale" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {LOCALE_OPTIONS.map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <FieldLabel htmlFor={`${field.name}-input`}>Currency</FieldLabel>
+                                        <CurrencyCombobox
+                                            id={`${field.name}-input`}
+                                            value={field.state.value ?? ''}
+                                            isInvalid={!!field.state.meta.errors.length}
+                                            onChange={(next) => {
+                                                const previous = field.state.value;
+                                                field.handleChange(next);
+                                                form.setFieldValue(
+                                                    'locale',
+                                                    getLinkedLocale(form.getFieldValue('locale'), previous, next)
+                                                );
+                                            }}
+                                        />
                                         <FieldError errors={field.state.meta.errors} />
                                     </FieldGroup>
                                 )}
                             </form.Field>
-                            <form.Field name="currency">
+                            <form.Field name="locale">
                                 {(field) => (
                                     <FieldGroup className="gap-2">
-                                        <FieldLabel htmlFor={`${field.name}-trigger`}>Currency</FieldLabel>
-                                        <Select value={field.state.value ?? ''} onValueChange={field.handleChange}>
-                                            <SelectTrigger id={`${field.name}-trigger`} className="w-full">
-                                                <SelectValue placeholder="Select currency" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CURRENCY_OPTIONS.map((option) => (
-                                                    <SelectItem value={option.value} key={option.value}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <FieldLabel htmlFor={`${field.name}-trigger`}>Number style</FieldLabel>
+                                        <NumberStyleSelect
+                                            id={`${field.name}-trigger`}
+                                            value={field.state.value ?? ''}
+                                            onChange={field.handleChange}
+                                        />
                                         <FieldError errors={field.state.meta.errors} />
                                     </FieldGroup>
                                 )}
@@ -310,18 +320,27 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                                                 {NUMBER_FORMAT_OPTIONS.map((option) => (
                                                     <SelectItem value={option.value} key={option.value}>
                                                         {option.label}
+                                                        <span className="text-muted-foreground tabular-nums">
+                                                            {formatCurrencyAmount(NUMBER_FORMAT_SAMPLE, {
+                                                                locale: localeValue,
+                                                                currency: currencyValue,
+                                                                numberFormat: option.value,
+                                                            })}
+                                                        </span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {/* <FieldDescription className="min-h-5">
-                                                        How amounts are shown (e.g. in tables and cards).
-                                                    </FieldDescription> */}
                                         <FieldError errors={field.state.meta.errors} />
                                     </FieldGroup>
                                 )}
                             </form.Field>
                         </div>
+                        <FormattingPreview
+                            locale={localeValue}
+                            currency={currencyValue}
+                            numberFormat={numberFormatValue}
+                        />
                     </section>
 
                     <section className="rounded-xl border bg-card p-5 space-y-5">
@@ -358,8 +377,27 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                             )}
                         </form.Field>
                     </section>
+
+                    <DataExportSection />
                 </div>
             </div>
+
+            <ConfirmationModal
+                open={pendingValues !== null}
+                setOpen={(open) => {
+                    if (!open) setPendingValues(null);
+                }}
+                title={`Make ${getCurrencyOptionLabel(pendingValues?.currency ?? '')} your default?`}
+                description={`New EMIs will default to ${pendingValues?.currency ?? ''}, and the dashboard will open on it. Existing EMIs keep their own currency; change one from its edit form.`}
+                confirmText="Change default"
+                isLoading={isSaving}
+                onCancel={() => setPendingValues(null)}
+                onConfirm={async () => {
+                    if (!pendingValues) return;
+                    await onSubmit(pendingValues);
+                    setPendingValues(null);
+                }}
+            />
         </form>
     );
 };

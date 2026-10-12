@@ -7,7 +7,27 @@
 
 ## Current Status
 
-**Last completed (UI fixes):**
+**Last completed (per-EMI currency):** Each EMI now carries its own
+currency (existing ones were stamped with the owner's account currency). EMI
+screens and exports use it, the EMI form has a currency picker, and the
+dashboard shows stats per currency with a switcher. Plan:
+`context/plan/per-emi-currency-plan.md`.
+
+**Previously (card pages + credit-limit utilisation):** Added
+`/credit-cards/cards` and `/credit-cards/cards/:id`, a dated credit-limit
+history table, and a fourth `Utilisation` view on the tracker grid —
+headlined by an overall figure computed the way a credit bureau does.
+**The migration has not been run yet** — see the entry below.
+
+**Previously completed (JSON data export):** Added a machine-readable JSON
+export — per-EMI from the details page's Export dropdown, and
+whole-account from Account Settings. Built for handing the dataset to a
+spreadsheet or an AI assistant, so it carries ownership attribution:
+an EMI split 100% to a friend or family member is classified
+`on_behalf` and contributes nothing to the user's own totals, while an
+unsplit EMI is wholly theirs. See the entry below.
+
+**Earlier (UI fixes):**
 
 - `CreditCardGrid.tsx` — fixed the frozen "Month" column bleeding scrolled
   columns through its translucent row stripe during horizontal scroll. The
@@ -19,7 +39,7 @@
   only identity + Sign out. Dropped unused `Link`, `BadgeCheckIcon`, and
   `setOpenMobile`.
 
-**Previously completed:** Added idempotent migration
+**Before that:** Added idempotent migration
 `supabase/migrations/supabase_emi_share_permission_enum.sql` so
 `emiShares.permission` becomes Postgres enum `emi_share_permission`
 (`read` | `write`) and CLI-generated types stop typing it as `string`.
@@ -71,6 +91,8 @@ the project's life, so earlier entries are a summary rather than a log.
 ### Export
 
 - PDF via `@react-pdf/renderer`, Excel via `exceljs`
+- JSON via `src/utils/export/json/` — per-EMI and whole-account, with
+  ownership attribution and a `glossary` block for external consumers
 
 ### Account preferences
 
@@ -208,6 +230,455 @@ figure derives from the stored amortization schedule.
 
 ---
 
+### JSON data export (per-EMI and whole-account)
+
+Motivation: making the dataset analysable outside the app — by a
+spreadsheet, or by an AI assistant — without exposing the database. The
+PDF and Excel exports are presentation formats and lose structure; this
+one is the structured counterpart.
+
+- **Ownership attribution is the point of the feature.**
+  `src/utils/emiOwnership.calc.ts` answers "whose loan is this?" in four
+  modes: `sole` (unsplit, wholly the user's), `shared` (the user carries
+  part), `on_behalf` (the user owns and pays the loan but split 100% of
+  it to other people — the money leaves their account, the liability is
+  not theirs), `observer` (someone else's loan, visible via a share).
+  Without this, a card used for family purchases inflates the user's own
+  debt figure by the entire amount.
+- **Two rules the attribution encodes.** An unsplit loan sits entirely
+  with its owner — absence of a split row means 100%, not 0%. And the
+  owner absorbs whatever percentage no split row claims, so splitting 40%
+  to a friend and never adding a row for yourself still leaves you the
+  other 60%. That second rule applies only to the owner: RLS lets a mere
+  participant see just their own row, so an incomplete set there means
+  "hidden", reported through `isPartialView`.
+- **Summary buckets partition every visible rupee exactly once:** `mine`,
+  `financedForOthers` (loans the user owns but others carry), `observed`
+  (loans someone else owns). `ownedGross` is the whole-loan total across
+  owned loans and deliberately overlaps the first two. A
+  `summary.participants` roll-up answers "who owes me what" across all
+  loans, keyed by the existing `getSplitParticipantKey`.
+- **The document carries a `glossary`.** The file's whole purpose is to
+  be read by something that has never seen this codebase, so the
+  non-obvious semantics — `on_behalf`, the upfront processing fee sitting
+  wholly on the paid side, statement month vs payment month — ship inside
+  the file rather than living only in these docs.
+- Amortization money arrives from Supabase as strings (`ScheduleData`);
+  the export coerces to numbers and derives `isPaid` from the calendar
+  via `getRepaymentProgress`, not from the stale stored flag.
+- Credit card entries are denormalised with `cardName` / `issuerName` /
+  `financialYear` so a row reads on its own.
+- **Reused rather than reimplemented:** `getRepaymentProgress`,
+  `prorateRepaymentProgress` and `getParticipantRepaymentBreakdown` do
+  all the ledger math. `buildParticipants` resolves `mySplit` itself
+  instead of trusting the field, so the builder does not depend on which
+  service hydrated the record.
+- **Placement:** per-EMI JSON joins PDF/Excel in `ExportDropdown`;
+  whole-account lives in Account Settings beside Export Templates, since
+  it is an account-level operation and the dashboard is already dense.
+  Its reads are imperative (`Promise.all` over the services, EMIs through
+  `queryClient.fetchQuery` on the existing `['emis']` key) so opening
+  Settings does not fetch scenarios and card data for nothing.
+- Unlike PDF and Excel, `jsonExport` is statically imported — it is plain
+  mapping code with no heavy dependency to keep out of the chunk.
+- **New service methods:** `ScenarioService.getAllScenarios()`,
+  `CreditCardService.getAllPaymentEntries()` / `getAllBillEntries()` /
+  `getAllTrackerYears()` — one round trip each instead of one per EMI or
+  per financial year. `getScenariosByEmiId` was refactored onto a shared
+  `SCENARIO_SELECT` and `mapScenarioRows`.
+- **Files added:** `src/utils/emiOwnership.calc.ts` (+ test),
+  `src/types/dataExport.types.ts`,
+  `src/utils/export/json/buildExportDocument.ts` (+ test),
+  `src/utils/export/json/jsonExport.ts`, `src/hooks/useDataExport.ts`,
+  `src/components/account/DataExportSection.tsx`.
+- **Files changed:** `src/hooks/useExport.ts`,
+  `src/components/emi/ExportDropdown.tsx`,
+  `src/components/account/AccountForm.tsx`,
+  `src/utils/ScenarioService.ts`, `src/utils/CreditCardService.ts`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (172 passing, up from 161).
+- **Next step:** the `IEmi` domain type still has no home for
+  `emiPartPayments`, which exists in the DB and in
+  `supabase.types.ts` but has no app code — the export skips it. Fold it
+  in when part payments are actually built.
+
+---
+
+### Card pages + credit-limit utilisation
+
+Two asks in one module: manage cards on a real page rather than in a side
+sheet, and show how much of each card's limit its statements actually
+used, month by month. Plan:
+`context/plan/credit-card-management-and-utilisation-plan.md`.
+
+- **BLOCKED ON A MIGRATION.**
+  `supabase/migrations/supabase_credit_card_limit_history_schema.sql`
+  has been written but **not run**. Paste it into the Supabase SQL
+  editor, check the verify query at the bottom, then the feature works
+  end to end. Until then the utilisation view renders empty, and the
+  limit history sheet errors on save — nothing else regresses, because
+  everything that existed before still reads `cc_cards."creditLimit"`.
+- **A credit limit is now dated, not a field.**
+  `cc_card_limit_changes` keys a limit by the day it took effect. Without
+  it, one limit increase silently restates every earlier month's
+  utilisation — and restates it _downward_, so a card that genuinely ran
+  at 70% last April would quietly render as 44%.
+- **The earliest recorded change extends backwards**, and the UI badges
+  it "Initial limit". A user who records only "raised to ₹4L on 1 Sep"
+  would otherwise blank Apr–Aug. The migration backfills one row per card
+  that already carried a limit, so this holds for existing data.
+- **`cc_cards."creditLimit"` is now a cache**, restated by
+  `CreditCardService.syncCurrentLimit` after every history write. To stop
+  it having two writers, `creditLimit` was **removed from
+  `UpdateCardInput`** — that turned the one existing bypass (the billing
+  cycle sheet) into a compile error rather than a value that quietly
+  stops sticking. `AddCardDialog` keeps it as the opening limit and
+  `createCard` seeds the first history row from it.
+- **Combined utilisation is a ratio of sums, never a mean of ratios.**
+  A ₹5,000 bill on a ₹50,000 limit and a ₹4,00,000 bill on a ₹5,00,000
+  limit average to 45%; the real figure is 73%. Test-covered.
+- **Every combined figure follows the credit-bureau rule**
+  (`buildBureauUtilisation`): every open card's limit sits in the
+  denominator whether or not it carried a balance — which is why closing
+  an unused card raises utilisation — and balances floor at zero, since
+  a credit balance reports as nil. This is what CIBIL computes, and it is
+  what the headline card, the grid's overall column and the per-bank
+  columns all show.
+- **An unentered card is assumed nil and the month is flagged partial.**
+  That assumption can only make utilisation look _better_ than reality,
+  which is the dangerous direction, so the card names how many were
+  assumed. A month where every card was assumed produces no figure at
+  all rather than a confident 0% drawn from absence, and future months
+  are skipped for the same reason.
+- **Any month can be inspected, not just the latest.** The overall card
+  carries a month selector held in the URL as `?month=`, its twelve-bar
+  trend doubles as the picker, and it defaults to the most recent month
+  with a figure. Changing the financial year drops the picked month, so
+  the URL can never name a month that is not on screen.
+- **`BureauMonth.contributions` breaks a month down by card** — floored
+  balance, limit, that card's own ratio, and whether the figure was
+  entered, a known nil, or assumed. Without it the partial-month warning
+  names a count but not a card to go and fix. It sums back to the
+  headline on both sides, asserted by a test.
+- **The strict matrix no longer computes combined figures at all.** It
+  survives purely as the source for per-card cells. Two combining
+  implementations on one screen would eventually disagree.
+- **A `no_statement` month now reads 0% per card, not blank.** Narrower
+  than the bill series, where "issued nothing" and "billed ₹0" are
+  genuinely different events — for utilisation both mean nothing was
+  owed, and blanking it would disagree with the bureau column that counts
+  it as a known nil.
+- **A deactivated card keeps counting while it holds data that year.**
+  Dropping it on deactivation would restate every past month upward,
+  which is the silent-history problem the dated limit table exists to
+  prevent. A real `closedAt` column is the correct fix if it matters.
+- **Absent ≠ zero.** Not entered, `no_statement`, and "no limit recorded"
+  all render as an em dash; `0%` means a real zero-balance statement. To
+  carry that through the shared grid, `CreditCardGrid` gained four
+  optional series props (`formatValue`, `formatTotal`, `getIssuerTotal`,
+  `footerLabel`), each defaulting to the existing money behaviour so
+  Payments and Bills render identically.
+- **Bills and payments still sit in separate columns** on the card page
+  and are never differenced, with the caption saying why. That page is
+  where the temptation is strongest.
+- **Files added:** `supabase/migrations/supabase_credit_card_limit_history_schema.sql`,
+  `src/utils/creditCardUtilisation.calc.ts` (+ test),
+  `src/router/pages/CreditCardList.tsx`,
+  `src/router/pages/CreditCardDetails.tsx`,
+  `src/components/creditCards/CardLimitHistorySheet.tsx`,
+  `src/components/creditCards/CardSummaryRow.tsx`,
+  `src/components/creditCards/IssuerUtilisationCard.tsx`,
+  `src/components/creditCards/BureauUtilisationCard.tsx`,
+  `src/components/creditCards/UtilisationCellValue.tsx`,
+  `src/components/creditCards/BillingCycleSheet.tsx` (extracted from
+  `IssuerCardManager` so the card page can reuse it).
+- **Files changed:** `src/types/creditCard.types.ts`,
+  `src/supabase/supabase.types.ts`, `src/utils/CreditCardService.ts`,
+  `src/hooks/useCreditCards.ts`, `src/utils/creditCardBills.calc.ts`
+  (exported `isoDayInMonth`), `src/components/creditCards/CreditCardGrid.tsx`,
+  `TrackerViewSelector.tsx`, `BillingCycleFields.tsx`,
+  `IssuerCardManager.tsx`, `src/router/pages/CreditCards.tsx`,
+  `src/router/HomeRouter.tsx`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (205 passing, up from 172). Not yet verified against the live database
+  — that needs the migration run first.
+- **Next step:** run the migration, then walk the manual assertions in
+  §12 of the plan. After that, the JSON export in
+  `buildExportDocument.ts` does not yet carry `cc_card_limit_changes`;
+  fold it in so an exported dataset can reproduce utilisation.
+
+---
+
+### Review fixes — card pages + utilisation
+
+Pre-commit review of the module above. App-code only, no schema change.
+
+- **A card opened mid-year no longer counts before it opened.**
+  `buildBureauUtilisation` now skips a card for a month that ends before
+  its earliest limit date unless a statement was entered for that month.
+  Before, adding a ₹4L card in October put ₹4L into every earlier
+  denominator — a real 80% June read as 16%. The backwards extension in
+  `resolveLimitOn` still applies to limit values on a card that existed.
+- **Per-issuer coverage counts come from the limit history**
+  (`BureauUtilisation.issuerCardsCounted` / `issuerCardsWithoutLimit`), not
+  from the busiest month — cards with limits but no statements were being
+  reported as "without a limit".
+- **"N of M months measured"** — `monthsMeasurable` excludes future months,
+  so the current year no longer always reads incomplete.
+- **Cache invalidation:** `useCreateCard` invalidates `limits()` (it seeds
+  the opening row); `useUpdateCard` invalidates `card(id)` so the details
+  page reflects deactivation and cycle edits immediately.
+- **`BillingCycleSheet` / `CardLimitHistorySheet` reset on every open**,
+  tracked against the `open` prop — Radix never fires `onOpenChange` for an
+  externally controlled open, so cancelled edits used to survive.
+- **`CreditCardGrid` series gained `zeroIsFigure`**, so a deactivated card
+  with a 0% peak stays visible while the bureau columns still count it.
+- Dropped the unused `monthLabelFor` prop from `CardSummaryRow`.
+- **Files changed:** `creditCardUtilisation.calc.ts` (+ test),
+  `creditCard.types.ts`, `useCreditCards.ts`, `BillingCycleSheet.tsx`,
+  `CardLimitHistorySheet.tsx`, `CreditCardGrid.tsx`,
+  `IssuerUtilisationCard.tsx`, `CardSummaryRow.tsx`, `CreditCards.tsx`.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (208 passing).
+- **Deferred to the next iteration** (limit handling + card EMI tracking,
+  to be planned together): scheduled limits never becoming current
+  (`syncCurrentLimit` only runs on write), non-atomic `createCard`
+  (card + opening limit in two writes; retry can duplicate), and limit
+  history missing from the JSON export. See Open Questions.
+
+---
+
+### Currency & number formatting — phase 1 (formatter core)
+
+- **Plan:** `context/plan/currency-and-number-formatting-plan.md`. 32
+  curated currencies, currency decides symbol + decimals, locale decides
+  grouping/separators/symbol position. No migration needed.
+- **Registry** `src/utils/currencyRegistry.ts`: code, label, region group,
+  popular flag, default locale, ISO regions (for phase 2 browser
+  defaults), tax label (phase 5). Every default locale renders Latin
+  digits only, because the PDF font has no Arabic/Thai/CJK glyphs; JPY uses
+  `en-JP`, THB `en-TH`.
+- **Formatter fixes** in `src/utils/numberFormat.ts`:
+    - `exact` takes decimals from Intl (JPY/KRW/IDR/PKR show 0, not `.00`)
+    - `compact_long` actually spells out the unit (`₹12.35 lakh`,
+      `1,23 Millionen €`). Intl ignores `compactDisplay: 'long'` with
+      currency style, so the number is compacted in decimal style and wrapped
+      in the sign/symbol from `formatToParts`
+    - formatters are cached per locale/currency/mode
+    - new `getCurrencyMeta` (symbol, decimals, prefix/suffix)
+- Deleted the unused `formatAmount` from `src/utils/utils.ts`.
+- **Files changed:** `numberFormat.ts`, `numberFormat.test.ts` (new),
+  `currencyRegistry.ts` (new), `utils.ts`, the plan doc.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (225 passing).
+- **Next:** phase 2: settings UI (searchable currency picker,
+  number-style picker with samples, currency→locale auto-link, live
+  preview, relabel warning, browser-detected defaults saved on first
+  bootstrap).
+
+### Currency & number formatting — phase 2 (settings UI + first-run defaults)
+
+- **Account Settings → Regional Settings** rebuilt:
+    - `CurrencyCombobox`: base-ui combobox, Popular pinned then regional
+      groups, search by name / code / symbol (`rupee`, `inr`, `₹`)
+    - `NumberStyleSelect` replaces the locale dropdown. Locales are grouped
+      under the sample they render (`12,34,567.89`, `1.234.567,89`, ...)
+    - Number format options show a live sample in the chosen currency
+    - `FormattingPreview` shows a sample amount in all three formats,
+      highlighting the selected one
+    - Picking a currency switches the number style to that currency's
+      default, unless the user picked one by hand (`getLinkedLocale`)
+    - Saving a currency change asks for confirmation first: amounts are
+      relabelled, never converted
+- **First-run defaults:** `AccountDetails.hasSavedPreferences` (false when
+  there's no preferences row). `useAccountDataBootstrap` then calls
+  `AccountService.initializeRegionalPreferences` once:
+    - region from the time zone first, then the browser language
+    - users who already own EMIs or cards are pinned to INR / `en-IN`
+    - insert-only, so it never overwrites a saved row
+    - side effect: filter-config saves (an `update`) now persist for users
+      who never opened settings
+- Form zod enums now come from the registry; `CURRENCY_OPTIONS` /
+  `LOCALE_OPTIONS` removed.
+- **Files changed:** `currencyRegistry.ts` (+ new test),
+  `AccountService.ts`, `account.types.ts`, `useAccount.ts`,
+  `useAccountDataBootstrap.ts`, `account.forms.ts`, `AccountForm.tsx`,
+  new `CurrencyCombobox.tsx`, `NumberStyleSelect.tsx`,
+  `FormattingPreview.tsx`, `buildExportDocument.test.ts` (fixture field).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (238 passing). **Not yet checked in a browser:** the settings screen
+  sits behind login.
+- **Known gaps until later phases:** Excel shows the ISO code for the new
+  currencies (phase 4); PDF glyphs for `₩ ₦ ₱` and the like are unverified
+  (phase 4); the EMI form still says `(₹)` (phase 3).
+
+### Currency & number formatting — phase 3 (inputs)
+
+- **`src/utils/parseAmount.ts`** (+ test):
+    - `parseLocaleAmount` reads the locale's separators, strips symbols,
+      codes and `Rs.`/`kr.`, and keeps the sign
+    - Returns a number, `null` (empty) or `undefined` (not an amount)
+    - **Ambiguous input is rejected, never guessed**: `12,345.67` in de-DE
+      is refused rather than stored as 12.34567
+    - A lone foreign separator that isn't valid grouping is read as a
+      decimal (`1234.5` in de-DE)
+    - `formatAmountForInput` is the inverse: grouped, no symbol, no `.00`
+      on whole amounts; a round-trip test covers every currency
+- **`useCurrencyPreferences`** gains `currencySymbol`, `fractionDigits`,
+  `symbolPosition`, `parseAmountInput`, `formatAmountInput`.
+- **`AmountInput`** (`components/common`): a form money field with the
+  symbol inside the input, placed before or after the number per locale.
+  Invalid text stays visible and reports `NaN`, so zod shows
+  "Enter a valid amount." instead of the field silently becoming empty.
+- **Swapped in:**
+    - EMI form: principal, amount-type interest discount, processing fee.
+      Its `(₹)` labels and the `IndianRupee` toggle now use the currency
+      symbol; the min-principal message no longer says `₹100`
+    - Scenario form: flat charges
+    - Advanced filter: principal and total-loan bounds
+    - Bill and payment grid cells: their own drafts, commit-on-blur
+      unchanged, no adornment
+    - Card limit sheet and billing-cycle fields: the parser is passed into
+      `validateDraft` / `validateBillingCycle`
+- "Different from a ₹0 bill" is now formatted; the decorative
+  `IndianRupee` icons on EMI details and stats became `Coins`.
+- Percentage, tenure and day inputs are unchanged (not money).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (253 passing). **Not yet checked in a browser.**
+- **Next:** phase 4 (exports): Excel number formats for every currency,
+  Indian grouping in Excel, PDF glyph check.
+
+### Currency & number formatting — phase 4 (exports)
+
+- **Excel:** `buildExcelCurrencyNumFmt` (`export/excel/excelNumFmt.ts`,
+    - test) replaces the 4-currency symbol map:
+    * symbol placed before or after the number, with the locale's spacing
+      (`"Rp "#,##0`, `#,##0.00" €"`)
+    * decimals from the currency (JPY / IDR get none)
+    * Indian-style locales get lakh/crore grouping through conditional
+      sections (`[>=10000000]…;[>=100000]…;…`)
+    * Known limit: Excel sends negatives to the last section, so an amount
+      of −1 lakh or less shows Western grouping. Amortization figures are
+      never negative.
+- **PDF:** audited NotoSans with fontkit against all 654 currency × style
+  × mode outputs. Only two glyphs are missing: U+2212 (the sv-SE / nb-NO
+  minus) and `฿` (THB outside `en-TH`). The PDF `fmt` now maps U+2212 to a
+  hyphen and falls back to the ISO code when a symbol can't be drawn.
+    - `formatCurrencyAmount` gained an optional `currencyDisplay: 'code'`
+    - `pdf/templates/shared.test.ts` pins the whole matrix
+- JSON export unchanged (already carries the currency code).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (263 passing). A sample workbook was generated for a manual look in
+  Excel; not opened programmatically.
+- Commit `1eaa812`.
+
+### Currency & number formatting — phase 5 (regional wording + polish)
+
+- **Tax labels:** `getTaxLabels(currency)` in the registry →
+  `{ label, inline, defaultRate, isCommon }`, exposed as
+  `useCurrencyPreferences().taxLabels`. USD / JPY labels became "Tax" so
+  every label is one word.
+    - Relabelled: EMI form, EMI details, amortization schedule, repayment
+      card, scenario form / summary / breakdown, and the PDF and Excel
+      templates
+    - `PayoffBreakdown` swaps "GST" in stored breakdown labels at render
+      time (the calc and saved rows are untouched)
+    - EMI form: for non-INR currencies the two tax fields hide behind an
+      "Add tax…" link unless the EMI already has a rate
+    - Scenario form: the foreclosure-charge tax default is 18% only for INR,
+      0 elsewhere
+- **Percentages:** `formatPercent` (numberFormat.ts) and the hook's
+  `formatPercent(value, decimals?)` replace the hand-built `toFixed(n)%` on
+  the EMI, details, repayment and split pages. PDF `fmtPct` now takes the
+  prefs. Credit-card percentages are left as they are, since that module
+  is India-only; Excel percent cells are unchanged.
+- **Hover titles:** `amountTitle(value)` returns the exact amount when a
+  compact format is on. Applied to 10 headline figures (stat cards, EMI
+  details, EMI card, issuer summaries); not to table cells.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (272 passing).
+
+### Currency & number formatting — phase 6 (3-decimal currencies)
+
+- **Migration** `supabase_money_three_decimals.sql`, hand-run and
+  verified 2026-10-12 (commit `d72a52e`): 17 columns moved to
+  `numeric(15,3)`. Precision 15, not 14, so the integer range isn't cut.
+    - Columns: `emis.processingFee`, `emiSplits.splitAmount`, 14
+      `loan_scenarios` amounts, `loan_scenario_breakdowns.amount`
+    - Core `emis` and `amortizationSchedules` amounts were already
+      unconstrained `numeric`; `cc_*` left at 2 decimals (India-only)
+    - The live `calculate_split_amount` trigger doesn't round, so split
+      amounts now keep 3 decimals too
+- **`src/utils/money.ts`** (+ test): `roundMoney`, `toMoneyString` and a
+  module-level precision clamped to 2..3, synced from the store on every
+  dispatch. 0-decimal currencies keep 2-decimal math; only KWD / BHD / OMR
+  use 3.
+- Every `toFixed(2)` / local `roundMoney` in `calculation.ts`,
+  `emiRepayment.calc.ts`, `scenarioCalculation.ts` and
+  `buildExportDocument.ts` now goes through it. Rounding still uses
+  `toFixed` semantics, so INR results are unchanged (all 272 earlier tests
+  pass untouched). `coveredPercentage` is pinned to 2 (a percentage).
+- **`useAutoRecalculateEmis` waits for `currencyPreferencesModel.isHydrated`**
+  before its daily recompute-and-write, so it never stores figures at the
+  default precision.
+    - Consequence: when an account switches to KWD / BHD / OMR, its stored
+      EMI figures are refreshed at 3 decimals on the next daily run (changes
+      under 0.001 per row). No existing account is affected today.
+- Registry: KWD, BHD, OMR (Gulf group, `en-KW` / `en-BH` / `en-OM`), plus
+  their time zones for first-run detection.
+- Docs: code standards §6 and the schema overview updated for the new
+  money rules.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (279 passing).
+
+### Shorthand amount entry
+
+- `parseLocaleAmount` accepts units before the letter-stripping step (which
+  would otherwise read `1.5L` as 1.5): k / thousand, L / lac / lakh,
+  cr / crore, M / mn / mio / million, B / bn / mrd / billion. They work in
+  every number style, and the number part uses the locale's separators
+  (`1,5L` in de-DE).
+    - The base is multiplied before rounding (`1.2345k` → 1234.5)
+    - `kr` and `Rs.` are still read as currency, not units
+- `AmountInput` shows the shortcuts as its hover title. Grid cells get it
+  for free through the shared parser.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`.
+
+### Per-EMI currency (phases A–F)
+
+- **Schema:** `supabase_emis_currency.sql`, applied and verified
+  2026-10-12 (36 EMIs, all INR, each matching its owner).
+    - `emis.currency` is `NOT NULL` with an ISO check
+    - Existing rows were filled from the owner's account currency
+    - A `BEFORE INSERT` trigger defaults a missing currency the same way
+- **Plumbing:** `IEmi.currency`; the service writes it on insert, update
+  and the bulk upsert; `useCurrencyPreferences(currencyOverride)`.
+    - The calc entry points wrap themselves in
+      `withMoneyPrecision(emi.currency)`, so a KWD loan rounds at 3 decimals
+      inside an INR account
+- **EMI screens:** details, schedule, repayment card, splits, scenarios,
+  EMI cards and the PDF / Excel exports use the loan's currency; the number
+  style stays the account's.
+- **EMI form:** currency picker, defaulting to the account currency.
+  Editing an existing EMI's currency asks for confirmation (relabel, not
+  convert).
+- **Dashboard:** with 2+ currencies, a switcher shows one currency's stats
+  at a time.
+    - The default tab is the account currency, else the largest group
+    - Logic in `modules/filter/currencyGroups.ts` (+ test)
+    - The amount-range filter applies in the selected currency
+      (`filterEmis.test.ts`)
+- **JSON export:** `schemaVersion: 2`, `currency` on each EMI, and
+  `summaryByCurrency` replaces `summary`.
+- **Account Settings:** the currency change now reads "Make X your
+  default?"; existing EMIs keep their own currency.
+- **Leftover:** the legacy `useStats` hook still sums across currencies,
+  but it is unreachable from the dashboard. Remove it in a cleanup.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (297 passing). **Not yet checked in a browser.**
+
+---
+
 ## Open Questions
 
 - **Sidebar "Settings" 404s.** `src/components/sidebar/nav.config.ts`
@@ -222,6 +693,15 @@ figure derives from the stored amortization schedule.
 - **Components are untested**, deliberately — `environment: 'node'` and
   no `@testing-library`. Revisit only if a UI regression proves
   expensive; the pure-logic tests are where the value is.
+- **Next iteration — limits + card EMIs, needs a plan.** A future-dated
+  limit never becomes `cc_cards."creditLimit"` once its date passes
+  (only rewritten on a history write). `createCard` is two non-atomic
+  writes (likely needs an RPC). Card-EMI conversions block limit and
+  should feed utilisation. Decide these together.
+- **The JSON export does not carry limit history.**
+  `buildExportDocument.ts` exports cards with their current
+  `creditLimit`, so an exported dataset cannot reproduce a past month's
+  utilisation. Add `cc_card_limit_changes` to it.
 - **Bill ↔ payment reconciliation** is designed but not built. The one
   column it will likely need is a manual `settledByPeriodMonth`
   override, for an auto-debit that slips past a weekend into the next

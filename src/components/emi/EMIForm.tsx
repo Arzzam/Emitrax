@@ -1,16 +1,21 @@
 import { useState } from 'react';
-import { useForm } from '@tanstack/react-form';
+import { useForm, useStore } from '@tanstack/react-form';
 import { format } from 'date-fns';
-import { CalendarIcon, IndianRupee, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
+import { CalendarIcon, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
 import * as z from 'zod';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
 import { useUniqueTagsOptions } from '@/hooks/useStats';
 import { cn } from '@/lib/utils';
 import { IComboboxOption } from '@/types/common.types';
 import { IEmi } from '@/types/emi.types';
 import { calculateEMI } from '@/utils/calculation';
+import { getCurrencyOptionLabel, getTaxLabels } from '@/utils/currencyRegistry';
 
+import CurrencyCombobox from '../account/CurrencyCombobox';
+import AmountInput from '../common/AmountInput';
+import ConfirmationModal from '../common/ConfirmationModal';
 import ToolTipWrapper from '../common/TooltipWrapper';
 import { Button } from '../ui/button';
 import { Calendar } from '../ui/calendar';
@@ -32,8 +37,8 @@ const formSchema = z
         itemName: z.string().min(2, {
             message: 'Item name must be at least 2 characters.',
         }),
-        principal: z.number().min(100, {
-            message: 'Principal amount must be at least ₹100.',
+        principal: z.number({ invalid_type_error: 'Enter a valid amount.' }).min(100, {
+            message: 'Principal amount must be at least 100.',
         }),
         interestRate: z.number().min(0).max(100, {
             message: 'Interest rate must be between 1 and 100.',
@@ -43,16 +48,16 @@ const formSchema = z
             message: 'Tenure must be between 1 and 360 months.',
         }),
         interestDiscountType: z.enum(['percent', 'amount']).optional(),
-        interestDiscount: z.number().optional(),
+        interestDiscount: z.number({ invalid_type_error: 'Enter a valid number.' }).optional(),
         gst: z
             .number()
             .min(0)
             .max(100, {
-                message: 'GST must be between 0 and 100.',
+                message: 'Tax rate must be between 0 and 100.',
             })
             .optional(),
         processingFee: z
-            .number()
+            .number({ invalid_type_error: 'Enter a valid amount.' })
             .min(0, {
                 message: 'Processing fee must be a positive value.',
             })
@@ -61,9 +66,10 @@ const formSchema = z
             .number()
             .min(0)
             .max(100, {
-                message: 'Processing fee GST must be between 0 and 100.',
+                message: 'Processing fee tax rate must be between 0 and 100.',
             })
             .optional(),
+        currency: z.string().regex(/^[A-Z]{3}$/, { message: 'Pick a currency.' }),
         tag: z.string().optional(),
         notes: z.string().max(2000).optional(),
     })
@@ -86,6 +92,16 @@ const formSchema = z
 export type TFormValues = z.infer<typeof formSchema>;
 
 const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; data?: IEmi }) => {
+    const { accountCurrency } = useCurrencyPreferences();
+    // A new EMI starts in the account currency; an existing one keeps its own.
+    const initialCurrency = data?.currency || accountCurrency;
+    // Tax on loan interest is an Indian norm; elsewhere the fields stay tucked
+    // away unless asked for, or the EMI already carries a tax rate.
+    const [showTaxFields, setShowTaxFields] = useState(
+        () => getTaxLabels(initialCurrency).isCommon || (data?.gst ?? 0) > 0 || (data?.processingFeeGst ?? 0) > 0
+    );
+    // Set while the relabel warning is open; saving waits for confirmation.
+    const [pendingValues, setPendingValues] = useState<EmiFormValues | null>(null);
     const { mutate: updateEmi, isPending: isUpdatingEmi } = useUpdateEmi();
     const { mutate: addEmi, isPending: isAddingEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
@@ -94,40 +110,60 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
 
     const isEdit = !!data;
 
+    const defaultValues = {
+        itemName: data?.itemName || '',
+        principal: data?.principal ?? undefined,
+        interestRate: data?.interestRate ?? undefined,
+        billDate: data?.billDate ? new Date(data.billDate) : undefined,
+        tenure: data?.tenure ?? undefined,
+        interestDiscount: data?.interestDiscount ?? undefined,
+        interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
+        gst: data?.gst ?? undefined,
+        processingFee: data?.processingFee ?? undefined,
+        processingFeeGst: data?.processingFeeGst ?? undefined,
+        currency: initialCurrency,
+        tag: data?.tag || '',
+        notes: data?.notes ?? '',
+    };
+
+    type EmiFormValues = typeof defaultValues;
+
     const form = useForm({
-        defaultValues: {
-            itemName: data?.itemName || '',
-            principal: data?.principal ?? undefined,
-            interestRate: data?.interestRate ?? undefined,
-            billDate: data?.billDate ? new Date(data.billDate) : undefined,
-            tenure: data?.tenure ?? undefined,
-            interestDiscount: data?.interestDiscount ?? undefined,
-            interestDiscountType: (data?.interestDiscountType || 'percent') as 'percent' | 'amount',
-            gst: data?.gst ?? undefined,
-            processingFee: data?.processingFee ?? undefined,
-            processingFeeGst: data?.processingFeeGst ?? undefined,
-            tag: data?.tag || '',
-            notes: data?.notes ?? '',
-        },
+        defaultValues,
         validators: {
             onSubmit: formSchema as never,
         },
         onSubmit: ({ value }) => {
-            const values = { ...value };
-            if (!values.tag) {
-                values.tag = 'Personal';
+            // Changing an existing loan's currency relabels it, never converts it.
+            if (isEdit && value.currency !== data?.currency) {
+                setPendingValues(value);
+                return;
             }
-            const calculatedValues = calculateEMI(values as IEmi, data?.id);
-            if (calculatedValues) {
-                if (isEdit) {
-                    updateEmi(calculatedValues);
-                } else {
-                    addEmi(calculatedValues);
-                }
-                setIsOpen(false);
-            }
+            save(value);
         },
     });
+
+    const save = (value: EmiFormValues) => {
+        const values = { ...value };
+        if (!values.tag) {
+            values.tag = 'Personal';
+        }
+        // calculateEMI rounds at this currency's precision (3 decimals for KWD / BHD / OMR).
+        const calculatedValues = calculateEMI(values as IEmi, data?.id);
+        if (calculatedValues) {
+            if (isEdit) {
+                updateEmi(calculatedValues);
+            } else {
+                addEmi(calculatedValues);
+            }
+            setIsOpen(false);
+        }
+    };
+
+    const currencyValue = useStore(form.store, (state) => state.values.currency);
+    const { currencySymbol, formatAmountInput, formatCurrencyAmount, taxLabels } =
+        useCurrencyPreferences(currencyValue);
+    const previousCurrencyFormat = useCurrencyPreferences(data?.currency).formatCurrencyAmount;
 
     const handleTagChange = (value: string) => {
         form.setFieldValue('tag', value);
@@ -246,6 +282,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             );
                         }}
                     </form.Field>
+                    <form.Field
+                        name="currency"
+                        children={(field) => (
+                            <Field>
+                                <FieldLabel htmlFor={`${field.name}-input`}>Currency</FieldLabel>
+                                <CurrencyCombobox
+                                    id={`${field.name}-input`}
+                                    value={field.state.value}
+                                    isInvalid={!!field.state.meta.errors.length}
+                                    onChange={(next) => {
+                                        field.handleChange(next);
+                                        if (getTaxLabels(next).isCommon) setShowTaxFields(true);
+                                    }}
+                                />
+                                <FieldError errors={field.state.meta.errors} />
+                            </Field>
+                        )}
+                    />
                 </div>
             </section>
 
@@ -262,24 +316,20 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             return (
                                 <Field data-invalid={isInvalid}>
                                     <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Principal Amount (₹)</FieldLabel>
+                                        <FieldLabel htmlFor={field.name}>Principal Amount</FieldLabel>
                                         <ToolTipWrapper content="Principal amount is the amount of money borrowed from the bank or lender.">
                                             <Info className="w-4 h-4" />
                                         </ToolTipWrapper>
                                     </div>
-                                    <Input
+                                    <AmountInput
+                                        currency={currencyValue}
                                         id={field.name}
                                         name={field.name}
-                                        type="number"
-                                        value={field.state.value ?? ''}
+                                        value={field.state.value}
                                         onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
+                                        onValueChange={field.handleChange}
                                         aria-invalid={isInvalid}
-                                        placeholder="e.g., 50000"
+                                        placeholder={`e.g., ${formatAmountInput(50000)}`}
                                     />
                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                 </Field>
@@ -402,7 +452,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                 <div>
                     <h3 className="text-sm font-medium text-foreground">Charges & discounts</h3>
                     <p className="text-xs text-muted-foreground">
-                        Optional discounts, interest GST, and one-time processing fees.
+                        Optional discounts, interest {taxLabels.inline}, and one-time processing fees.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -414,30 +464,48 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                     children={(field) => {
                                         const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
                                         const placeholder =
-                                            interestDiscountType === 'amount' ? 'e.g., 1000 (₹)' : 'e.g., 12.5 (%)';
+                                            interestDiscountType === 'amount'
+                                                ? `e.g., ${formatAmountInput(1000)}`
+                                                : 'e.g., 12.5';
                                         return (
                                             <Field data-invalid={isInvalid}>
                                                 <FieldLabel htmlFor={field.name}>
-                                                    Interest Discount (%) / (₹)
+                                                    Interest Discount (% or {currencySymbol})
                                                 </FieldLabel>
                                                 <div className="relative">
-                                                    <Input
-                                                        id={field.name}
-                                                        name={field.name}
-                                                        type="number"
-                                                        value={field.state.value ?? ''}
-                                                        onBlur={field.handleBlur}
-                                                        onChange={(e) =>
-                                                            field.handleChange(
-                                                                e.target.value === ''
-                                                                    ? undefined
-                                                                    : Number(e.target.value)
-                                                            )
-                                                        }
-                                                        aria-invalid={isInvalid}
-                                                        placeholder={placeholder}
-                                                        className="pr-16"
-                                                    />
+                                                    {interestDiscountType === 'amount' ? (
+                                                        // The toggle on the right already shows the symbol.
+                                                        <AmountInput
+                                                            currency={currencyValue}
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            hideSymbol
+                                                            value={field.state.value}
+                                                            onBlur={field.handleBlur}
+                                                            onValueChange={field.handleChange}
+                                                            aria-invalid={isInvalid}
+                                                            placeholder={placeholder}
+                                                            className="pr-16"
+                                                        />
+                                                    ) : (
+                                                        <Input
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            type="number"
+                                                            value={field.state.value ?? ''}
+                                                            onBlur={field.handleBlur}
+                                                            onChange={(e) =>
+                                                                field.handleChange(
+                                                                    e.target.value === ''
+                                                                        ? undefined
+                                                                        : Number(e.target.value)
+                                                                )
+                                                            }
+                                                            aria-invalid={isInvalid}
+                                                            placeholder={placeholder}
+                                                            className="pr-16"
+                                                        />
+                                                    )}
                                                     <form.Field
                                                         name="interestDiscountType"
                                                         children={(typeField) => (
@@ -454,7 +522,9 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                                                     className="bg-transparent border-none text-gray-500 hover:bg-transparent hover:text-foreground cursor-pointer"
                                                                 >
                                                                     {typeField.state.value === 'amount' ? (
-                                                                        <IndianRupee className="w-4 h-4 transition-all duration-300 scale-100" />
+                                                                        <span className="text-sm font-medium leading-none">
+                                                                            {currencySymbol}
+                                                                        </span>
                                                                     ) : (
                                                                         <PercentIcon className="w-4 h-4 transition-all duration-300 scale-100" />
                                                                     )}
@@ -472,38 +542,44 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         )}
                     </form.Subscribe>
 
-                    <form.Field
-                        name="gst"
-                        children={(field) => {
-                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                            return (
-                                <Field data-invalid={isInvalid}>
-                                    <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>GST (%)</FieldLabel>
-                                        <ToolTipWrapper content="GST is the tax on the interest rate. It is calculated on the interest rate and principal amount.">
-                                            <Info className="w-4 h-4" />
-                                        </ToolTipWrapper>
-                                    </div>
-                                    <Input
-                                        id={field.name}
-                                        name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
-                                        onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
-                                        aria-invalid={isInvalid}
-                                        placeholder="e.g., 18"
-                                    />
-                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                            );
-                        }}
-                    />
+                    {showTaxFields && (
+                        <form.Field
+                            name="gst"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <div className="flex flex-row gap-2">
+                                            <FieldLabel htmlFor={field.name}>
+                                                {taxLabels.label} on interest (%)
+                                            </FieldLabel>
+                                            <ToolTipWrapper
+                                                content={`${taxLabels.label} charged on the interest portion of each instalment.`}
+                                            >
+                                                <Info className="w-4 h-4" />
+                                            </ToolTipWrapper>
+                                        </div>
+                                        <Input
+                                            id={field.name}
+                                            name={field.name}
+                                            type="number"
+                                            step="0.01"
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) =>
+                                                field.handleChange(
+                                                    e.target.value === '' ? undefined : Number(e.target.value)
+                                                )
+                                            }
+                                            aria-invalid={isInvalid}
+                                            placeholder="e.g., 18"
+                                        />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
+                    )}
 
                     <form.Field
                         name="processingFee"
@@ -512,25 +588,20 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             return (
                                 <Field data-invalid={isInvalid}>
                                     <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Processing Fee (₹)</FieldLabel>
+                                        <FieldLabel htmlFor={field.name}>Processing Fee</FieldLabel>
                                         <ToolTipWrapper content="One-time processing fee charged at loan origination. Added to total outflow, not monthly EMI.">
                                             <Info className="w-4 h-4" />
                                         </ToolTipWrapper>
                                     </div>
-                                    <Input
+                                    <AmountInput
+                                        currency={currencyValue}
                                         id={field.name}
                                         name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
+                                        value={field.state.value}
                                         onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
+                                        onValueChange={field.handleChange}
                                         aria-invalid={isInvalid}
-                                        placeholder="e.g., 500"
+                                        placeholder={`e.g., ${formatAmountInput(500)}`}
                                     />
                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                 </Field>
@@ -538,39 +609,55 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         }}
                     />
 
-                    <form.Field
-                        name="processingFeeGst"
-                        children={(field) => {
-                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                            return (
-                                <Field data-invalid={isInvalid}>
-                                    <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Processing Fee GST (%)</FieldLabel>
-                                        <ToolTipWrapper content="GST rate applied to the one-time processing fee.">
-                                            <Info className="w-4 h-4" />
-                                        </ToolTipWrapper>
-                                    </div>
-                                    <Input
-                                        id={field.name}
-                                        name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
-                                        onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
-                                        aria-invalid={isInvalid}
-                                        placeholder="e.g., 18"
-                                    />
-                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                            );
-                        }}
-                    />
+                    {showTaxFields && (
+                        <form.Field
+                            name="processingFeeGst"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <div className="flex flex-row gap-2">
+                                            <FieldLabel htmlFor={field.name}>
+                                                Processing Fee {taxLabels.label} (%)
+                                            </FieldLabel>
+                                            <ToolTipWrapper
+                                                content={`${taxLabels.label} rate applied to the one-time processing fee.`}
+                                            >
+                                                <Info className="w-4 h-4" />
+                                            </ToolTipWrapper>
+                                        </div>
+                                        <Input
+                                            id={field.name}
+                                            name={field.name}
+                                            type="number"
+                                            step="0.01"
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) =>
+                                                field.handleChange(
+                                                    e.target.value === '' ? undefined : Number(e.target.value)
+                                                )
+                                            }
+                                            aria-invalid={isInvalid}
+                                            placeholder="e.g., 18"
+                                        />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
+                    )}
                 </div>
+                {!showTaxFields && (
+                    <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto cursor-pointer p-0 text-xs"
+                        onClick={() => setShowTaxFields(true)}
+                    >
+                        Add {taxLabels.inline} on interest or processing fee
+                    </Button>
+                )}
             </section>
 
             <section className="space-y-4 rounded-xl border bg-card p-5">
@@ -603,6 +690,24 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                     {isEdit ? (isUpdatingEmi ? 'Updating...' : 'Update') : isAddingEmi ? 'Adding...' : 'Add'}
                 </Button>
             </div>
+
+            <ConfirmationModal
+                open={pendingValues !== null}
+                setOpen={(open) => {
+                    if (!open) setPendingValues(null);
+                }}
+                title={`Switch this EMI to ${getCurrencyOptionLabel(pendingValues?.currency ?? '')}?`}
+                description={`Its amounts won't be converted, only relabelled. ${previousCurrencyFormat(
+                    pendingValues?.principal ?? 0
+                )} will show as ${formatCurrencyAmount(pendingValues?.principal ?? 0)}.`}
+                confirmText="Switch currency"
+                onCancel={() => setPendingValues(null)}
+                onConfirm={() => {
+                    if (!pendingValues) return;
+                    save(pendingValues);
+                    setPendingValues(null);
+                }}
+            />
         </form>
     );
 };

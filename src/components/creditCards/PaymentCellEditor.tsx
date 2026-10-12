@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, StickyNote } from 'lucide-react';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
 import { ICreditCardPaymentEntry, SavePaymentEntryInput } from '@/types/creditCard.types';
 
@@ -12,18 +13,17 @@ import { Textarea } from '@/components/ui/textarea';
 
 const TICK_DURATION_MS = 1200;
 
-const toInputValue = (amount: number | undefined) => (amount === undefined || amount === 0 ? '' : String(amount));
+/** A zero payment renders as an empty cell. */
+const toInputValue = (amount: number | undefined, formatAmountInput: (value: number) => string) =>
+    amount === undefined || amount === 0 ? '' : formatAmountInput(amount);
 
-const parseAmount = (raw: string): number | null => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
+/** Empty means 0; negatives and non-amounts are rejected (`null`). */
+const parseAmount = (raw: string, parseAmountInput: (raw: string) => number | null | undefined): number | null => {
+    const parsed = parseAmountInput(raw);
+    if (parsed === null) {
         return 0;
     }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        return null;
-    }
-    return Math.round(parsed * 100) / 100;
+    return parsed === undefined || parsed < 0 ? null : parsed;
 };
 
 /**
@@ -48,10 +48,11 @@ const PaymentCellEditor = ({
     disabled?: boolean;
     onSave: (input: SavePaymentEntryInput) => void;
 }) => {
-    const [draft, setDraft] = useState(() => toInputValue(entry?.amount));
+    const { parseAmountInput, formatAmountInput } = useCurrencyPreferences();
+    const [draft, setDraft] = useState(() => toInputValue(entry?.amount, formatAmountInput));
     const [showTick, setShowTick] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [cashDraft, setCashDraft] = useState(() => toInputValue(entry?.cashAmount));
+    const [cashDraft, setCashDraft] = useState(() => toInputValue(entry?.cashAmount, formatAmountInput));
     const [noteDraft, setNoteDraft] = useState(entry?.note ?? '');
     const [detailError, setDetailError] = useState<string | null>(null);
     const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,16 +63,16 @@ const PaymentCellEditor = ({
 
     // Re-sync when the server value changes underneath an unfocused cell.
     useEffect(() => {
-        setDraft(toInputValue(serverAmount));
-    }, [serverAmount]);
+        setDraft(toInputValue(serverAmount, formatAmountInput));
+    }, [serverAmount, formatAmountInput]);
 
     useEffect(() => {
         if (!detailOpen) {
-            setCashDraft(toInputValue(serverCash));
+            setCashDraft(toInputValue(serverCash, formatAmountInput));
             setNoteDraft(serverNote);
             setDetailError(null);
         }
-    }, [detailOpen, serverCash, serverNote]);
+    }, [detailOpen, serverCash, serverNote, formatAmountInput]);
 
     useEffect(() => () => (tickTimer.current ? clearTimeout(tickTimer.current) : undefined), []);
 
@@ -82,9 +83,9 @@ const PaymentCellEditor = ({
     };
 
     const commitAmount = () => {
-        const parsed = parseAmount(draft);
+        const parsed = parseAmount(draft, parseAmountInput);
         if (parsed === null) {
-            setDraft(toInputValue(serverAmount));
+            setDraft(toInputValue(serverAmount, formatAmountInput));
             return;
         }
         if (parsed === serverAmount) {
@@ -98,8 +99,8 @@ const PaymentCellEditor = ({
     };
 
     const commitDetails = () => {
-        const amount = parseAmount(draft) ?? serverAmount;
-        const cash = parseAmount(cashDraft);
+        const amount = parseAmount(draft, parseAmountInput) ?? serverAmount;
+        const cash = parseAmount(cashDraft, parseAmountInput);
 
         if (cash === null) {
             setDetailError('Enter a valid cash amount.');
@@ -137,7 +138,7 @@ const PaymentCellEditor = ({
                     }
                     if (event.key === 'Escape') {
                         event.preventDefault();
-                        setDraft(toInputValue(serverAmount));
+                        setDraft(toInputValue(serverAmount, formatAmountInput));
                         event.currentTarget.blur();
                     }
                 }}

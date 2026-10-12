@@ -6,6 +6,8 @@ import Layout from '@/layout/Layout';
 const Home = lazy(() => import('@/router/pages/Home'));
 const Settings = lazy(() => import('@/router/pages/Settings'));
 const CreditCards = lazy(() => import('@/router/pages/CreditCards'));
+const CreditCardList = lazy(() => import('@/router/pages/CreditCardList'));
+const CreditCardDetails = lazy(() => import('@/router/pages/CreditCardDetails'));
 const EMIDetails = lazy(() => import('@/router/pages/EMIDetails'));
 const AmortizationSchedule = lazy(() => import('@/router/pages/AmortizationSchedule'));
 const ShareEMI = lazy(() => import('@/router/pages/ShareEMI'));
@@ -28,6 +30,8 @@ const HomeRouter = () => {
                         <Route index element={<Home />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/credit-cards" element={<CreditCards />} />
+                        <Route path="/credit-cards/cards" element={<CreditCardList />} />
+                        <Route path="/credit-cards/cards/:id" element={<CreditCardDetails />} />
                         <Route path="/emi/:id" element={<EMIDetails />} />
                         <Route path="/emi/:id/amortization" element={<AmortizationSchedule />} />
                         <Route path="/emi/:id/share" element={<ShareEMI />} />

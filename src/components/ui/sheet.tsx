@@ -4,6 +4,8 @@ import { Dialog as SheetPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
+import { PortalContainerContext } from '@/components/ui/portal-container';
+
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
     return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
@@ -38,15 +40,28 @@ function SheetContent({
     children,
     side = 'right',
     showCloseButton = true,
+    ref,
     ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
     side?: 'top' | 'right' | 'bottom' | 'left';
     showCloseButton?: boolean;
 }) {
+    // Popups inside the sheet portal into it, so its scroll lock lets them scroll.
+    const [contentElement, setContentElement] = React.useState<HTMLDivElement | null>(null);
+    const contentRef = React.useCallback(
+        (node: HTMLDivElement | null) => {
+            setContentElement(node);
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
+        },
+        [ref]
+    );
+
     return (
         <SheetPortal>
             <SheetOverlay />
             <SheetPrimitive.Content
+                ref={contentRef}
                 data-slot="sheet-content"
                 className={cn(
                     'fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
@@ -62,7 +77,7 @@ function SheetContent({
                 )}
                 {...props}
             >
-                {children}
+                <PortalContainerContext.Provider value={contentElement}>{children}</PortalContainerContext.Provider>
                 {showCloseButton && (
                     <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
                         <XIcon className="size-4" />

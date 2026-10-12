@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { usePortalContainer } from '@/components/ui/portal-container';
 
 const Combobox = ComboboxPrimitive.Root;
 
@@ -88,8 +89,11 @@ function ComboboxContent({
     ...props
 }: ComboboxPrimitive.Popup.Props &
     Pick<ComboboxPrimitive.Positioner.Props, 'side' | 'align' | 'sideOffset' | 'alignOffset' | 'anchor'>) {
+    // Inside a sheet or dialog, render within it: the modal's scroll lock
+    // swallows wheel events on anything portaled to <body>.
+    const container = usePortalContainer();
     return (
-        <ComboboxPrimitive.Portal>
+        <ComboboxPrimitive.Portal container={container ?? undefined}>
             <ComboboxPrimitive.Positioner
                 side={side}
                 sideOffset={sideOffset}

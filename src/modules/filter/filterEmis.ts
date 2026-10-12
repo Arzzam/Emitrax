@@ -26,7 +26,17 @@ function inDateRange(emiDateMs: number, from: string | null, to: string | null):
     return true;
 }
 
-export function filterAndSortEmis(emiData: IEmi[], filterState: IAdvancedFilterState, options?: IDisplayUser): IEmi[] {
+/**
+ * `amountCurrency`: the currency the principal / total-loan bounds are in. A
+ * bound means nothing across currencies, so while any bound is set only EMIs
+ * in that currency can match.
+ */
+export function filterAndSortEmis(
+    emiData: IEmi[],
+    filterState: IAdvancedFilterState,
+    options?: IDisplayUser,
+    amountCurrency?: string
+): IEmi[] {
     const {
         searchQuery,
         status,
@@ -67,7 +77,10 @@ export function filterAndSortEmis(emiData: IEmi[], filterState: IAdvancedFilterS
         }
 
         const matchesTag = tag === 'All' || (emi.tag || 'Personal') === tag;
-        const matchesPrincipal = inRange(emi.principal, principalMin, principalMax);
+        const hasAmountBound =
+            principalMin != null || principalMax != null || totalLoanMin != null || totalLoanMax != null;
+        const matchesAmountCurrency = !hasAmountBound || !amountCurrency || emi.currency === amountCurrency;
+        const matchesPrincipal = matchesAmountCurrency && inRange(emi.principal, principalMin, principalMax);
         const matchesTotalLoan = inRange(emi.totalLoan, totalLoanMin, totalLoanMax);
 
         const billDateMs = parseDate(emi.billDate);

@@ -6,6 +6,8 @@ import { XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { PortalContainerContext } from '@/components/ui/portal-container';
+
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
     return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -39,14 +41,27 @@ function DialogContent({
     className,
     children,
     showCloseButton = true,
+    ref,
     ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean;
 }) {
+    // Popups inside the dialog portal into it, so its scroll lock lets them scroll.
+    const [contentElement, setContentElement] = React.useState<HTMLDivElement | null>(null);
+    const contentRef = React.useCallback(
+        (node: HTMLDivElement | null) => {
+            setContentElement(node);
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
+        },
+        [ref]
+    );
+
     return (
         <DialogPortal data-slot="dialog-portal">
             <DialogOverlay />
             <DialogPrimitive.Content
+                ref={contentRef}
                 data-slot="dialog-content"
                 className={cn(
                     'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
@@ -54,7 +69,7 @@ function DialogContent({
                 )}
                 {...props}
             >
-                {children}
+                <PortalContainerContext.Provider value={contentElement}>{children}</PortalContainerContext.Provider>
                 {showCloseButton && (
                     <DialogPrimitive.Close
                         data-slot="dialog-close"
