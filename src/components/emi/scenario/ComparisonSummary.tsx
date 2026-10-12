@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleAlert, Info } from 'lucide-react';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { cn } from '@/lib/utils';
 
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,7 @@ const ComparisonSummary = ({
     confidence,
     assumptionNotes,
 }: ComparisonSummaryProps) => {
+    const { taxLabels } = useCurrencyPreferences();
     const isBreakeven = Math.abs(netSavings) < 0.005;
     const isSaving = netSavings > 0.005;
     const isLoss = netSavings < -0.005;
@@ -114,9 +116,9 @@ const ComparisonSummary = ({
                         tone="neutral"
                     />
                     <Metric
-                        label="GST avoided"
+                        label={`${taxLabels.label} avoided`}
                         value={formatCurrencyAmount(gstSaved)}
-                        hint="Future GST not paid if you close"
+                        hint={`Future ${taxLabels.inline} not paid if you close`}
                         tone="neutral"
                     />
                     <Metric
@@ -129,8 +131,9 @@ const ComparisonSummary = ({
 
                 {isLoss && interestSaved > 0 && (
                     <p className="rounded-md border border-border/80 bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                        You may still avoid some future interest and GST by closing early, but foreclosure charges and
-                        payoff timing make the overall path more expensive than continuing EMIs in this scenario.
+                        You may still avoid some future interest and {taxLabels.inline} by closing early, but
+                        foreclosure charges and payoff timing make the overall path more expensive than continuing EMIs
+                        in this scenario.
                     </p>
                 )}
 

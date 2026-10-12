@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 
 import { IEmi } from '@/types/emi.types';
+import { getTaxLabels } from '@/utils/currencyRegistry';
 import { buildExcelCurrencyNumFmt } from '@/utils/export/excel/excelNumFmt';
 import { CurrencyFormatPreferences } from '@/utils/numberFormat';
 
@@ -13,6 +14,7 @@ const RULE_COLOR = 'BFDBFE';
 export function buildCompactTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPrefs: CurrencyFormatPreferences) {
     const ws = wb.addWorksheet('EMI Summary');
     const currencyFmt = buildExcelCurrencyNumFmt(currencyPrefs);
+    const { label: taxLabel } = getTaxLabels(currencyPrefs.currency);
     const hasGst = emi.gst > 0;
 
     ws.getColumn(1).width = 28;
@@ -46,7 +48,9 @@ export function buildCompactTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPr
         ['Monthly EMI', emi.emi, 'Principal', emi.principal],
         ['Interest Rate', fmtPct(emi.interestRate), 'Tenure', `${emi.tenure} months`],
         ['Total Loan', emi.totalLoan, 'Total Interest', emi.totalInterest],
-        ...(hasGst ? [['Total GST', emi.totalGST ?? 0, 'GST Rate', fmtPct(emi.gst)] as SummaryRow] : []),
+        ...(hasGst
+            ? [[`Total ${taxLabel}`, emi.totalGST ?? 0, `${taxLabel} Rate`, fmtPct(emi.gst)] as SummaryRow]
+            : []),
         ['EMIs Paid', `${emi.totalPaidEMIs} / ${emi.tenure}`, 'Remaining Tenure', `${emi.remainingTenure} months`],
         ['Remaining Balance', emi.remainingBalance, 'Start Date', fmtDate(emi.billDate)],
         [
@@ -110,7 +114,7 @@ export function buildCompactTemplate(wb: ExcelJS.Workbook, emi: IEmi, currencyPr
     applyHeaderStyle(schHdr, DARK);
     ws.getRow(scheduleStartRow - 1).height = 18;
 
-    const colHeaders = ['#', 'Bill Date', hasGst ? 'EMI + GST' : 'EMI', 'Balance'];
+    const colHeaders = ['#', 'Bill Date', hasGst ? `EMI + ${taxLabel}` : 'EMI', 'Balance'];
     colHeaders.forEach((h, ci) => {
         const cell = ws.getCell(scheduleStartRow, ci + 1);
         cell.value = h;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { NumberFormatMode } from '@/types/account.types';
 import { CURRENCIES, getCurrencyDefinition, NUMBER_STYLE_LOCALES } from '@/utils/currencyRegistry';
-import { formatCurrencyAmount, getCurrencyMeta } from '@/utils/numberFormat';
+import { formatCurrencyAmount, formatPercent, getCurrencyMeta } from '@/utils/numberFormat';
 
 // Intl separates number and symbol with U+00A0 / U+202F; compare on plain spaces.
 const normalizeSpaces = (value: string) => value.replace(/[\u00a0\u202f]/g, ' ');
@@ -117,5 +117,40 @@ describe('currency registry', () => {
     it('looks up a definition by code', () => {
         expect(getCurrencyDefinition('INR')?.defaultLocale).toBe('en-IN');
         expect(getCurrencyDefinition('XYZ')).toBeUndefined();
+    });
+});
+
+describe('formatPercent', () => {
+    it('localises the decimal separator and spacing', () => {
+        expect(formatPercent(12.5, 'en-IN')).toBe('12.5%');
+        expect(normalizeSpaces(formatPercent(12.5, 'de-DE'))).toBe('12,5 %');
+    });
+
+    it('fixes the places like toFixed when decimals is given', () => {
+        expect(formatPercent(12, 'en-US', 2)).toBe('12.00%');
+        expect(formatPercent(33.3333, 'en-US', 1)).toBe('33.3%');
+    });
+
+    it('drops trailing zeros without decimals', () => {
+        expect(formatPercent(18, 'en-IN')).toBe('18%');
+    });
+
+    it('returns N/A for non-finite values', () => {
+        expect(formatPercent(Number.NaN, 'en-IN')).toBe('N/A');
+    });
+});
+
+describe('formatCurrencyAmount - currencyDisplay', () => {
+    it('prints the ISO code when asked', () => {
+        expect(
+            normalizeSpaces(
+                formatCurrencyAmount(1234.5, {
+                    locale: 'de-DE',
+                    currency: 'THB',
+                    numberFormat: 'exact',
+                    currencyDisplay: 'code',
+                })
+            )
+        ).toBe('1.234,50 THB');
     });
 });

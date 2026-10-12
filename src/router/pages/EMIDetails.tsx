@@ -46,7 +46,7 @@ const EMIDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle, formatPercent, taxLabels } = useCurrencyPreferences();
     const { data, isFetching } = useEmis();
     const { mutate } = useDeleteEmi();
     const currentData = useMemo(() => data?.find((emi) => emi.id === id) || null, [data, id]);
@@ -347,12 +347,14 @@ const EMIDetails = () => {
                                     <div>
                                         <h3 className="font-semibold text-lg mb-1">Your Split Portion</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            You are responsible for {splitPercentage.toFixed(2)}% of this EMI
+                                            You are responsible for {formatPercent(splitPercentage, 2)} of this EMI
                                         </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-sm text-muted-foreground">Your Monthly Payment</p>
-                                        <p className="text-2xl font-bold text-primary">{formatCurrencyAmount(myEMI)}</p>
+                                        <p className="text-2xl font-bold text-primary" title={amountTitle(myEMI)}>
+                                            {formatCurrencyAmount(myEMI)}
+                                        </p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -366,12 +368,16 @@ const EMIDetails = () => {
                                 <Coins className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
+                                <div
+                                    className="text-2xl font-bold"
+                                    title={amountTitle(hasMySplit && !isOwner ? myEMI : emiWithGST)}
+                                >
                                     {formatCurrencyAmount(hasMySplit && !isOwner ? myEMI : emiWithGST)}
                                 </div>
                                 {hasMySplit && !isOwner ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Full EMI: {formatCurrencyAmount(emiWithGST)} • {splitPercentage.toFixed(2)}%
+                                        Full EMI: {formatCurrencyAmount(emiWithGST)} •{' '}
+                                        {formatPercent(splitPercentage, 2)}
                                     </p>
                                 ) : (
                                     <p className="text-xs text-muted-foreground">
@@ -386,7 +392,10 @@ const EMIDetails = () => {
                                 <CreditCard className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
+                                <div
+                                    className="text-2xl font-bold"
+                                    title={amountTitle(hasMySplit && !isOwner ? myTotalLoan : effectiveTotalLoan)}
+                                >
                                     {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalLoan : effectiveTotalLoan)}
                                 </div>
                                 {hasMySplit && !isOwner ? (
@@ -409,7 +418,7 @@ const EMIDetails = () => {
                                 <Percent className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{interestRate}%</div>
+                                <div className="text-2xl font-bold">{formatPercent(interestRate)}</div>
                                 <p className="text-xs text-muted-foreground">
                                     Total Interest:{' '}
                                     {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalInterest : totalInterest)}
@@ -452,7 +461,7 @@ const EMIDetails = () => {
                                 </div>
                                 {hasMySplit && !isOwner && (
                                     <Badge variant="outline" className="w-fit text-xs font-normal">
-                                        Your {splitPercentage.toFixed(1)}% portion
+                                        Your {formatPercent(splitPercentage, 1)} portion
                                     </Badge>
                                 )}
                             </div>
@@ -496,7 +505,8 @@ const EMIDetails = () => {
                                         </div>
                                         <div className="flex items-center justify-between gap-4 text-sm">
                                             <span className="text-muted-foreground">
-                                                Interest GST{gst > 0 ? ` (${gst}%)` : ''}
+                                                Interest {taxLabels.inline}
+                                                {gst > 0 ? ` (${formatPercent(gst)})` : ''}
                                             </span>
                                             <div className="text-right">
                                                 <span className="font-medium tabular-nums">
@@ -548,7 +558,8 @@ const EMIDetails = () => {
                                             {processingFeeGstRate > 0 && (
                                                 <div className="flex items-center justify-between gap-4 text-sm">
                                                     <span className="text-muted-foreground">
-                                                        Processing fee GST ({processingFeeGstRate}%)
+                                                        Processing fee {taxLabels.inline} (
+                                                        {formatPercent(processingFeeGstRate)})
                                                     </span>
                                                     <div className="text-right">
                                                         <span className="font-medium tabular-nums">
@@ -580,11 +591,14 @@ const EMIDetails = () => {
                                     <p className="text-xs text-muted-foreground">
                                         {hasProcessingCharges
                                             ? 'Recurring loan total plus one-time charges'
-                                            : 'Principal, interest, and interest GST'}
+                                            : `Principal, interest, and interest ${taxLabels.inline}`}
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-xl font-semibold tabular-nums text-primary">
+                                    <p
+                                        className="text-xl font-semibold tabular-nums text-primary"
+                                        title={amountTitle(displayTotalLoan)}
+                                    >
                                         {formatCurrencyAmount(displayTotalLoan)}
                                     </p>
                                     {hasMySplit && !isOwner && (
@@ -649,7 +663,7 @@ const EMIDetails = () => {
                                         </span>
                                         {hasMySplit && !isOwner && (
                                             <span className="text-xs text-muted-foreground block">
-                                                of {formatCurrencyAmount(emi)} ({splitPercentage.toFixed(2)}%)
+                                                of {formatCurrencyAmount(emi)} ({formatPercent(splitPercentage, 2)})
                                             </span>
                                         )}
                                     </div>
@@ -750,11 +764,11 @@ const EMIDetails = () => {
                                     <span className="font-medium">{tag || 'Personal'}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">GST Rate</span>
-                                    <span className="font-medium">{gst}%</span>
+                                    <span className="text-sm text-muted-foreground">{taxLabels.label} rate</span>
+                                    <span className="font-medium">{formatPercent(gst)}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Total GST</span>
+                                    <span className="text-sm text-muted-foreground">Total {taxLabels.inline}</span>
                                     <div className="text-right">
                                         <span className="font-medium">
                                             {formatCurrencyAmount(hasMySplit && !isOwner ? myTotalGST : totalGST)}
@@ -784,10 +798,10 @@ const EMIDetails = () => {
                                         {processingFeeGstRate > 0 && (
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-muted-foreground">
-                                                    Processing fee GST
+                                                    Processing fee {taxLabels.inline}
                                                 </span>
                                                 <span className="font-medium">
-                                                    {processingFeeGstRate}% (
+                                                    {formatPercent(processingFeeGstRate)} (
                                                     {formatCurrencyAmount(displayProcessingFeeGstAmount)})
                                                 </span>
                                             </div>
@@ -799,7 +813,7 @@ const EMIDetails = () => {
                                         <span className="text-sm text-muted-foreground">Interest Discount</span>
                                         <span className="font-medium">
                                             {interestDiscountType === 'percent'
-                                                ? `${interestDiscount}%`
+                                                ? formatPercent(interestDiscount)
                                                 : formatCurrencyAmount(interestDiscount)}
                                         </span>
                                     </div>
@@ -901,7 +915,7 @@ const EMIDetails = () => {
                                                     <div className="flex items-center justify-between text-sm">
                                                         <span className="text-muted-foreground">Share</span>
                                                         <span className="tabular-nums font-medium">
-                                                            {split.splitPercentage.toFixed(1)}%
+                                                            {formatPercent(split.splitPercentage, 1)}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-sm">
@@ -935,7 +949,10 @@ const EMIDetails = () => {
                                             Your total responsibility
                                         </p>
                                         <div className="flex flex-wrap items-baseline justify-between gap-4">
-                                            <p className="text-xl font-semibold tabular-nums text-primary">
+                                            <p
+                                                className="text-xl font-semibold tabular-nums text-primary"
+                                                title={amountTitle(mySplitAmount)}
+                                            >
                                                 {formatCurrencyAmount(mySplitAmount)}
                                                 <span className="ml-1 text-sm font-normal text-muted-foreground">
                                                     /month

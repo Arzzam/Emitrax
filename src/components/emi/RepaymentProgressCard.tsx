@@ -41,44 +41,54 @@ const LedgerPanel = ({
     format: FormatCurrency;
     showOriginationCharges: boolean;
     footnote?: string;
-}) => (
-    <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-        <div className="space-y-2.5">
-            <LedgerRow label="Principal" value={components.principal} format={format} />
-            <LedgerRow label="Interest" value={components.interest} format={format} />
-            <LedgerRow label="Interest GST" value={components.gst} format={format} />
-            {showOriginationCharges && (
-                <>
-                    <div className="flex items-center justify-between gap-4 text-sm">
-                        <span className="flex items-center gap-2 text-muted-foreground">
-                            Processing fee
-                            <Badge variant="secondary" className="text-[10px] font-normal">
-                                Upfront
-                            </Badge>
-                        </span>
-                        <span className="font-medium tabular-nums">{format(components.processingFee)}</span>
-                    </div>
-                    {components.processingFeeGst > 0 && (
-                        <LedgerRow label="Processing fee GST" value={components.processingFeeGst} format={format} />
-                    )}
-                </>
-            )}
+}) => {
+    const { taxLabels } = useCurrencyPreferences();
+    return (
+        <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+            <div className="space-y-2.5">
+                <LedgerRow label="Principal" value={components.principal} format={format} />
+                <LedgerRow label="Interest" value={components.interest} format={format} />
+                <LedgerRow label={`Interest ${taxLabels.inline}`} value={components.gst} format={format} />
+                {showOriginationCharges && (
+                    <>
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                                Processing fee
+                                <Badge variant="secondary" className="text-[10px] font-normal">
+                                    Upfront
+                                </Badge>
+                            </span>
+                            <span className="font-medium tabular-nums">{format(components.processingFee)}</span>
+                        </div>
+                        {components.processingFeeGst > 0 && (
+                            <LedgerRow
+                                label={`Processing fee ${taxLabels.inline}`}
+                                value={components.processingFeeGst}
+                                format={format}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
+            <Separator className="my-3" />
+            <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium text-foreground">{subtotalLabel}</span>
+                <span className="font-semibold tabular-nums">{format(components.total)}</span>
+            </div>
+            {footnote && <p className="mt-2 text-xs text-muted-foreground">{footnote}</p>}
         </div>
-        <Separator className="my-3" />
-        <div className="flex items-center justify-between gap-4 text-sm">
-            <span className="font-medium text-foreground">{subtotalLabel}</span>
-            <span className="font-semibold tabular-nums">{format(components.total)}</span>
-        </div>
-        {footnote && <p className="mt-2 text-xs text-muted-foreground">{footnote}</p>}
-    </div>
-);
+    );
+};
 
-const ComponentSplitLine = ({ components, format }: { components: RepaymentComponents; format: FormatCurrency }) => (
-    <span className="block text-xs text-muted-foreground tabular-nums">
-        {`P ${format(components.principal)} · I ${format(components.interest)} · GST ${format(components.gst)}`}
-    </span>
-);
+const ComponentSplitLine = ({ components, format }: { components: RepaymentComponents; format: FormatCurrency }) => {
+    const { taxLabels } = useCurrencyPreferences();
+    return (
+        <span className="block text-xs text-muted-foreground tabular-nums">
+            {`P ${format(components.principal)} · I ${format(components.interest)} · ${taxLabels.label} ${format(components.gst)}`}
+        </span>
+    );
+};
 
 /**
  * Where the borrower stands on a loan: what has been settled and what is still
@@ -90,7 +100,7 @@ const ComponentSplitLine = ({ components, format }: { components: RepaymentCompo
  * stale and (in remainingBalance's case) mix GST into a principal figure.
  */
 const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, formatPercent, taxLabels } = useCurrencyPreferences();
 
     const { progress, breakdown, scopedProgress } = useMemo(() => {
         const wholeLoan = getRepaymentProgress(emi);
@@ -126,7 +136,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                     </div>
                     {isScoped && (
                         <Badge variant="outline" className="w-fit text-xs font-normal">
-                            Your {emi.mySplit?.splitPercentage.toFixed(1)}% portion
+                            Your {formatPercent(emi.mySplit?.splitPercentage ?? 0, 1)} portion
                         </Badge>
                     )}
                 </div>
@@ -183,7 +193,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                 {scopedProgress.interestDiscountApplied > 0 && (
                     <p className="text-xs text-muted-foreground">
                         Interest shown net of {formatCurrencyAmount(scopedProgress.interestDiscountApplied)} discount.
-                        GST is charged on the undiscounted interest.
+                        {taxLabels.label} is charged on the undiscounted interest.
                     </p>
                 )}
 
@@ -227,7 +237,7 @@ const RepaymentProgressCard = ({ emi }: { emi: IEmi }) => {
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-right tabular-nums">
-                                                {participant.splitPercentage.toFixed(1)}%
+                                                {formatPercent(participant.splitPercentage, 1)}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <span className="font-medium tabular-nums">

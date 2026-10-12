@@ -6,6 +6,7 @@ import {
     detectDefaultPreferences,
     getLinkedLocale,
     getNumberStyleGroups,
+    getTaxLabels,
     matchesCurrencyQuery,
     NUMBER_STYLE_LOCALES,
 } from '@/utils/currencyRegistry';
@@ -98,5 +99,24 @@ describe('picker options', () => {
         const indian = groups.find((group) => group.locales.some((locale) => locale.value === 'en-IN'));
         expect(indian?.sample).toBe('12,34,567.89');
         expect(indian?.locales.map((locale) => locale.value)).toContain('en-IN');
+    });
+});
+
+describe('getTaxLabels', () => {
+    it('gives India GST with an 18% default', () => {
+        expect(getTaxLabels('INR')).toEqual({ label: 'GST', inline: 'GST', defaultRate: 18, isCommon: true });
+    });
+
+    it('gives other regions their label and a 0 default', () => {
+        expect(getTaxLabels('EUR')).toEqual({ label: 'VAT', inline: 'VAT', defaultRate: 0, isCommon: false });
+    });
+
+    it('lower-cases the generic label mid-sentence', () => {
+        expect(getTaxLabels('USD')).toEqual({ label: 'Tax', inline: 'tax', defaultRate: 0, isCommon: false });
+        expect(getTaxLabels('XYZ').label).toBe('Tax');
+    });
+
+    it('keeps every registry label to one word, since copy splices it in', () => {
+        CURRENCIES.forEach(({ code, taxLabel }) => expect(taxLabel, code).toMatch(/^[A-Za-z]+$/));
     });
 });

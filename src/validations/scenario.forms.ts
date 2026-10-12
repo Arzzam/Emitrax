@@ -15,8 +15,8 @@ export const foreclosureScenarioFormSchema = z.object({
         .min(0, { message: 'Flat charge cannot be negative.' }),
     foreclosureChargeGstRate: z
         .number()
-        .min(0, { message: 'GST must be 0 or greater.' })
-        .max(100, { message: 'GST cannot exceed 100%.' }),
+        .min(0, { message: 'Tax rate must be 0 or greater.' })
+        .max(100, { message: 'Tax rate cannot exceed 100%.' }),
     includeNextInstallmentInterest: z.boolean(),
     notes: z.string().max(500, { message: 'Notes must be 500 characters or fewer.' }).optional(),
 });

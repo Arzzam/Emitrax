@@ -145,3 +145,25 @@ export function getCurrencyMeta(currency: string, locale: string): CurrencyMeta 
         return { symbol: currency, fractionDigits: 2, symbolPosition: 'prefix' };
     }
 }
+
+/**
+ * A 0-100 percentage in the user's locale: `12.5%` in en-IN, `12,5 %` in
+ * de-DE. With `decimals`, always that many places (like `toFixed`);
+ * without, up to 2 and no trailing zeros.
+ */
+export function formatPercent(value: number, locale: string, decimals?: number): string {
+    if (isInvalidNumber(value)) {
+        return EMPTY_FALLBACK;
+    }
+    const min = decimals ?? 0;
+    const max = decimals ?? 2;
+    try {
+        return getCachedFormatter(`percent|${locale}|${min}|${max}`, locale, {
+            style: 'percent',
+            minimumFractionDigits: min,
+            maximumFractionDigits: max,
+        }).format(value / 100);
+    } catch {
+        return `${value}%`;
+    }
+}

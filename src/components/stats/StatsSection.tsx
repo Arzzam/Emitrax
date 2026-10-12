@@ -28,7 +28,7 @@ interface StatsSectionProps {
 
 const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
     const legacyTag = useSelector((state: IRootState) => state.filterModel.tag);
-    const { formatCurrencyAmount } = useCurrencyPreferences();
+    const { formatCurrencyAmount, amountTitle } = useCurrencyPreferences();
     const legacyStats = useStats(emiData);
     const legacyDispatch = useRematchDispatch((state: IDispatch) => state.filterModel);
 
@@ -70,7 +70,10 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <Coins className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p
+                                className="text-xl font-semibold tabular-nums"
+                                title={amountTitle(filteredStatistics.totalMonthlyPayment)}
+                            >
                                 {formatCurrencyAmount(filteredStatistics.totalMonthlyPayment)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -108,7 +111,10 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <AlertCircle className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p
+                                className="text-xl font-semibold tabular-nums"
+                                title={amountTitle(filteredStatistics.totalRemainingBalance)}
+                            >
                                 {formatCurrencyAmount(filteredStatistics.totalRemainingBalance)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -124,7 +130,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <Banknote className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
-                            <p className="text-xl font-semibold tabular-nums">
+                            <p className="text-xl font-semibold tabular-nums" title={amountTitle(totalLoanAmount)}>
                                 {formatCurrencyAmount(totalLoanAmount)}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">

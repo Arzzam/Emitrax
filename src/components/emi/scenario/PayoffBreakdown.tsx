@@ -1,3 +1,4 @@
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { ScenarioBreakdownItem } from '@/types/scenario.types';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,10 @@ const PayoffBreakdown = ({
     totalPayoff,
     formatCurrencyAmount,
 }: PayoffBreakdownProps) => {
+    const { taxLabels } = useCurrencyPreferences();
+    // Breakdown labels are written by the calc and stored with saved scenarios,
+    // so "GST" is swapped for the account's tax label at render time.
+    const labelFor = (item: ScenarioBreakdownItem) => item.label.replace(/\bGST\b/g, taxLabels.label);
     const rows = breakdown.filter((item) => item.component !== 'total_payoff' && item.amount > 0);
     const zeroRows = breakdown.filter((item) => item.component !== 'total_payoff' && item.amount <= 0);
 
@@ -30,7 +35,7 @@ const PayoffBreakdown = ({
             <CardContent className="space-y-3 pt-5">
                 {rows.map((item) => (
                     <div key={item.component} className="flex items-center justify-between gap-4 text-sm">
-                        <span className="text-muted-foreground">{item.label}</span>
+                        <span className="text-muted-foreground">{labelFor(item)}</span>
                         <span className="font-medium tabular-nums">{formatCurrencyAmount(item.amount)}</span>
                     </div>
                 ))}
@@ -42,7 +47,7 @@ const PayoffBreakdown = ({
                                 key={item.component}
                                 className="flex items-center justify-between gap-4 text-xs text-muted-foreground"
                             >
-                                <span>{item.label}</span>
+                                <span>{labelFor(item)}</span>
                                 <span className="tabular-nums">{formatCurrencyAmount(item.amount)}</span>
                             </div>
                         ))}

@@ -7,10 +7,11 @@
 
 ## Current Status
 
-**Last completed (currency formatting, phase 4):** Excel and PDF exports
-handle every registry currency: Excel number formats follow the symbol,
-decimals and grouping (including lakh), and PDF amounts never use a glyph
-the font lacks.
+**Last completed (currency formatting, phase 5):** Tax wording follows the
+currency (GST / VAT / IVA / tax) across screens and exports, percentages
+are localised, and compact headline figures show the exact amount on
+hover. Phases 1-5 of the plan are done; phase 6 (3-decimal currencies) is
+deferred.
 Plan: `context/plan/currency-and-number-formatting-plan.md`. See the
 entries below.
 
@@ -572,6 +573,32 @@ Pre-commit review of the module above. App-code only, no schema change.
   (263 passing). A sample workbook was generated for a manual look in
   Excel; not opened programmatically.
 - Commit `2d6ef9e`.
+
+### Currency & number formatting — phase 5 (regional wording + polish)
+
+- **Tax labels:** `getTaxLabels(currency)` in the registry →
+  `{ label, inline, defaultRate, isCommon }`, exposed as
+  `useCurrencyPreferences().taxLabels`. USD / JPY labels became "Tax" so
+  every label is one word.
+    - Relabelled: EMI form, EMI details, amortization schedule, repayment
+      card, scenario form / summary / breakdown, and the PDF and Excel
+      templates
+    - `PayoffBreakdown` swaps "GST" in stored breakdown labels at render
+      time (the calc and saved rows are untouched)
+    - EMI form: for non-INR currencies the two tax fields hide behind an
+      "Add tax…" link unless the EMI already has a rate
+    - Scenario form: the foreclosure-charge tax default is 18% only for INR,
+      0 elsewhere
+- **Percentages:** `formatPercent` (numberFormat.ts) and the hook's
+  `formatPercent(value, decimals?)` replace the hand-built `toFixed(n)%` on
+  the EMI, details, repayment and split pages. PDF `fmtPct` now takes the
+  prefs. Credit-card percentages are left as they are, since that module
+  is India-only; Excel percent cells are unchanged.
+- **Hover titles:** `amountTitle(value)` returns the exact amount when a
+  compact format is on. Applied to 10 headline figures (stat cards, EMI
+  details, EMI card, issuer summaries); not to table cells.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (272 passing).
 
 ---
 

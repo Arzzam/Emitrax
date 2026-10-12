@@ -2,7 +2,12 @@ import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 
 import { IRootState } from '@/store/types/store.types';
-import { formatCurrencyAmount as formatCurrencyAmountWithPrefs, getCurrencyMeta } from '@/utils/numberFormat';
+import { getTaxLabels } from '@/utils/currencyRegistry';
+import {
+    formatCurrencyAmount as formatCurrencyAmountWithPrefs,
+    formatPercent as formatPercentWithLocale,
+    getCurrencyMeta,
+} from '@/utils/numberFormat';
 import { formatAmountForInput, parseLocaleAmount } from '@/utils/parseAmount';
 
 /**
@@ -19,9 +24,29 @@ export function useCurrencyPreferences() {
         symbolPosition,
     } = useMemo(() => getCurrencyMeta(currency, locale), [currency, locale]);
 
+    const taxLabels = useMemo(() => getTaxLabels(currency), [currency]);
+
     const formatCurrencyAmount = useCallback(
         (value: number) => formatCurrencyAmountWithPrefs(value, { locale, currency, numberFormat }),
         [locale, currency, numberFormat]
+    );
+
+    /**
+     * Hover text for a headline amount: the exact figure when a compact format
+     * is active (`₹12.35L` -> `₹12,34,567.89`), otherwise undefined (no title).
+     */
+    const amountTitle = useCallback(
+        (value: number) =>
+            numberFormat === 'exact'
+                ? undefined
+                : formatCurrencyAmountWithPrefs(value, { locale, currency, numberFormat: 'exact' }),
+        [locale, currency, numberFormat]
+    );
+
+    /** A 0-100 percentage in the user's locale; `decimals` fixes the places like `toFixed`. */
+    const formatPercent = useCallback(
+        (value: number, decimals?: number) => formatPercentWithLocale(value, locale, decimals),
+        [locale]
     );
 
     /** Reads typed or pasted amount text: a number, `null` when empty, `undefined` when not an amount. */
@@ -43,7 +68,10 @@ export function useCurrencyPreferences() {
         currencySymbol,
         fractionDigits,
         symbolPosition,
+        taxLabels,
         formatCurrencyAmount,
+        amountTitle,
+        formatPercent,
         parseAmountInput,
         formatAmountInput,
     };

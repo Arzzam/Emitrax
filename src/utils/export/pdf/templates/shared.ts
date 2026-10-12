@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 
 import { IEmi, IEmiSplit } from '@/types/emi.types';
 import { calculateTotalLoanOutflow } from '@/utils/calculation';
-import { CurrencyFormatPreferences, formatCurrencyAmount } from '@/utils/numberFormat';
+import { CurrencyFormatPreferences, formatCurrencyAmount, formatPercent } from '@/utils/numberFormat';
 
 export interface PdfTemplateProps {
     emi: IEmi;
@@ -38,8 +38,8 @@ export function fmtDate(date: Date | string | null | undefined): string {
     }
 }
 
-export function fmtPct(value: number): string {
-    return `${value}%`;
+export function fmtPct(value: number, prefs: CurrencyFormatPreferences, decimals?: number): string {
+    return formatPercent(value, prefs.locale, decimals).replace(/\u2212/g, '-');
 }
 
 export interface SplitParticipantRow {
@@ -93,7 +93,7 @@ export function buildSplitParticipantRows(emi: IEmi, prefs: CurrencyFormatPrefer
             id: split.id,
             name: getSplitParticipantName(split),
             email: getSplitParticipantEmail(split),
-            share: `${split.splitPercentage.toFixed(1)}%`,
+            share: fmtPct(split.splitPercentage, prefs, 1),
             monthly: fmt(monthlyAmount, prefs),
             loanShare: fmt(loanShare, prefs),
             outstanding: outstanding != null ? fmt(outstanding, prefs) : null,
@@ -117,7 +117,7 @@ export function buildMySplitSummary(emi: IEmi, prefs: CurrencyFormatPreferences)
     const outstanding = emi.isCompleted ? null : emi.remainingBalance * pct;
 
     return {
-        share: `${emi.mySplit.splitPercentage.toFixed(1)}%`,
+        share: fmtPct(emi.mySplit.splitPercentage, prefs, 1),
         monthly: fmt(emi.mySplitAmount, prefs),
         loanShare: fmt(effectiveTotalLoan * pct, prefs),
         outstanding: outstanding != null ? fmt(outstanding, prefs) : null,

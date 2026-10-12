@@ -50,7 +50,7 @@ const formSchema = z
             .number()
             .min(0)
             .max(100, {
-                message: 'GST must be between 0 and 100.',
+                message: 'Tax rate must be between 0 and 100.',
             })
             .optional(),
         processingFee: z
@@ -63,7 +63,7 @@ const formSchema = z
             .number()
             .min(0)
             .max(100, {
-                message: 'Processing fee GST must be between 0 and 100.',
+                message: 'Processing fee tax rate must be between 0 and 100.',
             })
             .optional(),
         tag: z.string().optional(),
@@ -88,7 +88,12 @@ const formSchema = z
 export type TFormValues = z.infer<typeof formSchema>;
 
 const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; data?: IEmi }) => {
-    const { currencySymbol, formatAmountInput } = useCurrencyPreferences();
+    const { currencySymbol, formatAmountInput, taxLabels } = useCurrencyPreferences();
+    // Tax on loan interest is an Indian norm; elsewhere the fields stay tucked
+    // away unless asked for, or the EMI already carries a tax rate.
+    const [showTaxFields, setShowTaxFields] = useState(
+        () => taxLabels.isCommon || (data?.gst ?? 0) > 0 || (data?.processingFeeGst ?? 0) > 0
+    );
     const { mutate: updateEmi, isPending: isUpdatingEmi } = useUpdateEmi();
     const { mutate: addEmi, isPending: isAddingEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
@@ -400,7 +405,7 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                 <div>
                     <h3 className="text-sm font-medium text-foreground">Charges & discounts</h3>
                     <p className="text-xs text-muted-foreground">
-                        Optional discounts, interest GST, and one-time processing fees.
+                        Optional discounts, interest {taxLabels.inline}, and one-time processing fees.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -489,38 +494,44 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         )}
                     </form.Subscribe>
 
-                    <form.Field
-                        name="gst"
-                        children={(field) => {
-                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                            return (
-                                <Field data-invalid={isInvalid}>
-                                    <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>GST (%)</FieldLabel>
-                                        <ToolTipWrapper content="GST is the tax on the interest rate. It is calculated on the interest rate and principal amount.">
-                                            <Info className="w-4 h-4" />
-                                        </ToolTipWrapper>
-                                    </div>
-                                    <Input
-                                        id={field.name}
-                                        name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
-                                        onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
-                                        aria-invalid={isInvalid}
-                                        placeholder="e.g., 18"
-                                    />
-                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                            );
-                        }}
-                    />
+                    {showTaxFields && (
+                        <form.Field
+                            name="gst"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <div className="flex flex-row gap-2">
+                                            <FieldLabel htmlFor={field.name}>
+                                                {taxLabels.label} on interest (%)
+                                            </FieldLabel>
+                                            <ToolTipWrapper
+                                                content={`${taxLabels.label} charged on the interest portion of each instalment.`}
+                                            >
+                                                <Info className="w-4 h-4" />
+                                            </ToolTipWrapper>
+                                        </div>
+                                        <Input
+                                            id={field.name}
+                                            name={field.name}
+                                            type="number"
+                                            step="0.01"
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) =>
+                                                field.handleChange(
+                                                    e.target.value === '' ? undefined : Number(e.target.value)
+                                                )
+                                            }
+                                            aria-invalid={isInvalid}
+                                            placeholder="e.g., 18"
+                                        />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
+                    )}
 
                     <form.Field
                         name="processingFee"
@@ -549,39 +560,55 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                         }}
                     />
 
-                    <form.Field
-                        name="processingFeeGst"
-                        children={(field) => {
-                            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                            return (
-                                <Field data-invalid={isInvalid}>
-                                    <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Processing Fee GST (%)</FieldLabel>
-                                        <ToolTipWrapper content="GST rate applied to the one-time processing fee.">
-                                            <Info className="w-4 h-4" />
-                                        </ToolTipWrapper>
-                                    </div>
-                                    <Input
-                                        id={field.name}
-                                        name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
-                                        onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
-                                        aria-invalid={isInvalid}
-                                        placeholder="e.g., 18"
-                                    />
-                                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                            );
-                        }}
-                    />
+                    {showTaxFields && (
+                        <form.Field
+                            name="processingFeeGst"
+                            children={(field) => {
+                                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                                return (
+                                    <Field data-invalid={isInvalid}>
+                                        <div className="flex flex-row gap-2">
+                                            <FieldLabel htmlFor={field.name}>
+                                                Processing Fee {taxLabels.label} (%)
+                                            </FieldLabel>
+                                            <ToolTipWrapper
+                                                content={`${taxLabels.label} rate applied to the one-time processing fee.`}
+                                            >
+                                                <Info className="w-4 h-4" />
+                                            </ToolTipWrapper>
+                                        </div>
+                                        <Input
+                                            id={field.name}
+                                            name={field.name}
+                                            type="number"
+                                            step="0.01"
+                                            value={field.state.value ?? ''}
+                                            onBlur={field.handleBlur}
+                                            onChange={(e) =>
+                                                field.handleChange(
+                                                    e.target.value === '' ? undefined : Number(e.target.value)
+                                                )
+                                            }
+                                            aria-invalid={isInvalid}
+                                            placeholder="e.g., 18"
+                                        />
+                                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                                    </Field>
+                                );
+                            }}
+                        />
+                    )}
                 </div>
+                {!showTaxFields && (
+                    <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto cursor-pointer p-0 text-xs"
+                        onClick={() => setShowTaxFields(true)}
+                    >
+                        Add {taxLabels.inline} on interest or processing fee
+                    </Button>
+                )}
             </section>
 
             <section className="space-y-4 rounded-xl border bg-card p-5">

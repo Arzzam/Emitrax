@@ -2,7 +2,7 @@
 
 **Project:** Emitrax
 **Scope:** A wider currency list, number formatting driven by currency + locale, and the input/export paths that bypass the formatter today
-**Status:** Phases 1-4 shipped; phase 5 proposed, phase 6 deferred
+**Status:** Phases 1-5 shipped; phase 6 deferred
 **Target:** `src/utils/numberFormat.ts`, account settings (`/account`), amount inputs, Excel/PDF export
 
 ---
@@ -94,11 +94,17 @@ Each of these was checked with Node's `Intl` before being written down.
       never shows different currencies on different devices.
 10. **Dates are not locale-driven.** `date-fns` patterns stay fixed.
 11. **The tax label is region-aware; the data is not.** Each registry entry
-    carries a `taxLabel` (INR/AUD/SGD/NZD/CAD → "GST", EUR/GBP/AED/ZAR →
-    "VAT", USD → "Sales tax"). The GST-on-interest field is an Indian
-    concept, so for non-INR currencies it moves under an "Additional
-    charges" section rather than being renamed as if it always applies.
-    Storage stays in the existing `gst` column; there is no migration.
+    carries a one-word `taxLabel` (INR/AUD/SGD/NZD/CAD → "GST", EUR/GBP/AED/ZAR →
+    "VAT", MXN → "IVA", USD/JPY/others → "Tax"). One word because copy
+    splices it in ("Total {label}", "interest {inline}"); `getTaxLabels`
+    lower-cases the generic "Tax" mid-sentence. Tax on loan interest is an
+    Indian norm, so for non-INR currencies the EMI form's two tax fields sit
+    behind an "Add tax…" link, open by default only when the EMI already has a
+    rate. Form defaults follow the currency: the scenario form's
+    foreclosure-charge tax starts at 18% only for INR, 0 elsewhere. Saved
+    scenario breakdown labels are stored with "GST" in them, so
+    `PayoffBreakdown` relabels at render time; the calc is untouched. Storage
+    stays in the existing `gst` columns; there is no migration.
 
 ## 4. Currency list (32)
 
@@ -218,7 +224,7 @@ Each phase ships on its own and passes `yarn lint && yarn build && yarn test`.
 | 2. Settings UI + defaults ✅       | Searchable currency combobox, number-style picker with samples, currency→locale auto-link, live preview, relabel warning, corrected option labels, browser-detected defaults saved on first bootstrap | —              |
 | 3. Inputs ✅                       | `parseLocaleAmount`, swap it into the five editors, input adornment, format-on-blur, remove hard-coded `₹`                                                                                            | B3, B5         |
 | 4. Exports ✅                      | `buildExcelCurrencyNumFmt`, sample PDF export for every §4 currency to verify glyphs, JSON export unchanged (already carries the code)                                                                | B4             |
-| 5. Regional wording + polish       | `taxLabel` in the registry, the GST field under "Additional charges" for non-INR, region-aware labels in the EMI form, details and exports; `formatPercent` across ~15 sites; compact hover titles    | B8             |
+| 5. Regional wording + polish ✅    | `taxLabel` in the registry, the GST field under "Additional charges" for non-INR, region-aware labels in the EMI form, details and exports; `formatPercent` across ~15 sites; compact hover titles    | B8             |
 | 6. 3-decimal currencies (deferred) | Hand-run migration widening money columns to `numeric(14,3)` (forward-only, existing values unchanged), currency-aware `roundMoney` in the calc modules, then add KWD / BHD / OMR to the registry     | —              |
 
 ## 8. Resolved

@@ -27,7 +27,11 @@ export type CurrencyDefinition = {
     defaultLocale: string;
     /** ISO 3166 regions whose browser locale defaults to this currency. */
     regions: readonly string[];
-    /** Label for the tax-on-interest field. Display only; data stays in `gst`. */
+    /**
+     * Short label for the tax-on-interest fields (`GST`, `VAT`, `IVA`, `Tax`).
+     * One word on purpose - it is spliced into copy like "Total {label}".
+     * Display only; the data stays in the `gst` columns.
+     */
     taxLabel: string;
 };
 
@@ -57,7 +61,7 @@ export const CURRENCIES: readonly CurrencyDefinition[] = [
     { code: 'SAR', label: 'Saudi Riyal', group: 'middle_east', isPopular: false, defaultLocale: 'en-SA', regions: ['SA'], taxLabel: 'VAT' },
     { code: 'QAR', label: 'Qatari Riyal', group: 'middle_east', isPopular: false, defaultLocale: 'en-QA', regions: ['QA'], taxLabel: 'Tax' },
 
-    { code: 'USD', label: 'US Dollar', group: 'americas', isPopular: true, defaultLocale: 'en-US', regions: ['US'], taxLabel: 'Sales tax' },
+    { code: 'USD', label: 'US Dollar', group: 'americas', isPopular: true, defaultLocale: 'en-US', regions: ['US'], taxLabel: 'Tax' },
     { code: 'CAD', label: 'Canadian Dollar', group: 'americas', isPopular: false, defaultLocale: 'en-CA', regions: ['CA'], taxLabel: 'GST' },
     { code: 'BRL', label: 'Brazilian Real', group: 'americas', isPopular: false, defaultLocale: 'pt-BR', regions: ['BR'], taxLabel: 'Tax' },
     { code: 'MXN', label: 'Mexican Peso', group: 'americas', isPopular: false, defaultLocale: 'es-MX', regions: ['MX'], taxLabel: 'IVA' },
@@ -75,7 +79,7 @@ export const CURRENCIES: readonly CurrencyDefinition[] = [
     { code: 'IDR', label: 'Indonesian Rupiah', group: 'asia_pacific', isPopular: false, defaultLocale: 'id-ID', regions: ['ID'], taxLabel: 'VAT' },
     { code: 'THB', label: 'Thai Baht', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-TH', regions: ['TH'], taxLabel: 'VAT' },
     { code: 'PHP', label: 'Philippine Peso', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-PH', regions: ['PH'], taxLabel: 'VAT' },
-    { code: 'JPY', label: 'Japanese Yen', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-JP', regions: ['JP'], taxLabel: 'Consumption tax' },
+    { code: 'JPY', label: 'Japanese Yen', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-JP', regions: ['JP'], taxLabel: 'Tax' },
     { code: 'KRW', label: 'South Korean Won', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-KR', regions: ['KR'], taxLabel: 'VAT' },
     { code: 'HKD', label: 'Hong Kong Dollar', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-HK', regions: ['HK'], taxLabel: 'Tax' },
     { code: 'AUD', label: 'Australian Dollar', group: 'asia_pacific', isPopular: false, defaultLocale: 'en-AU', regions: ['AU'], taxLabel: 'GST' },
@@ -269,4 +273,33 @@ export function matchesCurrencyQuery(code: string, query: string): boolean {
     return (
         code.toLowerCase().includes(needle) || currency.label.toLowerCase().includes(needle) || symbol.includes(needle)
     );
+}
+
+/**
+ * Default tax rate on loan interest and charges, as a form default only.
+ * Only India taxes loan interest by default (18% GST); everywhere else the
+ * field starts at 0 so a non-INR user never inherits an Indian charge.
+ */
+const DEFAULT_INTEREST_TAX_RATES: Record<string, number> = { INR: 18 };
+
+export type TaxLabels = {
+    /** Title position: "GST", "VAT", "Tax". */
+    label: string;
+    /** Mid-sentence: "interest GST", "interest tax". */
+    inline: string;
+    /** Form default for a tax-on-interest rate. */
+    defaultRate: number;
+    /** False where tax on loan interest is unusual; the form tucks those fields away. */
+    isCommon: boolean;
+};
+
+export function getTaxLabels(currency: string): TaxLabels {
+    const label = getCurrencyDefinition(currency)?.taxLabel ?? 'Tax';
+    const defaultRate = DEFAULT_INTEREST_TAX_RATES[currency] ?? 0;
+    return {
+        label,
+        inline: label === 'Tax' ? 'tax' : label,
+        defaultRate,
+        isCommon: defaultRate > 0,
+    };
 }

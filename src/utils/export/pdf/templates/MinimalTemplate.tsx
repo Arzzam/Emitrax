@@ -1,5 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
+import { getTaxLabels } from '@/utils/currencyRegistry';
+
 import { PDF_FONT_FAMILY } from '../pdfFonts';
 
 import { buildAmortizationRows, fmt, fmtDate, fmtPct, PdfTemplateProps } from './shared';
@@ -49,6 +51,7 @@ const s = StyleSheet.create({
 
 export function MinimalTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
     const rows = buildAmortizationRows(emi, currencyPrefs);
+    const { label: taxLabel } = getTaxLabels(currencyPrefs.currency);
     const hasGst = emi.gst > 0;
 
     const totals = {
@@ -99,13 +102,13 @@ export function MinimalTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                         </View>
                         {hasGst && (
                             <View style={s.gridItem}>
-                                <Text style={s.gridLabel}>Total GST</Text>
+                                <Text style={s.gridLabel}>Total {taxLabel}</Text>
                                 <Text style={s.gridValue}>{fmt(emi.totalGST ?? 0, currencyPrefs)}</Text>
                             </View>
                         )}
                         <View style={s.gridItem}>
                             <Text style={s.gridLabel}>Interest Rate</Text>
-                            <Text style={s.gridValue}>{fmtPct(emi.interestRate)}</Text>
+                            <Text style={s.gridValue}>{fmtPct(emi.interestRate, currencyPrefs)}</Text>
                         </View>
                         <View style={s.gridItem}>
                             <Text style={s.gridLabel}>Tenure</Text>
@@ -130,7 +133,7 @@ export function MinimalTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                                 <Text style={s.gridLabel}>Interest Discount</Text>
                                 <Text style={s.gridValue}>
                                     {emi.interestDiscountType === 'percent'
-                                        ? fmtPct(emi.interestDiscount)
+                                        ? fmtPct(emi.interestDiscount, currencyPrefs)
                                         : fmt(emi.interestDiscount, currencyPrefs)}
                                 </Text>
                             </View>
@@ -183,7 +186,7 @@ export function MinimalTemplate({ emi, currencyPrefs }: PdfTemplateProps) {
                             <Text style={s.tableHeaderCell}>Interest</Text>
                             <Text style={s.tableHeaderCell}>Principal</Text>
                             <Text style={s.tableHeaderCell}>Balance</Text>
-                            {hasGst && <Text style={s.tableHeaderCell}>Total w/ GST</Text>}
+                            {hasGst && <Text style={s.tableHeaderCell}>Total w/ {taxLabel}</Text>}
                         </View>
                         {rows.map((row, i) => (
                             <View key={i} style={s.tableRow}>
