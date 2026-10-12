@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { format } from 'date-fns';
-import { CalendarIcon, IndianRupee, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
+import { CalendarIcon, Info, PercentIcon, PlusCircle, Tag } from 'lucide-react';
 import * as z from 'zod';
 
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useCreateEmi, useUpdateEmi } from '@/hooks/useEmi';
 import { useUniqueTagsOptions } from '@/hooks/useStats';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ import { IComboboxOption } from '@/types/common.types';
 import { IEmi } from '@/types/emi.types';
 import { calculateEMI } from '@/utils/calculation';
 
+import AmountInput from '../common/AmountInput';
 import ToolTipWrapper from '../common/TooltipWrapper';
 import { Button } from '../ui/button';
 import { Calendar } from '../ui/calendar';
@@ -32,8 +34,8 @@ const formSchema = z
         itemName: z.string().min(2, {
             message: 'Item name must be at least 2 characters.',
         }),
-        principal: z.number().min(100, {
-            message: 'Principal amount must be at least ₹100.',
+        principal: z.number({ invalid_type_error: 'Enter a valid amount.' }).min(100, {
+            message: 'Principal amount must be at least 100.',
         }),
         interestRate: z.number().min(0).max(100, {
             message: 'Interest rate must be between 1 and 100.',
@@ -43,7 +45,7 @@ const formSchema = z
             message: 'Tenure must be between 1 and 360 months.',
         }),
         interestDiscountType: z.enum(['percent', 'amount']).optional(),
-        interestDiscount: z.number().optional(),
+        interestDiscount: z.number({ invalid_type_error: 'Enter a valid number.' }).optional(),
         gst: z
             .number()
             .min(0)
@@ -52,7 +54,7 @@ const formSchema = z
             })
             .optional(),
         processingFee: z
-            .number()
+            .number({ invalid_type_error: 'Enter a valid amount.' })
             .min(0, {
                 message: 'Processing fee must be a positive value.',
             })
@@ -86,6 +88,7 @@ const formSchema = z
 export type TFormValues = z.infer<typeof formSchema>;
 
 const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; data?: IEmi }) => {
+    const { currencySymbol, formatAmountInput } = useCurrencyPreferences();
     const { mutate: updateEmi, isPending: isUpdatingEmi } = useUpdateEmi();
     const { mutate: addEmi, isPending: isAddingEmi } = useCreateEmi();
     const [open, setOpen] = useState(false);
@@ -262,24 +265,19 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             return (
                                 <Field data-invalid={isInvalid}>
                                     <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Principal Amount (₹)</FieldLabel>
+                                        <FieldLabel htmlFor={field.name}>Principal Amount</FieldLabel>
                                         <ToolTipWrapper content="Principal amount is the amount of money borrowed from the bank or lender.">
                                             <Info className="w-4 h-4" />
                                         </ToolTipWrapper>
                                     </div>
-                                    <Input
+                                    <AmountInput
                                         id={field.name}
                                         name={field.name}
-                                        type="number"
-                                        value={field.state.value ?? ''}
+                                        value={field.state.value}
                                         onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
+                                        onValueChange={field.handleChange}
                                         aria-invalid={isInvalid}
-                                        placeholder="e.g., 50000"
+                                        placeholder={`e.g., ${formatAmountInput(50000)}`}
                                     />
                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                 </Field>
@@ -414,30 +412,47 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                     children={(field) => {
                                         const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
                                         const placeholder =
-                                            interestDiscountType === 'amount' ? 'e.g., 1000 (₹)' : 'e.g., 12.5 (%)';
+                                            interestDiscountType === 'amount'
+                                                ? `e.g., ${formatAmountInput(1000)}`
+                                                : 'e.g., 12.5';
                                         return (
                                             <Field data-invalid={isInvalid}>
                                                 <FieldLabel htmlFor={field.name}>
-                                                    Interest Discount (%) / (₹)
+                                                    Interest Discount (% or {currencySymbol})
                                                 </FieldLabel>
                                                 <div className="relative">
-                                                    <Input
-                                                        id={field.name}
-                                                        name={field.name}
-                                                        type="number"
-                                                        value={field.state.value ?? ''}
-                                                        onBlur={field.handleBlur}
-                                                        onChange={(e) =>
-                                                            field.handleChange(
-                                                                e.target.value === ''
-                                                                    ? undefined
-                                                                    : Number(e.target.value)
-                                                            )
-                                                        }
-                                                        aria-invalid={isInvalid}
-                                                        placeholder={placeholder}
-                                                        className="pr-16"
-                                                    />
+                                                    {interestDiscountType === 'amount' ? (
+                                                        // The toggle on the right already shows the symbol.
+                                                        <AmountInput
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            hideSymbol
+                                                            value={field.state.value}
+                                                            onBlur={field.handleBlur}
+                                                            onValueChange={field.handleChange}
+                                                            aria-invalid={isInvalid}
+                                                            placeholder={placeholder}
+                                                            className="pr-16"
+                                                        />
+                                                    ) : (
+                                                        <Input
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            type="number"
+                                                            value={field.state.value ?? ''}
+                                                            onBlur={field.handleBlur}
+                                                            onChange={(e) =>
+                                                                field.handleChange(
+                                                                    e.target.value === ''
+                                                                        ? undefined
+                                                                        : Number(e.target.value)
+                                                                )
+                                                            }
+                                                            aria-invalid={isInvalid}
+                                                            placeholder={placeholder}
+                                                            className="pr-16"
+                                                        />
+                                                    )}
                                                     <form.Field
                                                         name="interestDiscountType"
                                                         children={(typeField) => (
@@ -454,7 +469,9 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                                                                     className="bg-transparent border-none text-gray-500 hover:bg-transparent hover:text-foreground cursor-pointer"
                                                                 >
                                                                     {typeField.state.value === 'amount' ? (
-                                                                        <IndianRupee className="w-4 h-4 transition-all duration-300 scale-100" />
+                                                                        <span className="text-sm font-medium leading-none">
+                                                                            {currencySymbol}
+                                                                        </span>
                                                                     ) : (
                                                                         <PercentIcon className="w-4 h-4 transition-all duration-300 scale-100" />
                                                                     )}
@@ -512,25 +529,19 @@ const EMIForm = ({ setIsOpen, data }: { setIsOpen: (isOpen: boolean) => void; da
                             return (
                                 <Field data-invalid={isInvalid}>
                                     <div className="flex flex-row gap-2">
-                                        <FieldLabel htmlFor={field.name}>Processing Fee (₹)</FieldLabel>
+                                        <FieldLabel htmlFor={field.name}>Processing Fee</FieldLabel>
                                         <ToolTipWrapper content="One-time processing fee charged at loan origination. Added to total outflow, not monthly EMI.">
                                             <Info className="w-4 h-4" />
                                         </ToolTipWrapper>
                                     </div>
-                                    <Input
+                                    <AmountInput
                                         id={field.name}
                                         name={field.name}
-                                        type="number"
-                                        step="0.01"
-                                        value={field.state.value ?? ''}
+                                        value={field.state.value}
                                         onBlur={field.handleBlur}
-                                        onChange={(e) =>
-                                            field.handleChange(
-                                                e.target.value === '' ? undefined : Number(e.target.value)
-                                            )
-                                        }
+                                        onValueChange={field.handleChange}
                                         aria-invalid={isInvalid}
-                                        placeholder="e.g., 500"
+                                        placeholder={`e.g., ${formatAmountInput(500)}`}
                                     />
                                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                 </Field>

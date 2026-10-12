@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 
 import { useRematchDispatch } from '@/store/store';
 import { IDispatch, IRootState } from '@/store/types/store.types';
 import { AccountService } from '@/utils/AccountService';
+import { detectDefaultPreferences } from '@/utils/currencyRegistry';
 
-import { useAccountDetails } from './useAccount';
+import { useAccountDetails, useInitializeRegionalPreferences } from './useAccount';
 import { useUser } from './useUser';
 
 const SAVE_DEBOUNCE_MS = 2000;
@@ -22,6 +23,8 @@ export function useAccountDataBootstrap() {
     const advancedFilterState = useSelector((state: IRootState) => state.advancedFilterModel);
     const { setPreferences, resetPreferences } = useRematchDispatch((d: IDispatch) => d.currencyPreferencesModel);
     const { hydrateFilterConfig } = useRematchDispatch((d: IDispatch) => d.advancedFilterModel);
+    const { mutate: initializeRegionalPreferences } = useInitializeRegionalPreferences();
+    const hasRequestedInitializationRef = useRef(false);
 
     const locale = account?.preferences?.locale;
     const currency = account?.preferences?.currency;
@@ -40,6 +43,21 @@ export function useAccountDataBootstrap() {
             hydrateFilterConfig(filterConfig);
         }
     }, [hasUser, locale, currency, numberFormat, setPreferences, resetPreferences]);
+
+    // First run: no preferences row yet, so detect regional defaults from the
+    // browser and save them once. Attempted at most once per mount; on failure
+    // the in-memory defaults (INR / en-IN) stay and the next load retries.
+    const hasSavedPreferences = account?.hasSavedPreferences;
+    useEffect(() => {
+        if (!hasUser || hasSavedPreferences !== false || hasRequestedInitializationRef.current) return;
+        hasRequestedInitializationRef.current = true;
+        initializeRegionalPreferences(
+            detectDefaultPreferences({
+                languages: navigator.languages?.length ? navigator.languages : [navigator.language],
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            })
+        );
+    }, [hasUser, hasSavedPreferences, initializeRegionalPreferences]);
 
     // Persist filter state to backend when it changes (debounced)
     useEffect(() => {

@@ -24,13 +24,14 @@ const parseDay = (raw: string): number | null => {
     return Number.isInteger(parsed) && parsed >= 1 && parsed <= 31 ? parsed : NaN;
 };
 
-const parseLimit = (raw: string): number | null => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
+export type AmountParser = (raw: string) => number | null | undefined;
+
+const parseLimit = (raw: string, parseAmountInput: AmountParser): number | null => {
+    const parsed = parseAmountInput(raw);
+    if (parsed === null) {
         return null;
     }
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : NaN;
+    return parsed !== undefined && parsed > 0 ? parsed : NaN;
 };
 
 /**
@@ -38,13 +39,14 @@ const parseLimit = (raw: string): number | null => {
  * every one is valid, mirroring the DB CHECK constraints on `cc_cards`.
  */
 export function validateBillingCycle(
-    values: BillingCycleValues
+    values: BillingCycleValues,
+    parseAmountInput: AmountParser
 ):
     | { ok: true; parsed: { statementDay: number | null; dueDay: number | null; creditLimit: number | null } }
     | { ok: false; errors: BillingCycleErrors } {
     const statementDay = parseDay(values.statementDay);
     const dueDay = parseDay(values.dueDay);
-    const creditLimit = parseLimit(values.creditLimit);
+    const creditLimit = parseLimit(values.creditLimit, parseAmountInput);
     const errors: BillingCycleErrors = {};
 
     if (Number.isNaN(statementDay)) {

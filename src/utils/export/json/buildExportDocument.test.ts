@@ -73,6 +73,7 @@ const ACCOUNT: AccountDetails = {
     email: 'me@example.com',
     displayName: 'Me',
     preferences: DEFAULT_ACCOUNT_PREFERENCES,
+    hasSavedPreferences: true,
 };
 
 describe('buildExportedEmi', () => {

@@ -1,5 +1,5 @@
 import { useSelector } from 'react-redux';
-import { AlertCircle, ArrowUpDown, Banknote, Clock, IndianRupee, Tag } from 'lucide-react';
+import { AlertCircle, ArrowUpDown, Banknote, Clock, Coins, Tag } from 'lucide-react';
 
 import type { ISplitStatsContext } from '@/hooks/useAdvancedFilter';
 import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
@@ -67,7 +67,7 @@ const StatsSection = ({ emiData, statsOverride }: StatsSectionProps) => {
                             <CardTitle className="text-xs font-medium tracking-tight text-muted-foreground">
                                 {splitContext?.isActive ? 'Monthly share' : 'Monthly payment'}
                             </CardTitle>
-                            <IndianRupee className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
+                            <Coins className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
                         </CardHeader>
                         <CardContent className="pb-4">
                             <p className="text-xl font-semibold tabular-nums">

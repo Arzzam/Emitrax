@@ -5,6 +5,7 @@ import {
     AccountUpdatePayload,
     DEFAULT_ACCOUNT_PREFERENCES,
     NumberFormatMode,
+    RegionalPreferences,
 } from '@/types/account.types';
 import { DEFAULT_EXPORT_CONFIG, ExcelTemplate, ExportConfig, PdfTemplate } from '@/types/export.types';
 
@@ -221,7 +222,54 @@ export class AccountService {
                 filterConfig: filterConfig ?? DEFAULT_ACCOUNT_PREFERENCES.filterConfig,
                 exportConfig,
             },
+            hasSavedPreferences: preferences != null,
         };
+    }
+
+    /**
+     * Creates the preferences row on first run, once, so regional defaults
+     * stay fixed across devices instead of being re-detected per browser.
+     *
+     * A user who already owns EMIs or cards has been reading amounts in the
+     * app defaults (INR / en-IN) all along, so they are pinned to those rather
+     * than the detected values - existing users see no change.
+     *
+     * Insert-only (ON CONFLICT DO NOTHING): a row written meanwhile by another
+     * tab or by Account Settings is never overwritten.
+     */
+    static async initializeRegionalPreferences(detected: RegionalPreferences): Promise<void> {
+        const userId = await AccountService.getCurrentUserId();
+
+        const [emis, cards] = await Promise.all([
+            supabase.from('emis').select('id', { count: 'exact', head: true }).eq('userId', userId),
+            supabase.from('cc_cards').select('id', { count: 'exact', head: true }).eq('userId', userId),
+        ]);
+        if (emis.error || cards.error) {
+            throw new Error('Unable to check existing account data.');
+        }
+
+        const isExistingUser = (emis.count ?? 0) > 0 || (cards.count ?? 0) > 0;
+        const regional = isExistingUser
+            ? {
+                  locale: DEFAULT_ACCOUNT_PREFERENCES.locale,
+                  currency: DEFAULT_ACCOUNT_PREFERENCES.currency,
+                  numberFormat: DEFAULT_ACCOUNT_PREFERENCES.numberFormat,
+              }
+            : detected;
+
+        const { error } = await supabase.from('user_account_preferences').upsert(
+            {
+                user_id: userId,
+                locale: regional.locale,
+                currency: regional.currency,
+                number_format: regional.numberFormat,
+            },
+            { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+
+        if (error) {
+            throw new Error('Unable to save your regional preferences.');
+        }
     }
 
     static async saveFilterConfig(filterConfig: IAdvancedFilterState): Promise<void> {

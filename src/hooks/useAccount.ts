@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { AccountUpdatePayload } from '@/types/account.types';
+import { AccountUpdatePayload, RegionalPreferences } from '@/types/account.types';
 import { AccountService } from '@/utils/AccountService';
 
 export const ACCOUNT_QUERY_KEY = ['account'];
@@ -23,5 +23,14 @@ export const useUpsertAccountDetails = () => {
             queryClient.setQueryData(ACCOUNT_QUERY_KEY, data);
             queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY });
         },
+    });
+};
+
+export const useInitializeRegionalPreferences = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (detected: RegionalPreferences) => AccountService.initializeRegionalPreferences(detected),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY }),
     });
 };

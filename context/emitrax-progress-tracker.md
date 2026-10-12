@@ -7,7 +7,13 @@
 
 ## Current Status
 
-**Last completed (card pages + credit-limit utilisation):** Added
+**Last completed (currency formatting, phase 3):** Every amount input now
+reads the user's number style (`1,25,000`, `1.234,56`, pasted `₹1,25,000`),
+form money fields show the currency symbol, and the hard-coded `₹` is gone.
+Plan: `context/plan/currency-and-number-formatting-plan.md`. See the
+entries below.
+
+**Previously (card pages + credit-limit utilisation):** Added
 `/credit-cards/cards` and `/credit-cards/cards/:id`, a dated credit-limit
 history table, and a fourth `Utilisation` view on the tracker grid —
 headlined by an overall figure computed the way a credit bureau does.
@@ -439,6 +445,108 @@ Pre-commit review of the module above. App-code only, no schema change.
   (`syncCurrentLimit` only runs on write), non-atomic `createCard`
   (card + opening limit in two writes; retry can duplicate), and limit
   history missing from the JSON export. See Open Questions.
+
+---
+
+### Currency & number formatting — phase 1 (formatter core)
+
+- **Plan:** `context/plan/currency-and-number-formatting-plan.md`. 32
+  curated currencies, currency decides symbol + decimals, locale decides
+  grouping/separators/symbol position. No migration needed.
+- **Registry** `src/utils/currencyRegistry.ts`: code, label, region group,
+  popular flag, default locale, ISO regions (for phase 2 browser
+  defaults), tax label (phase 5). Every default locale renders Latin
+  digits only, because the PDF font has no Arabic/Thai/CJK glyphs; JPY uses
+  `en-JP`, THB `en-TH`.
+- **Formatter fixes** in `src/utils/numberFormat.ts`:
+    - `exact` takes decimals from Intl (JPY/KRW/IDR/PKR show 0, not `.00`)
+    - `compact_long` actually spells out the unit (`₹12.35 lakh`,
+      `1,23 Millionen €`). Intl ignores `compactDisplay: 'long'` with
+      currency style, so the number is compacted in decimal style and wrapped
+      in the sign/symbol from `formatToParts`
+    - formatters are cached per locale/currency/mode
+    - new `getCurrencyMeta` (symbol, decimals, prefix/suffix)
+- Deleted the unused `formatAmount` from `src/utils/utils.ts`.
+- **Files changed:** `numberFormat.ts`, `numberFormat.test.ts` (new),
+  `currencyRegistry.ts` (new), `utils.ts`, the plan doc.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (225 passing).
+- **Next:** phase 2: settings UI (searchable currency picker,
+  number-style picker with samples, currency→locale auto-link, live
+  preview, relabel warning, browser-detected defaults saved on first
+  bootstrap).
+
+### Currency & number formatting — phase 2 (settings UI + first-run defaults)
+
+- **Account Settings → Regional Settings** rebuilt:
+    - `CurrencyCombobox`: base-ui combobox, Popular pinned then regional
+      groups, search by name / code / symbol (`rupee`, `inr`, `₹`)
+    - `NumberStyleSelect` replaces the locale dropdown. Locales are grouped
+      under the sample they render (`12,34,567.89`, `1.234.567,89`, ...)
+    - Number format options show a live sample in the chosen currency
+    - `FormattingPreview` shows a sample amount in all three formats,
+      highlighting the selected one
+    - Picking a currency switches the number style to that currency's
+      default, unless the user picked one by hand (`getLinkedLocale`)
+    - Saving a currency change asks for confirmation first: amounts are
+      relabelled, never converted
+- **First-run defaults:** `AccountDetails.hasSavedPreferences` (false when
+  there's no preferences row). `useAccountDataBootstrap` then calls
+  `AccountService.initializeRegionalPreferences` once:
+    - region from the time zone first, then the browser language
+    - users who already own EMIs or cards are pinned to INR / `en-IN`
+    - insert-only, so it never overwrites a saved row
+    - side effect: filter-config saves (an `update`) now persist for users
+      who never opened settings
+- Form zod enums now come from the registry; `CURRENCY_OPTIONS` /
+  `LOCALE_OPTIONS` removed.
+- **Files changed:** `currencyRegistry.ts` (+ new test),
+  `AccountService.ts`, `account.types.ts`, `useAccount.ts`,
+  `useAccountDataBootstrap.ts`, `account.forms.ts`, `AccountForm.tsx`,
+  new `CurrencyCombobox.tsx`, `NumberStyleSelect.tsx`,
+  `FormattingPreview.tsx`, `buildExportDocument.test.ts` (fixture field).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (238 passing). **Not yet checked in a browser:** the settings screen
+  sits behind login.
+- **Known gaps until later phases:** Excel shows the ISO code for the new
+  currencies (phase 4); PDF glyphs for `₩ ₦ ₱` and the like are unverified
+  (phase 4); the EMI form still says `(₹)` (phase 3).
+
+### Currency & number formatting — phase 3 (inputs)
+
+- **`src/utils/parseAmount.ts`** (+ test):
+    - `parseLocaleAmount` reads the locale's separators, strips symbols,
+      codes and `Rs.`/`kr.`, and keeps the sign
+    - Returns a number, `null` (empty) or `undefined` (not an amount)
+    - **Ambiguous input is rejected, never guessed**: `12,345.67` in de-DE
+      is refused rather than stored as 12.34567
+    - A lone foreign separator that isn't valid grouping is read as a
+      decimal (`1234.5` in de-DE)
+    - `formatAmountForInput` is the inverse: grouped, no symbol, no `.00`
+      on whole amounts; a round-trip test covers every currency
+- **`useCurrencyPreferences`** gains `currencySymbol`, `fractionDigits`,
+  `symbolPosition`, `parseAmountInput`, `formatAmountInput`.
+- **`AmountInput`** (`components/common`): a form money field with the
+  symbol inside the input, placed before or after the number per locale.
+  Invalid text stays visible and reports `NaN`, so zod shows
+  "Enter a valid amount." instead of the field silently becoming empty.
+- **Swapped in:**
+    - EMI form: principal, amount-type interest discount, processing fee.
+      Its `(₹)` labels and the `IndianRupee` toggle now use the currency
+      symbol; the min-principal message no longer says `₹100`
+    - Scenario form: flat charges
+    - Advanced filter: principal and total-loan bounds
+    - Bill and payment grid cells: their own drafts, commit-on-blur
+      unchanged, no adornment
+    - Card limit sheet and billing-cycle fields: the parser is passed into
+      `validateDraft` / `validateBillingCycle`
+- "Different from a ₹0 bill" is now formatted; the decorative
+  `IndianRupee` icons on EMI details and stats became `Coins`.
+- Percentage, tenure and day inputs are unchanged (not money).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (253 passing). **Not yet checked in a browser.**
+- **Next:** phase 4 (exports): Excel number formats for every currency,
+  Indian grouping in Excel, PDF glyph check.
 
 ---
 

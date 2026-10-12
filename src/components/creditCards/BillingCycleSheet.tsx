@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useUpdateCard } from '@/hooks/useCreditCards';
+import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { ICreditCard } from '@/types/creditCard.types';
 
 import BillingCycleFields, {
@@ -31,6 +32,7 @@ export const BillingCycleSheet = ({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) => {
+    const { parseAmountInput } = useCurrencyPreferences();
     const [values, setValues] = useState<BillingCycleValues>(() => toCycleValues(card));
     const [errors, setErrors] = useState<BillingCycleErrors>({});
     const { mutate: updateCard, isPending } = useUpdateCard();
@@ -48,7 +50,7 @@ export const BillingCycleSheet = ({
     }
 
     const save = () => {
-        const result = validateBillingCycle(values);
+        const result = validateBillingCycle(values, parseAmountInput);
         if (!result.ok) {
             setErrors(result.errors);
             return;

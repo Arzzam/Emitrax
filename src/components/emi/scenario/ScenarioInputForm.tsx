@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ILoanScenario } from '@/types/scenario.types';
 import { foreclosureScenarioFormSchema, ForeclosureScenarioFormValues } from '@/validations/scenario.forms';
 
+import AmountInput from '@/components/common/AmountInput';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
@@ -187,14 +188,12 @@ const ScenarioInputForm = ({
                     {(field) => (
                         <Field data-invalid={field.state.meta.errors.length > 0}>
                             <FieldLabel htmlFor="charge-amount">Flat charges</FieldLabel>
-                            <Input
+                            <AmountInput
                                 id="charge-amount"
-                                type="number"
-                                min={0}
-                                step="0.01"
                                 value={field.state.value}
                                 onBlur={field.handleBlur}
-                                onChange={(event) => field.handleChange(Number(event.target.value))}
+                                // An emptied field means no flat charge, as before.
+                                onValueChange={(value) => field.handleChange(value ?? 0)}
                             />
                             <p className="text-xs text-muted-foreground">Kept separate from % charges</p>
                             <FieldError errors={field.state.meta.errors} />

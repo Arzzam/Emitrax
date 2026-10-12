@@ -1,7 +1,8 @@
 import * as z from 'zod';
 
-import { AccountDetails } from '@/types/account.types';
+import { AccountDetails, NumberFormatMode } from '@/types/account.types';
 import { ExcelTemplate, PdfTemplate } from '@/types/export.types';
+import { CURRENCIES, NUMBER_STYLE_LOCALES } from '@/utils/currencyRegistry';
 
 export const PDF_TEMPLATE_OPTIONS: { value: PdfTemplate; label: string; description: string }[] = [
     { value: 'modern', label: 'Modern', description: 'Gradient header, color-coded stat cards, zebra rows' },
@@ -14,23 +15,11 @@ export const EXCEL_TEMPLATE_OPTIONS: { value: ExcelTemplate; label: string; desc
     { value: 'compact', label: 'Compact', description: 'Single sheet with key summary and condensed schedule' },
 ];
 
-export const LOCALE_OPTIONS = [
-    { label: 'English (India)', value: 'en-IN' },
-    { label: 'English (US)', value: 'en-US' },
-    { label: 'English (UK)', value: 'en-GB' },
-] as const;
-
-export const CURRENCY_OPTIONS = [
-    { label: 'Indian Rupee (INR)', value: 'INR' },
-    { label: 'US Dollar (USD)', value: 'USD' },
-    { label: 'Euro (EUR)', value: 'EUR' },
-    { label: 'British Pound (GBP)', value: 'GBP' },
-] as const;
-
-export const NUMBER_FORMAT_OPTIONS: { label: string; value: string }[] = [
-    { label: 'Exact (e.g. 1,25,000)', value: 'exact' },
-    { label: 'Compact short (e.g. 1.25L)', value: 'compact_short' },
-    { label: 'Compact long (e.g. 1.25 lakh)', value: 'compact_long' },
+/** Examples are rendered live in the user's locale and currency, not hard-coded here. */
+export const NUMBER_FORMAT_OPTIONS: { label: string; value: NumberFormatMode }[] = [
+    { label: 'Exact', value: 'exact' },
+    { label: 'Compact short', value: 'compact_short' },
+    { label: 'Compact long', value: 'compact_long' },
 ];
 
 export const accountSchema = z.object({
@@ -51,10 +40,10 @@ export const accountSchema = z.object({
         .refine((value) => value.length === 0 || z.string().url().safeParse(value).success, {
             message: 'Avatar must be a valid URL.',
         }),
-    locale: z.enum(LOCALE_OPTIONS.map((option) => option.value) as [string, ...string[]], {
-        required_error: 'Language/locale is required.',
+    locale: z.enum(NUMBER_STYLE_LOCALES as [string, ...string[]], {
+        required_error: 'Number style is required.',
     }),
-    currency: z.enum(CURRENCY_OPTIONS.map((option) => option.value) as [string, ...string[]], {
+    currency: z.enum(CURRENCIES.map((currency) => currency.code) as [string, ...string[]], {
         required_error: 'Currency is required.',
     }),
     numberFormat: z.enum(NUMBER_FORMAT_OPTIONS.map((option) => option.value) as [string, ...string[]], {

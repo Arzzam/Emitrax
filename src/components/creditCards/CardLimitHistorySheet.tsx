@@ -23,7 +23,8 @@ const emptyDraft = () => ({ effectiveFrom: format(new Date(), 'yyyy-MM-dd'), cre
  * caught here rather than surfacing as raw Postgres text in a toast.
  */
 function validateDraft(
-    draft: ReturnType<typeof emptyDraft>
+    draft: ReturnType<typeof emptyDraft>,
+    parseAmountInput: (raw: string) => number | null | undefined
 ): { ok: true; creditLimit: number } | { ok: false; errors: DraftErrors } {
     const errors: DraftErrors = {};
 
@@ -31,16 +32,16 @@ function validateDraft(
         errors.effectiveFrom = 'Pick the date the limit took effect.';
     }
 
-    const parsed = Number(draft.creditLimit.trim());
-    if (!draft.creditLimit.trim() || !Number.isFinite(parsed) || parsed <= 0) {
+    const parsed = parseAmountInput(draft.creditLimit);
+    if (parsed == null || parsed <= 0) {
         errors.creditLimit = 'Enter an amount greater than 0.';
     }
 
-    if (Object.keys(errors).length > 0) {
+    if (Object.keys(errors).length > 0 || parsed == null) {
         return { ok: false, errors };
     }
 
-    return { ok: true, creditLimit: Math.round(parsed * 100) / 100 };
+    return { ok: true, creditLimit: parsed };
 }
 
 const HistoryRow = ({
@@ -110,6 +111,7 @@ const CardLimitHistorySheet = ({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) => {
+    const { parseAmountInput, formatAmountInput } = useCurrencyPreferences();
     const [draft, setDraft] = useState(emptyDraft);
     const [errors, setErrors] = useState<DraftErrors>({});
     const [pendingDelete, setPendingDelete] = useState<ICardLimitChange | null>(null);
@@ -130,7 +132,7 @@ const CardLimitHistorySheet = ({
     }
 
     const add = () => {
-        const result = validateDraft(draft);
+        const result = validateDraft(draft, parseAmountInput);
         if (!result.ok) {
             setErrors(result.errors);
             return;
@@ -175,7 +177,7 @@ const CardLimitHistorySheet = ({
                                     <Input
                                         id={`limit-amount-${card.id}`}
                                         inputMode="decimal"
-                                        placeholder="250000"
+                                        placeholder={formatAmountInput(250000)}
                                         className="tabular-nums"
                                         value={draft.creditLimit}
                                         onChange={(event) => {
