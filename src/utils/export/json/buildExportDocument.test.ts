@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { type AccountDetails, DEFAULT_ACCOUNT_PREFERENCES } from '@/types/account.types';
 import { IEmi, IEmiSplit, ScheduleData } from '@/types/emi.types';
 
-import { buildDataExportDocument, buildExportedEmi, buildSummary } from './buildExportDocument';
+import { buildDataExportDocument, buildExportedEmi, buildSummary, buildSummaryByCurrency } from './buildExportDocument';
 
 const ME = 'user-me';
 const FRIEND = 'user-friend';
@@ -322,5 +322,25 @@ describe('buildDataExportDocument', () => {
             // A March-quarter statement month still lands in the FY that contains it.
             financialYear: '2026-27',
         });
+    });
+});
+
+describe('buildSummaryByCurrency', () => {
+    const inr = buildExportedEmi(makeEmi({ id: 'inr-1', currency: 'INR' }), ME, [], AS_OF);
+    const inr2 = buildExportedEmi(makeEmi({ id: 'inr-2', currency: 'INR' }), ME, [], AS_OF);
+    const usd = buildExportedEmi(makeEmi({ id: 'usd-1', currency: 'USD' }), ME, [], AS_OF);
+
+    it('never adds amounts across currencies', () => {
+        const byCurrency = buildSummaryByCurrency([inr, usd, inr2]);
+
+        expect(Object.keys(byCurrency).sort()).toEqual(['INR', 'USD']);
+        expect(byCurrency.INR.emiCount).toBe(2);
+        expect(byCurrency.INR.ownedGross.lifetime).toBe(PRINCIPAL * 2);
+        expect(byCurrency.USD.emiCount).toBe(1);
+        expect(byCurrency.USD.ownedGross.lifetime).toBe(PRINCIPAL);
+    });
+
+    it('carries the currency on every exported EMI', () => {
+        expect(usd.currency).toBe('USD');
     });
 });

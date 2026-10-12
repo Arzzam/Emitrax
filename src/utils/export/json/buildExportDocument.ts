@@ -57,7 +57,11 @@ const OWNERSHIP_SUMMARIES: Record<EmiOwnershipMode, string> = {
 };
 
 const EXPORT_GLOSSARY: Record<string, string> = {
-    money: 'Every amount is in the account currency, at 2 decimal places (3 for KWD, BHD and OMR). Every percentage is 0-100.',
+    money: "Every amount is in its EMI's own `currency`, at 2 decimal places (3 for KWD, BHD and OMR). Every percentage is 0-100.",
+    summaryByCurrency:
+        'One summary per currency, keyed by ISO code. Amounts in different currencies are never added together and never converted.',
+    'account.currency':
+        'The default currency for new EMIs, not the currency of existing ones - each EMI carries its own.',
     'ownership.mode':
         'sole = wholly the account owner’s. shared = they carry part of it. on_behalf = they own and pay the loan but split 100% of it to other people, so none of it is their liability. observer = someone else’s loan, visible through a share.',
     'ownership.myPercentage':
@@ -69,11 +73,12 @@ const EXPORT_GLOSSARY: Record<string, string> = {
         'True when split rows are hidden by row-level security, so othersPercentage is a floor rather than an exact figure.',
     progress:
         'paid / remaining / lifetime breakdown of a loan, recomputed from the calendar rather than read from a stored counter. The processing fee and its GST sit wholly on the paid side because they are charged upfront at disbursal. GST is never discounted, even when the interest is.',
-    'summary.mine': 'What the account owner actually owes, prorated across every loan they carry a share of.',
-    'summary.financedForOthers':
+    'summaryByCurrency.*.mine':
+        'What the account owner actually owes, prorated across every loan they carry a share of.',
+    'summaryByCurrency.*.financedForOthers':
         'Loans the account owner pays for on their own card or credit but does not owe — money fronted for family and friends.',
-    'summary.monthlyOutflow': 'Sums only active loans. Completed and archived loans contribute zero.',
-    'summary.participants': 'Per-person roll-up across every loan, for answering who owes what in total.',
+    'summaryByCurrency.*.monthlyOutflow': 'Sums only active loans. Completed and archived loans contribute zero.',
+    'summaryByCurrency.*.participants': 'Per-person roll-up across every loan, for answering who owes what in total.',
     creditCards:
         'Payments and bills are tracked separately and are deliberately never combined. periodMonth is the month money was paid; statementMonth is the month the bill was generated. The two are normally offset by one month.',
     'creditCards.thresholds':
@@ -172,6 +177,7 @@ function buildExportedEmiAtPrecision(
     return {
         id: emi.id,
         itemName: emi.itemName,
+        currency: emi.currency,
         tag: nullIfBlank(emi.tag),
         notes: nullIfBlank(emi.notes),
         isCompleted: !!emi.isCompleted,
@@ -281,6 +287,15 @@ export function buildSummary(emis: ExportedEmi[]): DataExportSummary {
         ownedGross,
         participants: [...rollups.values()].sort((a, b) => b.remaining - a.remaining),
     };
+}
+
+/** Groups by EMI currency and summarises each group at that currency's precision. */
+export function buildSummaryByCurrency(emis: ExportedEmi[]): Record<string, DataExportSummary> {
+    const groups = new Map<string, ExportedEmi[]>();
+    emis.forEach((emi) => groups.set(emi.currency, [...(groups.get(emi.currency) ?? []), emi]));
+    return Object.fromEntries(
+        [...groups].map(([currency, group]) => [currency, withMoneyPrecision(currency, () => buildSummary(group))])
+    );
 }
 
 export interface CreditCardExportInput {
@@ -402,7 +417,7 @@ export function buildDataExportDocument({
             numberFormat: account.preferences.numberFormat,
         },
         glossary: EXPORT_GLOSSARY,
-        summary: buildSummary(exportedEmis),
+        summaryByCurrency: buildSummaryByCurrency(exportedEmis),
         emis: exportedEmis,
         ...(creditCards ? { creditCards: buildCreditCards(creditCards) } : {}),
     };

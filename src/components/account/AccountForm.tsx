@@ -71,7 +71,7 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
             },
         },
         onSubmit: async ({ value }) => {
-            // Changing currency relabels stored amounts, it never converts them.
+            // The account currency is now only the default for new EMIs; confirm so that is clear.
             if (value.currency !== defaultValues.currency) {
                 setPendingValues(value);
                 return;
@@ -387,16 +387,9 @@ export const AccountForm = ({ account }: { account: AccountDetails }) => {
                 setOpen={(open) => {
                     if (!open) setPendingValues(null);
                 }}
-                title={`Switch to ${getCurrencyOptionLabel(pendingValues?.currency ?? '')}?`}
-                description={`Amounts you've already entered won't be converted, only relabelled. ${formatCurrencyAmount(
-                    50000,
-                    { locale: defaultValues.locale, currency: defaultValues.currency, numberFormat: 'exact' }
-                )} will show as ${formatCurrencyAmount(50000, {
-                    locale: pendingValues?.locale ?? defaultValues.locale,
-                    currency: pendingValues?.currency ?? defaultValues.currency,
-                    numberFormat: 'exact',
-                })}.`}
-                confirmText="Switch currency"
+                title={`Make ${getCurrencyOptionLabel(pendingValues?.currency ?? '')} your default?`}
+                description={`New EMIs will default to ${pendingValues?.currency ?? ''}, and the dashboard will open on it. Existing EMIs keep their own currency; change one from its edit form.`}
+                confirmText="Change default"
                 isLoading={isSaving}
                 onCancel={() => setPendingValues(null)}
                 onConfirm={async () => {

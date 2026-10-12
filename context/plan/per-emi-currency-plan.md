@@ -2,7 +2,7 @@
 
 **Project:** Emitrax
 **Scope:** Each EMI carries its own currency; the dashboard groups stats by currency
-**Status:** Proposed — migration written, not yet run
+**Status:** Shipped (phases A–F). Migration applied and verified 2026-10-12.
 **Builds on:** `context/plan/currency-and-number-formatting-plan.md` (registry, formatter, parser, exports)
 
 ---
@@ -128,14 +128,14 @@ The store-synced global stays as the fallback for anything not tied to one EMI.
 
 ## 5. Phases
 
-| Phase                 | Contents                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| A. Schema             | Run `supabase_emis_currency.sql`, verify, mirror types                                                              |
-| B. Plumbing           | `IEmi.currency` + service mapping, `useCurrencyPreferences(currencyOverride?)`, `withMoneyPrecision` + calc callers |
-| C. EMI surfaces       | Card, details, schedule, repayment, splits, scenarios, PDF / Excel use the EMI's currency                           |
-| D. EMI form           | Currency picker, relabel confirmation                                                                               |
-| E. Dashboard          | Group-by-currency stats + switcher; filter range currency                                                           |
-| F. Exports + settings | JSON `totalsByCurrency`; Account Settings warning text                                                              |
+| Phase                    | Contents                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| A. Schema ✅             | Run `supabase_emis_currency.sql`, verify, mirror types                                                              |
+| B. Plumbing ✅           | `IEmi.currency` + service mapping, `useCurrencyPreferences(currencyOverride?)`, `withMoneyPrecision` + calc callers |
+| C. EMI surfaces ✅       | Card, details, schedule, repayment, splits, scenarios, PDF / Excel use the EMI's currency                           |
+| D. EMI form ✅           | Currency picker, relabel confirmation                                                                               |
+| E. Dashboard ✅          | Group-by-currency stats + switcher; filter range currency                                                           |
+| F. Exports + settings ✅ | JSON `totalsByCurrency`; Account Settings warning text                                                              |
 
 ## 6. Risks
 
@@ -146,3 +146,21 @@ The store-synced global stays as the fallback for anything not tied to one EMI.
 - **Shared EMIs.** A viewer sees the owner's EMI in its own currency, which is
   correct and is what this fixes. Their dashboard groups it with their own
   EMIs of the same currency.
+
+## 7. As built — deviations and notes
+
+- **Calc precision per EMI:** instead of callers wrapping calls, the calc
+  entry points wrap themselves in `withMoneyPrecision(emi.currency, ...)`
+  (`calculateEMI`, `normalizeEmiFinancials`, `getRepaymentProgress`,
+  `getParticipantRepaymentBreakdown`, `calculateForeclosureScenario`,
+  `buildExportedEmi`). `RepaymentProgress` carries its `currency` so
+  `prorateRepaymentProgress` rounds the same way.
+- **Dashboard selection** is local state in `useAdvancedFilter` (not Redux):
+  only the dashboard reads it, and the filter panel gets it as a prop.
+- **JSON export** moved to `schemaVersion: 2`: `summary` became
+  `summaryByCurrency`.
+- **Leftover:** the legacy `useStats` hook still sums across currencies. It is
+  only a fallback inside `StatsSection` and is unreachable from the dashboard
+  (Home always passes grouped stats); remove it rather than fix it.
+- **Sorting** by balance / principal / EMI still orders raw numbers across
+  currencies; sorting is not a total, so it was left alone.

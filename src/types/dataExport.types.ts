@@ -8,7 +8,8 @@ import type { RepaymentProgress } from '@/utils/emiRepayment.calc';
  * Bump when a consumer would read an existing field differently. Adding a field
  * is not a break; changing what one means is.
  */
-export const DATA_EXPORT_SCHEMA_VERSION = 1;
+/** 2: per-EMI `currency`; `summary` became `summaryByCurrency` (amounts never summed across currencies). */
+export const DATA_EXPORT_SCHEMA_VERSION = 2;
 
 export type DataExportScope = 'all' | 'emi';
 
@@ -87,6 +88,8 @@ export interface ExportedShare {
 export interface ExportedEmi {
     id: string;
     itemName: string;
+    /** ISO 4217 code every amount in this node is in. */
+    currency: string;
     tag: string | null;
     notes: string | null;
     isCompleted: boolean;
@@ -210,7 +213,8 @@ export interface DataExportDocument {
     account: ExportedAccount;
     /** Field semantics that are not self-evident, for whoever reads this file. */
     glossary: Record<string, string>;
-    summary: DataExportSummary;
+    /** One summary per currency, keyed by ISO code. Amounts are never added across currencies. */
+    summaryByCurrency: Record<string, DataExportSummary>;
     emis: ExportedEmi[];
     /** Omitted on a single-EMI export. */
     creditCards?: ExportedCreditCards;

@@ -7,10 +7,11 @@
 
 ## Current Status
 
-**Last completed (currency formatting, phase 6):** KWD, BHD and OMR are
-offered with full 3-decimal support: money columns widened, calc rounding
-follows the account currency. All six phases of the currency plan are
-done.
+**Last completed (per-EMI currency):** Each EMI now carries its own
+currency (existing ones were stamped with the owner's account currency). EMI
+screens and exports use it, the EMI form has a currency picker, and the
+dashboard shows stats per currency with a switcher. Plan:
+`context/plan/per-emi-currency-plan.md`.
 
 **Previously (card pages + credit-limit utilisation):** Added
 `/credit-cards/cards` and `/credit-cards/cards/:id`, a dated credit-limit
@@ -642,6 +643,39 @@ Pre-commit review of the module above. App-code only, no schema change.
 - `AmountInput` shows the shortcuts as its hover title. Grid cells get it
   for free through the shared parser.
 - **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`.
+
+### Per-EMI currency (phases A–F)
+
+- **Schema:** `supabase_emis_currency.sql`, applied and verified
+  2026-10-12 (36 EMIs, all INR, each matching its owner).
+    - `emis.currency` is `NOT NULL` with an ISO check
+    - Existing rows were filled from the owner's account currency
+    - A `BEFORE INSERT` trigger defaults a missing currency the same way
+- **Plumbing:** `IEmi.currency`; the service writes it on insert, update
+  and the bulk upsert; `useCurrencyPreferences(currencyOverride)`.
+    - The calc entry points wrap themselves in
+      `withMoneyPrecision(emi.currency)`, so a KWD loan rounds at 3 decimals
+      inside an INR account
+- **EMI screens:** details, schedule, repayment card, splits, scenarios,
+  EMI cards and the PDF / Excel exports use the loan's currency; the number
+  style stays the account's.
+- **EMI form:** currency picker, defaulting to the account currency.
+  Editing an existing EMI's currency asks for confirmation (relabel, not
+  convert).
+- **Dashboard:** with 2+ currencies, a switcher shows one currency's stats
+  at a time.
+    - The default tab is the account currency, else the largest group
+    - Logic in `modules/filter/currencyGroups.ts` (+ test)
+    - The amount-range filter applies in the selected currency
+      (`filterEmis.test.ts`)
+- **JSON export:** `schemaVersion: 2`, `currency` on each EMI, and
+  `summaryByCurrency` replaces `summary`.
+- **Account Settings:** the currency change now reads "Make X your
+  default?"; existing EMIs keep their own currency.
+- **Leftover:** the legacy `useStats` hook still sums across currencies,
+  but it is unreachable from the dashboard. Remove it in a cleanup.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (297 passing). **Not yet checked in a browser.**
 
 ---
 
