@@ -7,9 +7,10 @@
 
 ## Current Status
 
-**Last completed (currency formatting, phase 3):** Every amount input now
-reads the user's number style (`1,25,000`, `1.234,56`, pasted `₹1,25,000`),
-form money fields show the currency symbol, and the hard-coded `₹` is gone.
+**Last completed (currency formatting, phase 4):** Excel and PDF exports
+handle every registry currency: Excel number formats follow the symbol,
+decimals and grouping (including lakh), and PDF amounts never use a glyph
+the font lacks.
 Plan: `context/plan/currency-and-number-formatting-plan.md`. See the
 entries below.
 
@@ -547,6 +548,30 @@ Pre-commit review of the module above. App-code only, no schema change.
   (253 passing). **Not yet checked in a browser.**
 - **Next:** phase 4 (exports): Excel number formats for every currency,
   Indian grouping in Excel, PDF glyph check.
+
+### Currency & number formatting — phase 4 (exports)
+
+- **Excel:** `buildExcelCurrencyNumFmt` (`export/excel/excelNumFmt.ts`,
+    - test) replaces the 4-currency symbol map:
+    * symbol placed before or after the number, with the locale's spacing
+      (`"Rp "#,##0`, `#,##0.00" €"`)
+    * decimals from the currency (JPY / IDR get none)
+    * Indian-style locales get lakh/crore grouping through conditional
+      sections (`[>=10000000]…;[>=100000]…;…`)
+    * Known limit: Excel sends negatives to the last section, so an amount
+      of −1 lakh or less shows Western grouping. Amortization figures are
+      never negative.
+- **PDF:** audited NotoSans with fontkit against all 654 currency × style
+  × mode outputs. Only two glyphs are missing: U+2212 (the sv-SE / nb-NO
+  minus) and `฿` (THB outside `en-TH`). The PDF `fmt` now maps U+2212 to a
+  hyphen and falls back to the ISO code when a symbol can't be drawn.
+    - `formatCurrencyAmount` gained an optional `currencyDisplay: 'code'`
+    - `pdf/templates/shared.test.ts` pins the whole matrix
+- JSON export unchanged (already carries the currency code).
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
+  (263 passing). A sample workbook was generated for a manual look in
+  Excel; not opened programmatically.
+- Commit `2d6ef9e`.
 
 ---
 

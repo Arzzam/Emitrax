@@ -2,7 +2,7 @@
 
 **Project:** Emitrax
 **Scope:** A wider currency list, number formatting driven by currency + locale, and the input/export paths that bypass the formatter today
-**Status:** Phases 1-3 shipped; phases 4-5 proposed, phase 6 deferred
+**Status:** Phases 1-4 shipped; phase 5 proposed, phase 6 deferred
 **Target:** `src/utils/numberFormat.ts`, account settings (`/account`), amount inputs, Excel/PDF export
 
 ---
@@ -151,8 +151,17 @@ grouping; a lone foreign separator that is not valid grouping is a decimal
 (`1234.5` in de-DE, `12,5` in en-US); anything else (`12,345.67` in de-DE)
 is refused. Grid cells keep commit-on-blur and get no symbol adornment -
 the column already says what it holds.
-  excelNumFmt.ts           [P4] buildExcelCurrencyNumFmt(currency, locale)
+src/utils/export/excel/excelNumFmt.ts
+                           [P4] buildExcelCurrencyNumFmt({ currency, locale })
+src/utils/export/pdf/templates/shared.ts
+                           [P4] fmt: PDF-safe amounts (U+2212 -> '-', ISO code when the
+                                symbol has no NotoSans glyph)
 ```
+
+PDF glyph audit (fontkit against NotoSans Regular + Bold, every currency x
+number style x mode, 654 outputs): only U+2212 (sv-SE / nb-NO minus) and
+U+0E3F (baht, with non-en-TH locales) were missing. Both are handled in `fmt`
+and pinned by `pdf/templates/shared.test.ts`.
 
 - `useCurrencyPreferences()` gains `currencySymbol`, `fractionDigits`,
   `parseAmount` and `formatPercent`. Components read it from the hook, never
@@ -208,7 +217,7 @@ Each phase ships on its own and passes `yarn lint && yarn build && yarn test`.
 | 1. Formatter core ✅               | Registry, cached formatter, Intl-derived decimals, hand-built `compact_long`, `getCurrencyMeta`, tests across the §4 matrix, delete `formatAmount`                                                    | B1, B2, B6, B7 |
 | 2. Settings UI + defaults ✅       | Searchable currency combobox, number-style picker with samples, currency→locale auto-link, live preview, relabel warning, corrected option labels, browser-detected defaults saved on first bootstrap | —              |
 | 3. Inputs ✅                       | `parseLocaleAmount`, swap it into the five editors, input adornment, format-on-blur, remove hard-coded `₹`                                                                                            | B3, B5         |
-| 4. Exports                         | `buildExcelCurrencyNumFmt`, sample PDF export for every §4 currency to verify glyphs, JSON export unchanged (already carries the code)                                                                | B4             |
+| 4. Exports ✅                      | `buildExcelCurrencyNumFmt`, sample PDF export for every §4 currency to verify glyphs, JSON export unchanged (already carries the code)                                                                | B4             |
 | 5. Regional wording + polish       | `taxLabel` in the registry, the GST field under "Additional charges" for non-INR, region-aware labels in the EMI form, details and exports; `formatPercent` across ~15 sites; compact hover titles    | B8             |
 | 6. 3-decimal currencies (deferred) | Hand-run migration widening money columns to `numeric(14,3)` (forward-only, existing values unchanged), currency-aware `roundMoney` in the calc modules, then add KWD / BHD / OMR to the registry     | —              |
 
