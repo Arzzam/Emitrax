@@ -1,3 +1,5 @@
+import type { NumberFormatMode } from '@/types/account.types';
+
 export interface IEmiShare {
     id: string;
     emiId: string;
@@ -87,4 +89,49 @@ export interface ScheduleData {
     principalPaid: string;
     balance: string;
     gst: number;
+}
+
+/** A public read-only link to one EMI. See context/plan/emi-public-share-link-plan.md. */
+export interface IEmiShareLink {
+    id: string;
+    emiId: string;
+    token: string;
+    createdAt: string;
+}
+
+/** The fields get_public_emi() exposes - an allow-list, never the whole row. */
+export type PublicEmiData = Pick<
+    IEmi,
+    | 'id'
+    | 'itemName'
+    | 'currency'
+    | 'principal'
+    | 'interestRate'
+    | 'interestDiscount'
+    | 'interestDiscountType'
+    | 'tenure'
+    | 'billDate'
+    | 'endDate'
+    | 'emi'
+    | 'totalLoan'
+    | 'totalInterest'
+    | 'gst'
+    | 'totalGST'
+    | 'processingFee'
+    | 'processingFeeGst'
+    | 'totalPaidEMIs'
+    | 'remainingBalance'
+    | 'remainingTenure'
+    | 'isCompleted'
+    | 'tag'
+    | 'amortizationSchedules'
+>;
+
+export interface IPublicEmi {
+    emi: PublicEmiData;
+    /** The owner's number style, so the viewer sees the figures as the owner does. */
+    format: {
+        locale: string;
+        numberFormat: NumberFormatMode;
+    };
 }

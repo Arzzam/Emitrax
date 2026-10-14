@@ -677,6 +677,31 @@ Pre-commit review of the module above. App-code only, no schema change.
 - **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test`
   (297 passing). **Not yet checked in a browser.**
 
+### EMI public share link (phases A–D)
+
+- Read-only, no-login link to one EMI's details + schedule. Plan:
+  `context/plan/emi-public-share-link-plan.md`.
+- **Schema:** `supabase_emi_public_share_links.sql`, applied 2026-10-14.
+  Verified: 4 owner-only policies, token trigger, `get_public_emi` grants.
+  As `anon` over the REST API, a bogus token returns `null` and
+  `emis` / `emiShareLinks` return `[]`.
+- **Data layer:** `emiShareLinks` + `get_public_emi` types,
+  `EmiShareLinkService`, `useEmiShareLinks` (`emiShareLinkKeys` factory;
+  `usePublicEmi` is not gated on a user).
+- **Public page:** `/s/:token` (`PublicEMI.tsx`), outside the shell.
+  Figures come from the same calc as EMI details. The page wraps itself
+  in `NumberStyleProvider` so `useCurrencyPreferences` uses the owner's
+  number style.
+- **Owner UI:** `PublicLinkCard` on `/emi/:id/share` (Create / Copy /
+  Revoke with confirm).
+- **Refactor:** the schedule table moved out of `AmortizationSchedule.tsx`
+  into `components/emi/AmortizationTable.tsx`, shared by both pages.
+- **Verified:** `yarn lint` (0 errors), `yarn build`, `yarn test` (297
+  passing). Checked end to end in a browser 2026-10-14: create, copy,
+  open logged-out, revoke.
+- **Deferred:** per-link Open Graph previews (needs a Vercel edge
+  function).
+
 ---
 
 ## Open Questions

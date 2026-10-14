@@ -23,6 +23,7 @@ Auth is **Google OAuth only**. The hash-fragment token is exchanged at
 
 ```
 /auth/callback              (outside the shell)
+/s/:token                   Public read-only EMI (outside the shell, no login)
 /                           Dashboard
 /account                    Account preferences
 /credit-cards               Credit card trackers
@@ -36,7 +37,7 @@ Auth is **Google OAuth only**. The hash-fragment token is exchanged at
 *                           Not found
 ```
 
-Everything except `/auth/callback` renders inside `src/layout/Layout.tsx`:
+Everything except `/auth/callback` and `/s/:token` renders inside `src/layout/Layout.tsx`:
 
 ```
 PageTitleProvider
@@ -132,6 +133,7 @@ every schema change must be mirrored there by hand.
 | `amortizationSchedules`                       | Per-month rows for one EMI                      |
 | `emiShares`                                   | Access grants (read / write)                    |
 | `emiSplits`                                   | Ownership percentages, registered or name-only  |
+| `emiShareLinks`                               | Public read-only link tokens, one live per EMI  |
 | `loan_scenarios` + `loan_scenario_breakdowns` | Foreclosure what-ifs                            |
 | `user_profiles`                               | Public-safe lookup for email → user             |
 | `user_account_preferences`                    | Currency, number format, filter + export config |
@@ -178,6 +180,12 @@ AND EXISTS (
 Without it a user could attach a row to another user's card and pollute
 that user's totals. This is not theoretical — the aggregates are the
 whole product.
+
+**Public share links are the one anonymous path.** `anon` has no table
+access anywhere. It can call exactly one `SECURITY DEFINER` function,
+`get_public_emi(token)`, which validates an `emiShareLinks` token and
+returns an allow-listed JSON payload (never whole rows). Any new anonymous
+read follows this pattern: a function, not an `anon` policy.
 
 `emis` and its children are the exception: they use a `SECURITY DEFINER`
 helper `check_emi_ownership()` plus `emiShares` lookups, because access

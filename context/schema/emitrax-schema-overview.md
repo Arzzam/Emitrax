@@ -69,6 +69,20 @@ helper that avoids RLS recursion. EMI-family policies read
 `"userId" = auth.uid() OR EXISTS (... emiShares ...)`. Delete stays
 owner-only.
 
+### `emiShareLinks` — `supabase_emi_public_share_links.sql`
+
+Public read-only links. `"emiId"` → `emis` CASCADE, `token` (UNIQUE),
+`"createdBy"`, `"createdAt"`, `"revokedAt"` (nullable). A partial unique
+index allows one live (`"revokedAt" IS NULL`) link per EMI.
+
+- Trigger `set_emi_share_link_token()` generates a 192-bit base64url
+  token on insert and freezes `token`/`emiId`/`createdBy`/`createdAt`
+  on update, so only `revokedAt` can change
+- RLS is owner-only via `check_emi_ownership`
+- `get_public_emi(p_token)` (`SECURITY DEFINER`, `EXECUTE` to `anon`)
+  returns `{ emi, schedule, format }`, or `NULL` for an unknown or revoked
+  token. It omits `userId`, `notes`, splits, shares and scenarios.
+
 ### `emiSplits` — `supabase_emi_splits_schema.sql`
 
 Ownership percentages. `"emiId"`, `"userId"` (nullable),
