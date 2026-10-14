@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 
+import { useNumberStyleOverride } from '@/context/NumberStyleProvider/numberStyleProvider';
 import { IRootState } from '@/store/types/store.types';
 import { getTaxLabels } from '@/utils/currencyRegistry';
 import {
@@ -16,11 +17,12 @@ import { formatAmountForInput, parseLocaleAmount } from '@/utils/parseAmount';
  * and updated when account settings are saved.
  */
 export function useCurrencyPreferences(currencyOverride?: string | null) {
-    const {
-        locale,
-        currency: accountCurrency,
-        numberFormat,
-    } = useSelector((state: IRootState) => state.currencyPreferencesModel);
+    const stored = useSelector((state: IRootState) => state.currencyPreferencesModel);
+    // A NumberStyleProvider (the public share page) replaces the stored style.
+    const styleOverride = useNumberStyleOverride();
+    const accountCurrency = stored.currency;
+    const locale = styleOverride?.locale ?? stored.locale;
+    const numberFormat = styleOverride?.numberFormat ?? stored.numberFormat;
     // An EMI-scoped screen passes the loan's own currency: it decides the
     // symbol, decimals and tax label. The number style stays the account's.
     const currency = currencyOverride || accountCurrency;

@@ -13,6 +13,7 @@ const AmortizationSchedule = lazy(() => import('@/router/pages/AmortizationSched
 const ShareEMI = lazy(() => import('@/router/pages/ShareEMI'));
 const SplitEMI = lazy(() => import('@/router/pages/SplitEMI'));
 const EMIScenarios = lazy(() => import('@/router/pages/EMIScenarios'));
+const PublicEMI = lazy(() => import('@/router/pages/PublicEMI'));
 const NotFoundPage = lazy(() => import('@/router/pages/NotFoundPage'));
 const OAuth = lazy(() => import('@/router/pages/OAuthRoute').then((module) => ({ default: module.OAuth })));
 
@@ -26,6 +27,8 @@ const HomeRouter = () => {
             <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
                     <Route path="/auth/callback" element={<OAuth />} />
+                    {/* Public, no login: outside the shell so nothing bootstraps an account. */}
+                    <Route path="/s/:token" element={<PublicEMI />} />
                     <Route path="/" element={<Layout />}>
                         <Route index element={<Home />} />
                         <Route path="/settings" element={<Settings />} />

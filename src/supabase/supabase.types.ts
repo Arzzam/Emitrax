@@ -491,6 +491,42 @@ export type Database = {
                     },
                 ];
             };
+            emiShareLinks: {
+                Row: {
+                    createdAt: string;
+                    createdBy: string;
+                    emiId: string;
+                    id: string;
+                    revokedAt: string | null;
+                    token: string;
+                };
+                Insert: {
+                    createdAt?: string;
+                    createdBy: string;
+                    emiId: string;
+                    id?: string;
+                    revokedAt?: string | null;
+                    /** Ignored: a trigger always generates the token. */
+                    token?: string;
+                };
+                Update: {
+                    createdAt?: string;
+                    createdBy?: string;
+                    emiId?: string;
+                    id?: string;
+                    revokedAt?: string | null;
+                    token?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'emiShareLinks_emiid_fkey';
+                        columns: ['emiId'];
+                        isOneToOne: false;
+                        referencedRelation: 'emis';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             emiSplits: {
                 Row: {
                     createdAt: string | null;
@@ -774,6 +810,7 @@ export type Database = {
                 Args: { emi_id: string; user_id: string };
                 Returns: boolean;
             };
+            get_public_emi: { Args: { p_token: string }; Returns: Json | null };
             get_user_id_by_email: { Args: { user_email: string }; Returns: string };
             validate_splits_total: { Args: { emi_id: string }; Returns: boolean };
         };

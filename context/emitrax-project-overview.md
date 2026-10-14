@@ -73,7 +73,10 @@ Read off `src/router/HomeRouter.tsx` and the components under `src/`.
 
 ### 4.3 Sharing
 
-Share an EMI with another Emitrax user, read-only or read-write.
+Share an EMI with another Emitrax user, read-only or read-write. Or
+create a public link (`/s/:token`) that shows the EMI's details and
+amortization schedule to anyone, without login, until the owner revokes
+it.
 Access is enforced in RLS via an `emiShares` table.
 
 ### 4.4 Splitting

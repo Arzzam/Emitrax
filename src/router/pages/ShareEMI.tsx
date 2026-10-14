@@ -12,6 +12,7 @@ import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
+import PublicLinkCard from '@/components/emi/PublicLinkCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -184,6 +185,8 @@ const ShareEMI = () => {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {id && <PublicLinkCard emiId={id} />}
 
                     <Card>
                         <CardHeader>
