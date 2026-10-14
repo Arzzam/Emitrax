@@ -2,23 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { usePageTitle } from '@/context/PageTitleProvider/pageTitleProvider';
-import { useCurrencyPreferences } from '@/hooks/useCurrencyPreferences';
 import { useEmis } from '@/hooks/useEmi';
 import { IEmi } from '@/types/emi.types';
-import { getFormattedDate } from '@/utils/utils';
 
 import BreadcrumbContainer from '@/components/common/BreadcrumbContainer';
 import MainContainer from '@/components/common/Container';
 import LoadingDetails from '@/components/common/LoadingDetails';
 import NotFound from '@/components/common/NotFound';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AmortizationTable from '@/components/emi/AmortizationTable';
 
 const AmortizationSchedule = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { data, isFetching } = useEmis();
     const currentData = useMemo(() => data?.find((emi: IEmi) => emi.id === id) || null, [data, id]);
-    const { formatCurrencyAmount, taxLabels } = useCurrencyPreferences(currentData?.currency);
     const { amortizationSchedules } = currentData || {};
     const [notFound, setNotFound] = useState(false);
 
@@ -45,7 +42,7 @@ const AmortizationSchedule = () => {
         );
     }
 
-    if (notFound || !amortizationSchedules) {
+    if (notFound || !currentData || !amortizationSchedules) {
         return (
             <NotFound
                 title="Amortization Schedule"
@@ -53,21 +50,6 @@ const AmortizationSchedule = () => {
             />
         );
     }
-
-    const today = new Date();
-    const isSameMonth = (d: Date) => d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
-
-    // Totals (computed defensively)
-    const totals = amortizationSchedules.reduce(
-        (acc, r) => {
-            acc.emi += Number(r.emi) || 0;
-            acc.interest += Number(r.interest) || 0;
-            acc.principal += Number(r.principalPaid) || 0;
-            acc.gst += Number(r.gst) || 0;
-            return acc;
-        },
-        { emi: 0, interest: 0, principal: 0, gst: 0 }
-    );
 
     return (
         <>
@@ -82,62 +64,7 @@ const AmortizationSchedule = () => {
             <MainContainer>
                 <h3 className="text-lg font-bold pl-2">Amortization Schedule</h3>
                 <div className="p-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Month</TableHead>
-                                <TableHead>Bill Date</TableHead>
-                                <TableHead>EMI</TableHead>
-                                <TableHead>Interest</TableHead>
-                                <TableHead>Principal Paid</TableHead>
-                                <TableHead>Balance</TableHead>
-                                <TableHead>{taxLabels.label}</TableHead>
-                                <TableHead>Total with {taxLabels.inline}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {amortizationSchedules.map((item, idx) => {
-                                const bill = new Date(item.billDate);
-                                const isCurrent = isSameMonth(bill);
-                                return (
-                                    <TableRow
-                                        key={item.month ?? idx}
-                                        className={`tabular-nums ${
-                                            isCurrent
-                                                ? 'bg-primary/5 hover:bg-primary/10'
-                                                : idx % 2 === 0
-                                                  ? 'bg-muted/30'
-                                                  : ''
-                                        }`}
-                                    >
-                                        <TableCell>{item.month}</TableCell>
-                                        <TableCell className="whitespace-nowrap">
-                                            {getFormattedDate(item.billDate)}
-                                        </TableCell>
-                                        <TableCell>{formatCurrencyAmount(Number(item.emi))}</TableCell>
-                                        <TableCell>{formatCurrencyAmount(Number(item.interest))}</TableCell>
-                                        <TableCell>{formatCurrencyAmount(Number(item.principalPaid))}</TableCell>
-                                        <TableCell>{formatCurrencyAmount(Number(item.balance))}</TableCell>
-                                        <TableCell>{formatCurrencyAmount(item.gst)}</TableCell>
-                                        <TableCell>
-                                            {formatCurrencyAmount(Number(item.emi) + Number(item.gst))}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-
-                            {/* Totals row */}
-                            <TableRow className="font-semibold">
-                                <TableCell colSpan={2}>Totals</TableCell>
-                                <TableCell>{formatCurrencyAmount(totals.emi)}</TableCell>
-                                <TableCell>{formatCurrencyAmount(totals.interest)}</TableCell>
-                                <TableCell>{formatCurrencyAmount(totals.principal)}</TableCell>
-                                <TableCell>—</TableCell>
-                                <TableCell>{formatCurrencyAmount(totals.gst)}</TableCell>
-                                <TableCell>{formatCurrencyAmount(totals.emi + totals.gst)}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                    <AmortizationTable schedules={amortizationSchedules} currency={currentData.currency} />
                 </div>
             </MainContainer>
         </>
